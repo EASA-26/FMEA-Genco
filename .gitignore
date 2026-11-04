@@ -20,3 +20,6 @@ test-output/
 *.csv
 FMEA_Report_*.pdf
 !backend/tests/fixtures/SYNTHETIC_*.xlsx
+
+# Local Claude Code hooks (auto-commit script and its leak-guard term list)
+.claude/hooks/
