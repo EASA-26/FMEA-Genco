@@ -1,0 +1,1209 @@
+# FMEA Report Generator
+
+A web app that turns an engineer's FMEA workbook (Excel) into the
+**Failure Mode Effect Analysis (FMEA) Report** PDF. You upload the workbook,
+check what the app read from it, preview the report and download the PDF. On
+your own Windows computer you can also open the PDF in a new Outlook email.
+
+The app is **one-time use**. There is no database: the workbook is read in
+memory and never saved, and the report, preview and PDF only last while you
+have the page open (see [One-time use](#one-time-use)).
+
+Accurate reading and counting is the main goal. The app never makes up data or
+drops it without telling you, and it never counts a row twice. When something
+in the workbook looks wrong, you get a plain-language message that names the
+sheet, row and cell.
+
+All examples in this document are SYNTHETIC (made up). None of them come from a
+real station, person or plant record.
+
+---
+
+## Contents
+
+1. [What the app does](#what-the-app-does)
+2. [Features](#features)
+3. [Project structure](#project-structure)
+4. [Prerequisites](#prerequisites)
+5. [Local setup](#local-setup)
+6. [Development mode](#development-mode)
+7. [Running tests](#running-tests)
+8. [How the workbook is read](#how-the-workbook-is-read)
+9. [How the numbers are calculated](#how-the-numbers-are-calculated)
+10. [Checks and messages](#checks-and-messages)
+11. [The PDF](#the-pdf)
+12. [Emailing the PDF (Outlook)](#emailing-the-pdf-outlook)
+13. [Changing the workbook layout](#changing-the-workbook-layout)
+14. [Deploying to Databricks Apps](#deploying-to-databricks-apps)
+15. [Security notes](#security-notes)
+16. [Known limitations](#known-limitations)
+
+---
+
+## What the app does
+
+```
+Sign in  ->  Upload Excel  ->  Review Data  ->  Preview Report  ->  Export PDF
+```
+
+1. **Upload Excel.** Drop an `.xlsx` or `.xlsm` workbook on the page, or browse
+   for one.
+2. **Review Data.** The app reads the workbook and shows:
+   - the data checks (problems that must be fixed, things worth checking, and
+     information);
+   - the front page;
+   - the Introduction tables;
+   - each UOIR's analysis table and summary;
+   - the recommendations.
+3. **Preview Report.** The finished PDF is shown inside the page.
+4. **Export PDF.** The same PDF is downloaded with a standard file name. When
+   the app runs on your own Windows computer, **Email the PDF** can also open a
+   new Outlook email with the PDF attached (see
+   [Emailing the PDF](#emailing-the-pdf-outlook)).
+
+There is **no intermediate working file**. The upload is read in memory and
+turned straight into report data. The review screens, the preview and the PDF
+all come from that same data, so they always agree. Nothing is saved to disk
+(the one exception is the short-lived copy of the PDF that **Email the PDF**
+hands to Outlook and deletes straight after) and nothing is written back to
+your workbook. To change the report, fix the workbook in Excel and upload it
+again.
+
+### One-time use
+
+The app keeps nothing between visits. There is no database and no file store.
+
+- The workbook you upload is read in memory only and **never saved**, on the
+  server or anywhere else.
+- The report, the preview and the PDF exist only for the **current page visit**
+  while you are signed in. Moving between the app's own steps (Upload, Data
+  Checks, the review sections, Preview, Export) keeps them.
+- They are **discarded**, on the server too, when you:
+  - sign out;
+  - refresh the page;
+  - close the tab or the browser;
+  - go to another site;
+  - open the app in another tab of the same browser (the new tab starts
+    empty and closes the workbook of the first one).
+- Every visit starts on **Upload** with nothing open. To carry on later, upload
+  the workbook again. The **Remove** button on the Upload step discards it
+  straight away.
+- If you press **Cancel** or leave the page while the workbook is still being
+  read, nothing from that upload is kept.
+- Closing another tab of the app that has no workbook open does not close the
+  workbook you are working on.
+- If a step finds that the workbook is gone (for example after you opened the
+  app in another tab), the app returns to Upload with the message "This
+  workbook is no longer open. It is closed when you sign out, refresh or leave
+  the page, or open the app in another tab. Upload it again to continue."
+- Download the PDF (or email it) before you leave the page. Once it is
+  downloaded, the copy in your Downloads folder is yours to keep.
+
+### Report structure
+
+| # | Section | Page | Content |
+|---|---|---|---|
+| 1 | Cover | A4 portrait | "Failure Mode Effect Analysis (FMEA) Report", Station, Date of Analysis, blank PREPARED BY / APPROVED BY boxes |
+| 2 | Introduction | A4 portrait | Failure Details table (one row per UOIR sheet row) and Team Members table |
+| 3 | Analysis: FMEA Analysis (one per UOIR) | A3 landscape | UOIR ID, Title, any notes, then the full analysis table exactly as in the tab |
+| 4 | Analysis: FMEA Summary (one per UOIR) | A4 portrait | Failure Mode / Maintenance Task / Task Executed cards, the Existing vs Revised pie and table, and the Work-Centre Execution table |
+| 5 | Recommendation | A4 portrait | For each UOIR, one table per KKS: Failure Mode, Task, Frequency |
+
+Sections 3 and 4 repeat for every UOIR, in the order they are listed on the
+UOIR sheet.
+
+---
+
+## Features
+
+- Upload by drag and drop or file browser. The browser checks the file type and
+  size before sending it (it rejects `.xls` files, empty files and `~$` Excel
+  lock files).
+- Reads the Team Member, UOIR and analysis sheets. The analysis tabs are linked
+  to the UOIR list by UOIR ID.
+- Every check has a plain-language message with the sheet, row, column and
+  cell. Errors block the preview and export; warnings and information do not.
+  A **Show in table** button jumps to the row in question.
+- Review screens for the Front Page, Introduction, Analysis and Recommendation:
+  - the analysis table has a sticky header, horizontal scrolling, merged cells,
+    and an extra "Row" column holding the Excel row number;
+  - the summary uses the same colours as the PDF;
+  - Recommendation has **New Task = Yes**, **New Task = No** and (only when
+    needed) **New Task not set** filter tabs.
+- A PDF preview inside the page, and a one-click export with a standard file
+  name.
+- Optional **Email the PDF** (local Windows with classic Outlook): opens a new
+  Outlook email with the PDF attached and the recipients you typed. You check
+  it and press Send in Outlook; the app never sends email itself.
+- Counts follow fixed, documented rules: exact duplicate rows are counted once,
+  non-breaking spaces count as blank, and merged cells are handled safely.
+- The PDF has selectable text and embedded fonts, repeats table headers on
+  every page, and splits tall rows and merged blocks cleanly.
+- Two sign-in modes:
+  - `local`: one username and password;
+  - `databricks`: no login page; the user is identified by Databricks Apps.
+- One-time use with no database: uploads, reports and PDFs are kept in memory
+  for the current page visit only and never saved. (The only file ever written
+  is a short-lived copy of the PDF for Outlook to attach; it is deleted right
+  after.)
+- A mock mode for frontend work with SYNTHETIC data and no backend.
+
+---
+
+## Project structure
+
+```
+app.py                      Starts the web server (reads HOST / PORT / DATABRICKS_APP_PORT)
+start-app.bat               Windows: double-click to (re)start the app and open it in the browser
+app.yaml                    Databricks Apps configuration (not used locally)
+requirements.txt            Runtime Python packages (pinned)
+requirements-dev.txt        Test-only packages (pytest, httpx, PyMuPDF)
+.env.example                Local settings template; copy to .env
+pytest.ini                  Test settings
+backend/
+  settings.py               Settings from environment variables / .env
+  config/mapping.py         Every sheet name, cell, header, code, strategy name and colour
+  excel/reader.py           Opens the workbook in memory; cell text, merged cells, formulas
+  excel/linking.py          Links "UOIR ID <id> - ..." tabs to the UOIR list
+  report/models.py          The Report data model shared by API, screens and PDF
+  report/builder.py         build_report(): reads the sheets and runs every check
+  report/summary.py         Counts, pie percentages, work centres, recommendations
+  report/formatting.py      Dates, PDF file name, message helpers
+  pdf/                      render_pdf(): cover, tables, pie chart, page layout (ReportLab)
+  auth/                     Password hashing, sign-in rules, session cookie
+  sessions/store.py         In-memory session store (report and cached PDF per session)
+  api/                      Web endpoints (/api/...) and the in-memory upload reader
+  mail/outlook.py           "Email the PDF": opens a new classic-Outlook email (Windows only)
+  main.py                   Builds the FastAPI app, security headers, serves frontend/dist
+  assets/                   Liberation Sans fonts and the logo used in the PDF
+  tests/                    Automated tests (pytest)
+frontend/
+  src/                      React app (screens, views, components, styles, API client)
+  src/mocks/                SYNTHETIC report and fake API for mock mode
+  dist/                     Built frontend served by the backend (created by npm run build)
+tools/
+  check_outlook_script.py   Windows: PowerShell's parser checks the Outlook script (never runs it)
+  hash_password.py          Prints an ADMIN_PASSWORD_HASH for a new password
+  make_synthetic_workbook.py  Builds SYNTHETIC test workbooks (edge, clean, sample-like)
+docs/CONTRACT.md            Detailed build contract (rules, API, PDF, frontend)
+design-preview/             The approved front-page design reference
+```
+
+---
+
+## Prerequisites
+
+- **Python 3.11 or later.** Databricks Apps runs Python 3.11, so the code keeps
+  to 3.11 syntax.
+- **Node.js 20.19+ or 22.12+ (with npm).** You only need it to build or change
+  the frontend. A built copy lives in `frontend/dist`. If that copy is up to
+  date, you can run the app without Node.
+- A modern browser (Edge, Chrome or Firefox) with a built-in PDF viewer for the
+  preview.
+
+---
+
+## Local setup
+
+Run all commands from the project root (the folder that holds `app.py`).
+
+### Windows (PowerShell)
+
+```powershell
+# 1. Create and activate a virtual environment
+py -3.11 -m venv .venv            # or: python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+# If PowerShell refuses to run the script, allow it for this window only:
+#   Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
+
+# 2. Install the Python packages
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+pip install -r requirements-dev.txt   # only needed to run the tests
+
+# 3. Create your local settings file
+Copy-Item .env.example .env
+
+# 4. Build the frontend (needs Node.js)
+cd frontend
+npm ci
+npm run build
+cd ..
+
+# 5. Start the app
+python app.py
+```
+
+### macOS / Linux
+
+```bash
+# 1. Create and activate a virtual environment
+python3.11 -m venv .venv          # or: python3 -m venv .venv
+source .venv/bin/activate
+
+# 2. Install the Python packages
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+pip install -r requirements-dev.txt   # only needed to run the tests
+
+# 3. Create your local settings file
+cp .env.example .env
+
+# 4. Build the frontend (needs Node.js)
+(cd frontend && npm ci && npm run build)
+
+# 5. Start the app
+python app.py
+```
+
+### Start or restart with one double-click (Windows)
+
+Day to day on Windows, double-click **`start-app.bat`** in the project folder
+instead of typing the commands above. It:
+
+1. uses `.venv` if it exists, otherwise the installed Python, and installs the
+   Python packages only when some are missing;
+2. rebuilds the frontend only when `frontend/dist` is missing or older than the
+   frontend source (this needs Node.js; without it the last build is used);
+3. stops the FMEA app if it is already running on the same port, so
+   double-clicking it again is also how you restart the app. Any other program
+   using that port is never stopped; the window names it instead;
+4. starts the app and opens it in your default browser once it answers.
+
+The window that opens is the server. Leave it open while you use the app, and
+close it (or press `Ctrl+C`) to stop the app.
+
+### Open the app and sign in
+
+1. Open **http://127.0.0.1:8000** in your browser.
+2. Sign in with the initial development account:
+   - username: `admin`
+   - password: `fmea26`
+
+The server log shows a warning while this built-in password is in use. **Change
+it before anyone else can reach the app.** To stop the server, press `Ctrl+C` in
+its terminal.
+
+### Change the password
+
+1. Create a hash for the new password. The tool asks for the password twice and
+   does not show it:
+
+   ```
+   python tools/hash_password.py
+   ```
+
+   It prints one line, for example:
+
+   ```
+   ADMIN_PASSWORD_HASH=scrypt$16384$8$1$<salt>$<key>
+   ```
+
+2. Paste that whole line into `.env`, replacing the commented-out
+   `# ADMIN_PASSWORD_HASH=...` line. No quotes are needed.
+3. Restart the app (`Ctrl+C`, then `python app.py`; or double-click
+   `start-app.bat`).
+
+Only the hash is stored, never the password itself. You can also change the
+username with `ADMIN_USERNAME`. If the hash is not valid, the server logs an
+error at startup and nobody can sign in.
+
+### Settings
+
+Settings come from environment variables. Locally they can also come from
+`.env`; a real environment variable wins over `.env`.
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `AUTH_MODE` | `local` | `local` = username/password sign-in. `databricks` = identity from the Databricks Apps proxy (use only on Databricks). |
+| `ADMIN_USERNAME` | `admin` | Sign-in name in `local` mode. |
+| `ADMIN_PASSWORD_HASH` | built-in development hash | scrypt hash from `tools/hash_password.py`. |
+| `SESSION_IDLE_MINUTES` | `60` | Sign a session out after this many idle minutes. |
+| `MAX_SESSIONS` | `200` | Most sessions kept in memory; the least recently used is dropped first. |
+| `MAX_UPLOAD_MB` | `20` | Largest workbook accepted by the server. |
+| `COOKIE_SECURE` | `false` | Send the session cookie over HTTPS only. Set `true` whenever the app is served over HTTPS. |
+| `SESSION_COOKIE_NAME` | `fmea_session` | Cookie name (letters, digits, `_`, `-`). An invalid name stops the app at startup. |
+| `HOST` | `127.0.0.1` | Network address. `127.0.0.1` = this computer only. |
+| `PORT` | `8000` | Port. `DATABRICKS_APP_PORT`, when set, takes priority. |
+| `LOG_LEVEL` | `info` | `debug`, `info`, `warning` or `error`. |
+| `OUTLOOK_EMAIL` | `auto` | **Email the PDF** through classic Outlook. `auto` = offered only when the app runs on this computer (Windows, `AUTH_MODE=local` and `HOST` = `127.0.0.1`, `localhost` or `::1`). `on` = always offered on Windows; Outlook opens on the computer running the server (a warning is logged when others can reach it). `off` = never offered. Any other value stops the app at startup. |
+| `FMEA_SAMPLE_WORKBOOK` | not set | Tests only: path to a workbook on your own machine for the opt-in smoke test (see [Running tests](#running-tests)). |
+
+---
+
+## Development mode
+
+### Backend and frontend together
+
+The Vite dev server reloads the page as soon as you edit a frontend file. It
+forwards every `/api` call to the backend at `http://127.0.0.1:8000`, so
+sign-in cookies work as they do in production.
+
+```powershell
+# Terminal 1 (project root, virtual environment active)
+python app.py                     # must listen on port 8000
+
+# Terminal 2
+cd frontend
+npm run dev                       # open the address it prints, usually http://localhost:5173
+```
+
+After frontend changes, run `npm run build` again so that `python app.py` on
+its own serves the new version.
+
+### Mock mode (no backend)
+
+```powershell
+cd frontend
+npm run dev:mock                  # loads frontend/.env.mock, which sets VITE_MOCK=1
+```
+
+Mock mode serves a SYNTHETIC report from `frontend/src/mocks/` and fakes every
+API call in the browser. It works only on the dev server; `npm run build` never
+includes the mocks. As in the real app, the report lives only in the page: a
+refresh starts again on Upload (only the mock sign-in is remembered). Useful
+switches (all listed at the top of `frontend/src/mocks/mockServer.js`):
+
+- `?mock_auth=databricks`: no sign-in page.
+- `?mock_signed_in=1`: start signed in.
+- `?mock_reset=1`: forget the remembered mock session.
+- `?mock_outlook=0`: Email the PDF is not available (as on a hosted server).
+- Sign in with any username. The password `wrong` gives the "incorrect" message
+  and `locked` gives the "too many attempts" message.
+- An upload whose file name contains `error` gives blocking errors, `broken`
+  gives an unreadable-file message, and `slow` takes longer.
+- Email the PDF: a recipient containing `outlook-fail` gives the "Outlook could
+  not open a new email" message, and `outlook-busy` the "still opening the
+  previous email" message. Nothing is ever sent or opened in mock mode.
+- In the browser console, `window.fmeaMock.expireSession()` ends the session
+  (back to sign-in), and `window.fmeaMock.closeWorkbook()` discards the report
+  as another tab would (the next preview, download or email shows the
+  "Workbook closed" message).
+
+---
+
+## Running tests
+
+```powershell
+pip install -r requirements-dev.txt
+python -m pytest                                        # whole suite
+python -m pytest backend/tests/test_summary_counts.py   # one file
+```
+
+The tests use only SYNTHETIC (made-up) data: workbooks built in memory by
+`tools/make_synthetic_workbook.py` and SYNTHETIC report objects. No engineer
+workbook is needed, and none is kept in the project. There are three workbook
+variants:
+
+- `edge`: the awkward cases (merged cells, non-breaking-space blanks, duplicate
+  rows, blocking errors and so on);
+- `clean`: a small workbook with no messages at all;
+- `sample`: a **sample-like** workbook with the sheets, layout and quirks of a
+  full engineer workbook but entirely invented content (station "SYNTHETIC
+  Station S9", UOIRs 712, 705 and 748). `backend/tests/test_excel_sample_workbook.py`
+  and `backend/tests/test_e2e_report_consistency.py` check its expected results,
+  through the parser, the API and the PDF. These tests always run.
+
+To save one of those workbooks for a manual try:
+
+```powershell
+python tools/make_synthetic_workbook.py --variant clean SYNTHETIC_clean.xlsx
+python tools/make_synthetic_workbook.py --variant edge SYNTHETIC_edge.xlsx
+python tools/make_synthetic_workbook.py --variant sample SYNTHETIC_sample.xlsx
+```
+
+The PDF tests use PyMuPDF to inspect the generated PDFs. PyMuPDF is licensed
+under AGPL, so it is a test-only package and is never deployed.
+
+### Optional: check a real workbook on your own machine
+
+`backend/tests/test_local_workbook_smoke.py` is an **opt-in** smoke test. It is
+skipped unless `FMEA_SAMPLE_WORKBOOK` points at a workbook file. The file is
+read where it is (never copied or saved), and the test checks only general
+things, never the workbook's values: it opens, has a station and at least one
+UOIR, gets a `FMEA_Report_....pdf` file name, can be exported exactly when there
+are no errors, and renders to a PDF.
+
+```powershell
+$env:FMEA_SAMPLE_WORKBOOK = "D:\FMEA\workbook.xlsx"      # PowerShell
+python -m pytest backend/tests/test_local_workbook_smoke.py
+```
+
+```bash
+FMEA_SAMPLE_WORKBOOK=/data/fmea/workbook.xlsx python -m pytest backend/tests/test_local_workbook_smoke.py
+```
+
+Never copy values from a real workbook into tests, fixtures or documents.
+
+### Email (Outlook) tests
+
+`backend/tests/test_mail_outlook.py` and `backend/tests/test_api_email.py` use a
+fake PowerShell runner, so the tests **never start PowerShell or Outlook**. On
+Windows, a separate tool asks PowerShell to check the script's syntax (it only
+parses the script and does not run it; Outlook is not started):
+
+```powershell
+python tools/check_outlook_script.py
+```
+
+---
+
+## How the workbook is read
+
+All of these rules live in `backend/config/mapping.py` (names, cells, headers,
+codes) and `backend/report/builder.py` (checks).
+
+### Mapping
+
+| Sheet | Cell or header | Used for |
+|---|---|---|
+| `Team Member` | `B2` | **Station**: cover, page header, PDF file name |
+| `Team Member` | `A2` (should contain "Station") | Layout check only |
+| `Team Member` | `B3` | **Date of Analysis**: cover, PDF file name. Must be an Excel date or a readable text date. |
+| `Team Member` | `A3` (should contain "Date of Analysis") | Layout check only |
+| `Team Member` | Header row with `No`, `Name`, `Staff No`, `Section` | **Team Members** table |
+| `UOIR` | Header row with `No`, `UOIR ID`, `Title`, `Date of fault`, `Date of UOIR`, `CA`, `PA`, `Equipment` | **Failure Details** table (shown as UOIR ID, Title, Faulty Date, UOIR ID Date, Corrective Action (CA), Preventive Action (PA), Equipment); the list of UOIRs; Equipment for recommendation headings |
+| `UOIR ID <id> - <title>` tabs | `B1` | Full UOIR title, compared with the UOIR sheet |
+| `UOIR ID <id> - <title>` tabs | Header row containing `Failure Mode` and `RecommendedStrategy` | The **FMEA Analysis** table: every column and row, as written |
+| analysis tab | `No.` | Row number only; ignored when deciding whether a row is blank or a duplicate |
+| analysis tab | `Failure Mode` | Failure Mode count, Recommendation table (must not be empty) |
+| analysis tab | `Failure Effect` | Must not be empty |
+| analysis tab | `RecommendedStrategy` | Strategy code: Maintenance Task count, Existing vs Revised, pie (must not be empty) |
+| analysis tab | `Task` | Recommendation table (must not be empty) |
+| analysis tab | `Frequency` | Recommendation table (may be empty) |
+| analysis tab | `Trade` | Work centre (must not be empty) |
+| analysis tab | `KKS` | Recommendation grouping (must not be empty) |
+| analysis tab | `New Task` | Yes/No: Existing/New, Task Executed, Executed/Pending |
+| analysis tab | any other column (for example H, S, E, O, 1, 2, 3, H4, H5, S4, Review task, Maintenance Plan No, Remark) | Shown in the analysis table only |
+| `Notifications`, `Sheet3` | (whole sheet) | Never opened |
+
+**Finding sheets.** Sheet names match with surrounding spaces and upper/lower
+case ignored. If `Team Member` or `UOIR` is missing, you get an error.
+
+**Finding header rows.** The app looks for each header row within the first
+**15 rows** of the sheet. Header names match with case, spaces and punctuation
+ignored, so `Staff No.`, `staff no` and `StaffNo` are all the same header, and
+so are `Recommended Strategy` and `RecommendedStrategy`. The report always
+shows the header exactly as it is written in the workbook.
+
+- **Team Member:** the header row needs `Name` and `Staff No`. `No` and
+  `Section` must also exist.
+- **UOIR sheet:** the header row needs `UOIR ID` and `Title`. The other six
+  columns must also exist.
+- **Analysis tab:** the header row needs `Failure Mode` and
+  `RecommendedStrategy`. Every column in the mapping table above must exist
+  except `No.`. The same mapped header must not appear twice.
+
+**Text dates.** A date typed as text is accepted in these forms: `15/06/2026`,
+`15-06-2026`, `15.06.2026`, `15-Jun-26`, `15-Jun-2026`, `15 June 2026`,
+`15 Jun 2026`, `2026-06-15`. Dates are shown as "15 June 2026". On the UOIR
+sheet, a date that can't be read is shown exactly as written, with a warning.
+
+**Numbers as text.** Whole numbers lose Excel's ".0". A number format made only
+of zeros (for example `00000000`) keeps the leading zeros, so a staff number
+shows as `00001234`.
+
+### Linking analysis tabs to UOIRs
+
+Excel limits tab names to 31 characters, so a tab holds the UOIR ID and only
+part of the title. For example, the tab `UOIR ID 501 - Pump Trip due to` is
+for UOIR 501 "SYNTHETIC Pump Trip due to Low Suction Pressure".
+
+- A tab is an analysis tab when its name starts with `UOIR ID`, then the ID
+  digits, then anything else. Upper/lower case is ignored, the spaces are
+  optional, and a `:`, `#` or `-` may follow `ID`.
+- **The ID decides the link.** IDs are compared with leading zeros ignored, so
+  `0501` and `501` are the same UOIR, but `50` is not `501`.
+- One tab for the ID: it is used. If the title part of the tab name is not found
+  anywhere in the UOIR title, you get a warning, but the tab is still used. The
+  comparison ignores case, extra spaces and the characters Excel forbids in tab
+  names (`[ ] : * ? / \`).
+- Several tabs for the same ID: the one whose title part matches the title is
+  used, and the others are reported as not used. If no tab matches, or more than
+  one does, that is an error.
+- No tab for a UOIR: error.
+- A tab whose ID is not on the UOIR sheet: warning ("left out of the report").
+- A hidden tab that is linked: warning. It is still included.
+- `B1` of the tab is compared with the UOIR title (case and extra spaces
+  ignored). If they differ, you get a warning. The check is skipped when `B1`
+  is empty, when the UOIR title is empty, or when `B1` lies inside the table
+  (header on row 1).
+- A UOIR ID listed on several rows of the UOIR sheet is **one UOIR** (every
+  row still appears in Failure Details). Its different Equipment values are
+  collected and joined in recommendation headings ("Pump A / Pump B"). The
+  first non-empty Title is used; a different Title on a later row gives a
+  warning.
+
+### Where each table ends
+
+| Table | Data rows | End of the table |
+|---|---|---|
+| Team Members | Rows below the header | The first row where Name, Staff No and Section are all empty. A pre-filled `No` alone does not keep the list going. |
+| UOIR list | Rows below the header | The first row where every mapped column except `No` is empty |
+| Analysis table | Rows below the header | The first row where every cell from the first to the last header column is empty, not counting `No.` |
+
+The analysis table's columns run from the first to the last filled header cell.
+A column inside that range with an empty header is kept only if it holds data.
+
+If rows with data appear **below** the empty row that ends a table, they are
+not in the report. You get the warning `ROWS_AFTER_BLANK_ROW` asking you to
+remove the empty rows in between. It is raised for:
+
+- a team row with Name plus Staff No or Section;
+- a UOIR row with UOIR ID plus Title;
+- an analysis row with at least 3 of these filled: Failure Mode, Failure
+  Effect, RecommendedStrategy, Task, Trade, KKS.
+
+### Notes outside the table
+
+Any non-empty cell of an analysis tab outside the table becomes a **Note**. The
+table covers the header row to the last data row, first to last table column.
+Notes appear as "Note : ..." lines above the table, in row order. `B1` (the
+title) is never a note, and neither are row numbers pre-filled in the `No.`
+column below the table.
+
+### Blank cells and non-breaking spaces
+
+A cell that holds only spaces, tabs, line breaks or **non-breaking spaces** is
+empty. Inside text, a non-breaking space counts as a normal space, runs of
+spaces become one space, and line breaks are kept. So a `No.` column filled with
+non-breaking spaces reads as blank, and ` r-hardware` (with a leading
+non-breaking space) is read as the code `R-HARDWARE`.
+
+### Merged cells
+
+- **In the displayed table,** a merged block is shown merged (in the app and in
+  the PDF), and the cells it covers are empty.
+- **For counts and checks,** a covered cell takes the merged value **only when
+  the merge starts on a data row and the cell is in the same column as the
+  merge's top-left cell** (the value carries *down* its own column). For
+  example, Failure Mode merged over rows 3–5 gives all three rows that Failure
+  Mode, and you get the information message `MERGED_CELLS_CARRIED`.
+- Every other covered cell counts as **empty**. That includes a header merged
+  down into the data, or a value merged sideways (for example Trade merged
+  across KKS). This stops made-up values; the normal "is empty" error then
+  points to the cell.
+- The same rule applies to Team Member and UOIR sheet rows. Fixed cells (`A2`,
+  `A3`, `B2`, `B3`, `B1`) are always read from the cell itself.
+
+### Formulas
+
+The app uses the **saved results** of formulas. It never calculates formulas and
+never runs macros. If a formula cell has no saved result (for example a file
+created by a script and never opened in Excel), you get a warning: open the file
+in Excel, save it and upload again.
+
+### Sheets that are ignored or not used
+
+- `Notifications` and `Sheet3` are never opened, and they get no message.
+- A linked analysis tab is used.
+- Any other sheet (including chart sheets) gets the information message
+  "Sheet 'X' is not used in the report."
+
+---
+
+## How the numbers are calculated
+
+All counts are **per UOIR**, from the rows of its analysis table.
+
+### Which rows count
+
+Every analysis row counts once, **except an exact duplicate**: a row whose
+every column (apart from `No.`) matches an earlier row of the same tab. For
+the comparison, extra spaces are ignored but upper/lower case is not. A
+duplicate row gets the warning `DUPLICATE_ROW` ("Row 9 is identical to row 6
+and is counted once.") and is left out of every count and of the
+Recommendation tables. It still appears in the analysis table.
+
+A failure mode with several tasks counts once **per row**. Only exact
+duplicates are dropped.
+
+### The three cards
+
+| Card | Rule |
+|---|---|
+| **Failure Mode** | Number of counted rows |
+| **Maintenance Task** | Counted rows whose strategy is not `NSM` |
+| **Task Executed** | Counted rows with New Task = **No** (an existing task already being executed) |
+
+**New Task values.** `Yes`/`Y` means Yes and `No`/`N` means No; upper/lower
+case and surrounding spaces don't matter. An empty cell means "not set".
+Anything else is an error.
+
+### Existing vs Revised
+
+A table of strategy codes with **Existing** (New Task = No) and **New** (New
+Task = Yes) counts:
+
+1. The seven standard codes always appear, in this order, even with zero rows:
+   OC, SR, SD, FF, NSM, R-SPARE, N/A.
+2. Then any other code found, in the order it first appears.
+3. Then a "Not specified" row, only if a counted row has no strategy.
+
+Codes are read with spaces removed and in capitals, so `r-spare `, `R - SPARE`
+and `R-Spare` are all `R-SPARE`.
+
+| Code | Shown as | Colour |
+|---|---|---|
+| OC | OC - On Condition | `#2a78d6` |
+| SR | SR - Schedule Restore | `#eb6834` |
+| SD | SD - Schedule Discard | `#1baf7a` |
+| FF | FF - Failure Finding | `#eda100` |
+| NSM | NSM - No Schedule Maintenance | `#e87ba4` |
+| R-SPARE | R-SPARE - Redesign Spare | `#008300` |
+| N/A | Not Analysed | `#898781` |
+| R-HARDWARE | R-HARDWARE - Redesign Hardware | `#4a3aa7` |
+| R-SOFTWARE | R-SOFTWARE - Redesign Software | `#e34948` |
+| R-PRO | R-PRO - Redesign Procedure | `#9085e9` |
+| any other `R-` code, e.g. R-PUMP | R-PUMP - Redesign Pump (information message) | `#c3c2b7` (grey) |
+| any other code, e.g. XYZ | XYZ (warning: check the spelling) | `#c3c2b7` (grey) |
+| empty | Not specified (plus an error: the strategy is required) | `#c3c2b7` (grey) |
+
+The same colours are used in the app and in the PDF.
+
+### Pie chart ("Recommended Strategy")
+
+- One slice per strategy row with at least one counted row. A slice counts
+  **all** counted rows with that code, whatever their New Task value (NSM
+  included).
+- Percentages are rounded to one decimal place with the largest-remainder
+  method, so the slices always add up to exactly **100.0%**. When remainders
+  tie, the earlier slice gets the extra 0.1 (three equal slices show 33.4, 33.3
+  and 33.3).
+- The legend lists each slice's name, count and percentage. The PDF legend ends
+  with a Total row; the app shows the total next to the chart title.
+- With no counted rows, the pie is replaced by "No strategy values to chart."
+
+### Work-Centre Execution
+
+- Only counted rows with New Task = **Yes** or **No**.
+- Grouped by Trade, with upper/lower case and extra spaces ignored. If
+  different spellings are merged (`SYNMECH-A` and `synmech-a`), you get an
+  information message. The name shown is the first spelling found.
+- **Executed** = New Task No, **Pending** = New Task Yes, **Total** = Executed
+  + Pending.
+- Sorted by Total, largest first; ties keep the order of first appearance.
+- An empty Trade shows as "Trade not specified" (and is also an error).
+
+### Rows that are not counted
+
+A counted row whose strategy is **not NSM** and whose New Task is **empty** or
+**not Yes/No** is left out of Existing/New and Work-Centre Execution. It still
+counts for Failure Mode and Maintenance Task, and for the pie. Each such row is
+listed under the summary, for example:
+
+> Not counted: row 6 (OC, SYNELEC-C) — New Task blank.
+
+NSM rows normally leave New Task empty. That is expected, so they are not
+listed and produce no message. If an NSM row does have Yes or No, you get a
+warning and the row is counted by that value.
+
+### Recommendation
+
+- One block per UOIR, in UOIR order. Inside it, one table per **KKS**.
+  Grouping ignores upper/lower case and extra spaces. Groups appear in order of
+  first appearance, and rows keep workbook order.
+- Every counted row is included (Failure Mode, Task, Frequency), whatever its
+  New Task value. Duplicates are left out.
+- Group heading: `<Equipment>, <KKS>`. Equipment is the UOIR's Equipment values
+  joined with " / ", for example "Pump A / Pump B, KKS-PUMP-A". If Equipment is
+  empty, the heading is just the KKS.
+- In the app, the tabs **New Task = Yes**, **New Task = No** and **New Task not
+  set** only filter the screen. "Not set" holds every row that is not Yes or
+  No, so each row is in exactly one tab. It appears only when such rows exist.
+  NSM rows are tagged "NSM · not required". **The PDF always lists every row.**
+
+### Worked example (SYNTHETIC)
+
+UOIR 901, Equipment "SYNTHETIC Pump":
+
+| Row | Failure Mode | Strategy | Trade | KKS | New Task |
+|---|---|---|---|---|---|
+| 3 | Seal leak | OC | SYNMECH-A | KKS-A | No |
+| 4 | Seal leak | SR | SYNMECH-A | KKS-A | Yes |
+| 5 | Bearing wear | NSM | SYNOPS-B | KKS-B | *(empty)* |
+| 6 | Bearing wear | OC | SYNELEC-C | KKS-B | *(empty)* |
+| 7 | Motor trip | R-SPARE | SYNELEC-C | KKS-B | Yes |
+| 8 | Motor trip | R-SPARE | SYNELEC-C | KKS-B | Yes (same as row 7 in every column) |
+
+- Row 8 is a duplicate of row 7, so the counted rows are 3–7.
+- **Failure Mode 5**, **Maintenance Task 4** (all but NSM), **Task Executed 1**
+  (row 3).
+- Existing/New: OC 1/0, SR 0/1, SD 0/0, FF 0/0, NSM 0/0, R-SPARE 0/1, N/A 0/0.
+- Pie (5 rows): OC 2 = 40.0%, SR 1 = 20.0%, NSM 1 = 20.0%, R-SPARE 1 = 20.0%.
+- Work centres: SYNMECH-A total 2 (executed 1, pending 1); SYNELEC-C total 1
+  (executed 0, pending 1). Row 6 (empty New Task) and the NSM row are left out.
+- Under the summary: "Not counted: row 6 (OC, SYNELEC-C) — New Task blank." and
+  "Row 8 is identical to an earlier row and was counted once."
+- Recommendation: "SYNTHETIC Pump, KKS-A" (rows 3, 4) and
+  "SYNTHETIC Pump, KKS-B" (rows 5, 6, 7).
+- Messages: warning `NEW_TASK_BLANK` (row 6) and warning `DUPLICATE_ROW`
+  (row 8).
+
+---
+
+## Checks and messages
+
+Every message names the place in the workbook (sheet, row, column, cell) where
+it can. The **Data Checks** screen groups them:
+
+- **Must fix before export** (errors): preview and export are blocked until
+  the workbook is fixed and uploaded again.
+- **Please check** (warnings): the report can still be exported, but check
+  these.
+- **For information** (info): nothing to fix; this explains what the app did.
+  Collapsed by default.
+
+Messages are sorted errors first, then warnings, then information; within each
+group, by sheet (tab order) and row.
+
+### Errors (block export)
+
+| Code | Plain meaning |
+|---|---|
+| `SHEET_MISSING` | The workbook has no `Team Member` or no `UOIR` sheet. |
+| `STATION_BLANK` | Station (`Team Member` `B2`) is empty. |
+| `ANALYSIS_DATE_BLANK` | Date of Analysis (`Team Member` `B3`) is empty. |
+| `ANALYSIS_DATE_INVALID` | Date of Analysis is not a date the app can read. |
+| `TEAM_HEADER_MISSING` | The team table header was not found, or one of No / Name / Staff No / Section is missing. |
+| `UOIR_HEADER_MISSING` | The UOIR table header was not found, or one of its eight columns is missing. |
+| `UOIR_VALUE_BLANK` | UOIR ID or Title is empty on a UOIR sheet row. |
+| `UOIR_NONE` | No UOIR rows were found below the header. |
+| `ANALYSIS_SHEET_MISSING` | No `UOIR ID <id> - ...` tab exists for a listed UOIR. |
+| `ANALYSIS_SHEET_AMBIGUOUS` | Several tabs share the UOIR ID, and the title does not pick exactly one. |
+| `ANALYSIS_HEADER_MISSING` | The analysis header row was not found, or a required column is missing. The table is still shown, but no counts are made. |
+| `ANALYSIS_HEADER_DUPLICATE` | A mapped column (for example Task) appears twice in the header row. |
+| `ANALYSIS_NO_ROWS` | The analysis tab has a header but no data rows. |
+| `REQUIRED_VALUE_BLANK` | Failure Mode, Failure Effect, RecommendedStrategy, Task, Trade or KKS is empty on a row. |
+| `NEW_TASK_INVALID` | New Task is something other than Yes, No, Y, N or empty. |
+
+### Warnings (export allowed)
+
+| Code | Plain meaning |
+|---|---|
+| `LABEL_UNEXPECTED` | `A2` / `A3` on Team Member no longer say "Station" / "Date of Analysis"; the layout may have changed. |
+| `TEAM_EMPTY` | No team members were found below the header. |
+| `ROWS_AFTER_BLANK_ROW` | Rows with data sit below the empty row that ends a table, so they are not in the report. |
+| `UOIR_DATE_NOT_DATE` | Date of fault or Date of UOIR is not a date; it is shown as written. |
+| `UOIR_EQUIPMENT_BLANK` | Equipment is empty on a UOIR sheet row. |
+| `UOIR_DUPLICATE_ID_CONFLICT` | The same UOIR ID is listed again with a different Title; the first Title is used. |
+| `FORMULA_NO_VALUE` | A formula cell has no saved result, so it reads as empty. |
+| `ANALYSIS_SHEET_TITLE_MISMATCH` | The tab name's title part doesn't match the UOIR title; the tab was linked by its ID. |
+| `ANALYSIS_TITLE_CELL_MISMATCH` | `B1` of the tab differs from the UOIR title. |
+| `ANALYSIS_SHEET_HIDDEN` | The linked tab is hidden in Excel; it is still included. |
+| `ANALYSIS_SHEET_UNLISTED` | A `UOIR ID <id>` tab's ID is not on the UOIR sheet; the tab is left out. |
+| `STRATEGY_UNKNOWN` | A strategy code is not known and does not start with `R-`; it is shown as written, so check the spelling. |
+| `NEW_TASK_BLANK` | New Task is empty on a non-NSM row; the row is left out of Existing/New and Work-Centre counts. |
+| `NSM_NEW_TASK_FILLED` | An NSM row has New Task Yes or No; it is counted by that value. |
+| `DUPLICATE_ROW` | The row is identical to an earlier row and is counted once. |
+
+### Information
+
+| Code | Plain meaning |
+|---|---|
+| `SHEET_NOT_USED` | A sheet is not part of the report. This includes an extra tab for a UOIR ID when another tab matched the title. |
+| `MERGED_CELLS_CARRIED` | Merged cells cover several data rows; the merged value is used for each row. |
+| `STRATEGY_DERIVED_NAME` | An `R-` code not in the list gets the name "Redesign X". |
+| `TRADE_SPELLING_MERGED` | Different spellings of one Trade are counted as one work centre. |
+
+### Problems with the file itself
+
+These messages appear on the upload screen, not in Data Checks, and the
+previous report (if any) is kept. The browser runs the type and size checks
+first, with similar wording; the server repeats them:
+
+- "Please upload an Excel workbook (.xlsx or .xlsm)."
+- "The file is larger than 20 MB. Please upload a smaller workbook." (the size
+  follows `MAX_UPLOAD_MB`)
+- "This file could not be opened as an Excel workbook. Save it as .xlsx in Excel
+  and try again."
+- "No file was received. Please choose an Excel workbook and try again." / "The
+  upload did not finish. Please try again."
+
+---
+
+## The PDF
+
+### Page order and sizes
+
+1. **Cover**: A4 portrait. No page header or footer.
+2. **Introduction**: A4 portrait. Failure Details, then Team Members.
+3. For each UOIR, in UOIR sheet order:
+   - **Analysis: FMEA Analysis**: A3 landscape. "UOIR ID : ...", "Title :
+     ...", one "Note : ..." line per note, then the full analysis table.
+   - **Analysis: FMEA Summary**: A4 portrait. The three cards, "Existing vs
+     Revised" (pie with legend, then the Code / Strategy / Existing / New
+     table), "Work-Centre Execution" (Work Centre / Total / Executed /
+     Pending) and the not-counted / duplicate notes.
+4. **Recommendation**: A4 portrait. It starts on a new page and then runs on:
+   "UOIR ID <id>: <title>", then for each KKS group the heading and a table
+   with a two-row header (Failure Mode | Recommendations: Task, Frequency).
+
+### Header, footer and look
+
+- Every page except the cover has the header **"FMEA Report · <Station>"**
+  (small, top left, over a thin line). A very long station name is shortened
+  with "…".
+- The footer reads **"Page X of Y"** (bottom right). The cover counts as page 1.
+- White, print-friendly pages with restrained blue. Table headers are blue
+  with white bold text and are repeated on every page a table continues onto.
+- The text is real text you can select and search, set in Liberation Sans (same
+  letter widths as Arial), which is embedded in the file. Tick and cross
+  symbols (✓ ✗) use the standard ZapfDingbats font.
+- The PDF title is "Failure Mode Effect Analysis (FMEA) Report", and its
+  subject is the station.
+
+### Long content
+
+- Long codes wrap at `/ - _` and similar break points. A word that is slightly
+  too wide makes only that cell up to 20% smaller; longer words are broken
+  between characters. Nothing runs outside its cell.
+- A merged block small enough (up to 40% of a page) moves to the next page in
+  one piece. A bigger block is split, and its value is repeated on the next
+  page with "(cont.)".
+- A row that does not fit in the space left moves to the next page. A row too
+  tall for a whole page is split inside the row, and the continuation repeats
+  the No. / Failure Mode with "(cont.)".
+- If merged text is taller than a whole page, that one block is drawn unmerged
+  so none of its text is lost.
+- Headings are never left alone at the bottom of a page; they are kept with the
+  table header and its first rows.
+- A legend with dozens of strategies moves below the pie and continues on the
+  next page.
+
+### File name
+
+```
+FMEA_Report_<Station>_<YYYY-MM-DD>.pdf
+```
+
+- Spaces in the station name become `_`. Only letters, digits, `_` and `-` are
+  kept, repeated `_` are merged, and `_` at either end is removed.
+- A blank station becomes `Station`; a missing date becomes `undated`.
+- Example: Station "SYNTHETIC Station #1", Date of Analysis 15 June 2026 →
+  `FMEA_Report_SYNTHETIC_Station_1_2026-06-15.pdf`.
+
+### Signature boxes
+
+The cover's **PREPARED BY** and **APPROVED BY** boxes are always left blank for
+signing on paper. The app never fills them.
+
+---
+
+## Emailing the PDF (Outlook)
+
+On the **Export PDF** step, under the download card, **Email the PDF** opens a
+new email in the classic Outlook desktop app with the PDF attached. **The app
+never sends anything.** You check the email in Outlook and press **Send**
+yourself.
+
+### How to use it
+
+1. Fix any blocking errors first. The card only appears when the report can be
+   exported.
+2. Optionally type the recipients in **Recipients (optional)**. Separate several
+   addresses with a semicolon (commas, spaces and new lines work too). Leave the
+   box empty to choose the recipients in Outlook.
+3. Click **Open in Outlook**. The button shows "Opening Outlook…" while Outlook
+   starts, which can take a few seconds when Outlook was closed.
+4. A new Outlook email opens with:
+   - **To:** the addresses you typed;
+   - **Subject:** `FMEA Report - <Station> - <Date of Analysis>`, for example
+     `FMEA Report - SYNTHETIC Station #1 - 15 June 2026`;
+   - a short introduction above your default Outlook signature: "Hello,
+     Please find attached the Failure Mode Effect Analysis (FMEA) report for
+     **SYNTHETIC Station #1** (Date of Analysis: 15 June 2026).";
+   - the PDF attached under the report's file name.
+5. The app shows "Outlook opened a new email with the PDF attached. Check it,
+   then press Send in Outlook." Check the email, change anything you like, and
+   press **Send** in Outlook.
+
+The addresses are checked in your browser and again by the server:
+
+- at most 20 addresses (and 2000 characters in all); repeats are dropped,
+  ignoring upper/lower case;
+- each one must look like `name@example.com`: one `@`, a dot in the part after
+  it, at most 254 characters, and no spaces, invisible characters, double quotes
+  (`"`), angle brackets, commas or semicolons inside it (an apostrophe, as in
+  `o'name@example.com`, is fine);
+- the message names the first address that is not valid.
+
+### When it is available
+
+- Only when the app runs on **your own Windows computer**, with the **classic
+  Outlook** desktop app installed and signed in. It uses classic Outlook's
+  automation interface, which the new Outlook for Windows and Outlook on the web
+  do not offer.
+- The `OUTLOOK_EMAIL` setting controls it (see [Settings](#settings)). With the
+  default `auto` it is offered only with `AUTH_MODE=local` and `HOST` set to
+  `127.0.0.1`, `localhost` or `::1`, that is, when your browser and Outlook are
+  on the same PC. `off` hides it. On Databricks, `app.yaml` sets `off`.
+- `on` offers it on any Windows server, but the email then opens in Outlook **on
+  the computer running the server**, not on the user's computer. Use it only
+  when those are the same PC. The server log shows a warning when `on` is used on
+  a server others can reach.
+- When it is not available, the card is replaced by the note "Email through
+  Outlook is available when the app runs on your own computer. Download the PDF
+  and attach it to an email instead."
+
+### Messages
+
+| Message | What happened |
+|---|---|
+| "Outlook could not open a new email. Make sure Outlook is installed and signed in, or download the PDF and attach it yourself." | Outlook is missing, not signed in, refused the request, or did not answer within 2 minutes. If Outlook asks whether to allow another program to use it, allow it; otherwise you get this message. |
+| "Outlook is still opening the previous email. Please wait a moment." | Only one email is opened at a time. Wait, then try again. |
+| "Email through Outlook is only available when the app runs on your own computer. Download the PDF and attach it to an email instead." | The feature is switched off for this server (see above). |
+| "... is not a valid email address. Check it and try again." | Fix the address that is named. |
+| "This workbook is no longer open. ..." | The workbook was discarded (see [One-time use](#one-time-use)). Upload it again. |
+
+### What happens to the PDF
+
+- To let Outlook attach it, the app writes the PDF into a new temporary folder
+  (named `fmea-mail-…`, in the Windows temporary folder) and deletes that folder
+  right after, whether Outlook succeeded or not. This is the only time the app
+  writes anything to disk.
+- Once attached, the PDF is part of the Outlook email. If you send it, or close
+  the email and keep it as a draft, Outlook keeps that copy like any other
+  attachment. Delete the draft if you decide not to send it.
+- The addresses you type are never written to the server log; only how many
+  there were.
+
+---
+
+## Changing the workbook layout
+
+If the engineers' workbook layout changes, edit **`backend/config/mapping.py`**.
+It holds, in one place:
+
+- sheet names (`TEAM_SHEET`, `UOIR_SHEET`, `IGNORED_SHEETS`) and the analysis
+  tab name pattern (`ANALYSIS_SHEET_PATTERN`);
+- fixed cells (`STATION_CELL`, `ANALYSIS_DATE_CELL`, `ANALYSIS_TITLE_CELL`, and
+  the label cells);
+- how far to search for header rows (`HEADER_SEARCH_ROWS`);
+- column headers (`TEAM_COLUMNS`, `UOIR_COLUMNS`, `ANALYSIS_COLUMNS`), which
+  columns identify the analysis header row, which columns must exist and which
+  values must not be empty;
+- the Failure Details labels used in the report;
+- Yes/No spellings;
+- strategy codes, names, the always-shown list and colours.
+
+Change the **value**, not the key: for example, if the header "Trade" becomes
+"Work Centre", set `"trade": "Work Centre"`. Header matching ignores case,
+spaces and punctuation. The label words checked in `A2`/`A3` ("station", "date
+of analysis") are in `backend/report/builder.py` (`_TEAM_LABELS`).
+
+After a change:
+
+1. Run `python -m pytest`, then upload a SYNTHETIC or real workbook and check
+   the Data Checks screen.
+2. Update `tools/make_synthetic_workbook.py` and the tests if the layout they
+   build no longer matches.
+3. Update `docs/CONTRACT.md` and this README.
+
+---
+
+## Deploying to Databricks Apps
+
+On Databricks, users are already signed in to the workspace, so the app runs
+with `AUTH_MODE=databricks`. There is **no login page**. The app takes each
+user's identity from the `X-Forwarded-Email` header that the Databricks Apps
+proxy adds (falling back to `X-Forwarded-Preferred-Username`, then
+`X-Forwarded-User`).
+
+### 1. Build the frontend first
+
+The deployment does not build the frontend, so build it locally.
+`frontend/dist` must exist in the folder you upload.
+
+```powershell
+cd frontend
+npm ci
+npm run build
+cd ..
+```
+
+### 2. Check `app.yaml`
+
+The provided `app.yaml`:
+
+- runs `python app.py`;
+- sets `HOST=0.0.0.0`, `AUTH_MODE=databricks` and `COOKIE_SECURE=true`;
+- sets `SESSION_IDLE_MINUTES=60`, `MAX_SESSIONS=200`, `MAX_UPLOAD_MB=20` and
+  `LOG_LEVEL=info`;
+- sets `OUTLOOK_EMAIL=off`: a Databricks server has no Outlook, so users
+  download the PDF and attach it to an email themselves.
+
+The port comes from `DATABRICKS_APP_PORT`, which Databricks sets. Databricks
+installs `requirements.txt` when it deploys.
+
+**Secrets never go in `app.yaml`.** The admin password hash is only needed if
+you switch the app to `AUTH_MODE=local`, which is not recommended on
+Databricks. To do that:
+
+1. Run `python tools/hash_password.py` locally.
+2. Store the hash in a Databricks secret scope.
+3. Add that secret to the app as a resource with the key `admin-password-hash`.
+4. Uncomment the `ADMIN_USERNAME` and `ADMIN_PASSWORD_HASH` entries at the end
+   of `app.yaml`. The hash entry uses `valueFrom: 'admin-password-hash'`
+   instead of `value`.
+
+### 3. Upload and deploy
+
+With the Databricks CLI configured for your workspace:
+
+```bash
+# Once: create the app
+databricks apps create fmea-report
+
+# Upload the project folder to the workspace
+databricks sync . /Workspace/Users/<your.name@example.com>/fmea-report
+
+# Deploy (and again after every change)
+databricks apps deploy fmea-report --source-code-path /Workspace/Users/<your.name@example.com>/fmea-report
+```
+
+Then open the app from the Databricks **Apps** page and give the engineers
+permission to use it.
+
+Check what gets uploaded:
+
+- **Databricks Apps accepts files of at most 10 MB each.** The app's own files
+  are far smaller (the largest are the fonts, about 0.4 MB).
+- `databricks sync` honours `.gitignore`, which excludes `.env`, `.venv/`,
+  `frontend/node_modules/` and every `.xlsx` / `.xlsm` file, so local settings
+  and engineer workbooks are not uploaded. Check the list of synced files the
+  first time, and keep workbooks out of the project folder anyway.
+
+### 4. Things to know
+
+- **Run a single instance.** Sessions, reports and cached PDFs live in the
+  memory of one process (one uvicorn worker). A restart or redeploy signs
+  everyone out and clears their uploads; they upload again. Several instances
+  would not share sessions.
+- **One-time use applies here too.** Refreshing or leaving the page, or signing
+  out, discards the user's workbook, report and PDF (see
+  [One-time use](#one-time-use)).
+- In Databricks mode each user can keep up to **5** sessions (browsers or
+  devices). Starting a sixth ends that user's oldest one; other users are never
+  affected.
+- The app trusts the `X-Forwarded-*` identity headers only in Databricks mode.
+  It must only be reachable through the Databricks proxy. Never run
+  `AUTH_MODE=databricks` on a server people can reach directly.
+- To check that the app is running, open `/api/health`, which returns
+  `{"status":"ok"}`.
+
+---
+
+## Security notes
+
+- **Password.** Only an scrypt hash is stored (n=16384, r=8, p=1, 16-byte
+  random salt), and it is compared in constant time. The built-in development
+  password is for first use on your own computer only; replace it (see
+  [Change the password](#change-the-password)). The server logs a warning while
+  it is in use.
+- **Sign-in limits.** After 5 failed sign-ins in 5 minutes for a username from
+  one client, or 50 failed sign-ins from one client across all usernames,
+  sign-in is refused for a while ("Too many sign-in attempts...", with a
+  `Retry-After` header).
+- **Session cookie.** A random 256-bit token in an `HttpOnly`, `SameSite=Lax`
+  cookie, marked `Secure` when `COOKIE_SECURE=true` (always on Databricks).
+  Sessions end on sign-out, after `SESSION_IDLE_MINUTES` without activity, or
+  when the store is full (least recently used first). Signing in always starts
+  a new session.
+- **In memory only, one-time use.** There is no database. Uploads are streamed
+  into memory and never written to a temporary file. Reports and PDFs live only
+  in the session, for the current page visit: they are discarded when the app
+  is opened again, when the page is refreshed, closed or left, and on sign-out,
+  expiry, a new upload or a restart. The only exception is **Email the PDF**, which writes the PDF into a
+  new `fmea-mail-…` temporary folder just long enough for Outlook to attach it
+  and always deletes the folder afterwards.
+- **Email the PDF.** The app never sends email; it only asks classic Outlook on
+  the same computer to show a new email. It runs a fixed PowerShell script
+  (started by its full Windows path) and passes the addresses, subject,
+  introduction and file path only through environment variables, so nothing a
+  user types or a workbook contains can change what the script does. One email
+  is opened at a time, and recipient addresses are never logged. With the
+  default `OUTLOOK_EMAIL=auto`, the feature is off unless the app runs on the
+  user's own Windows computer.
+- **No macros, no formulas, no links.** Workbooks are opened read-only with
+  their saved values. Macros in `.xlsm` files are never run, formulas are never
+  calculated, and external links are not followed.
+- **Size limits.** Uploads above `MAX_UPLOAD_MB` are refused, early when the
+  size is announced. Every other request body is limited to 64 KB.
+- **Responses.** Errors are short plain messages with no stack traces (details
+  go only to the server log). Security headers (`X-Content-Type-Options`,
+  `Referrer-Policy`, `X-Frame-Options: SAMEORIGIN`) are set on every response,
+  and API responses are not cached. The interactive API docs are turned off.
+  Frontend file paths are checked name by name before the disk is touched.
+- **CSRF.** There is no separate CSRF token. Protection relies on the
+  `SameSite=Lax` cookie, JSON request bodies and same-origin requests. Keep the
+  frontend and API on the same origin.
+- **This computer only.** When the app runs locally (`AUTH_MODE=local` and
+  `HOST` is `127.0.0.1`, `localhost` or `::1`, the default), it answers only to
+  those addresses. A request sent under any other name, for example by a web
+  page that points its own name at your computer, is refused ("This app only
+  answers on this computer's own address..."), and so is a change (sign-in,
+  upload, email) sent from a page on another address. This check is off when
+  the app is shared on the network (`HOST=0.0.0.0`) or runs on Databricks.
+- **Proxy headers.** `X-Forwarded-For` is honoured only in Databricks mode, so
+  locally nobody can dodge the per-client sign-in limit by faking it.
+- Never commit `.env` or engineer workbooks. `.gitignore` already excludes
+  them.
+
+---
+
+## Known limitations
+
+- **Python 3.11 not tested by running.** No Python 3.11 interpreter was
+  available during development. The tests ran on Python 3.14, and 3.11
+  compatibility was checked by parsing every file with Python 3.11 syntax rules
+  (`ast.parse(feature_version=(3, 11))`). Run the test suite once on 3.11
+  before relying on it.
+- **Very wide tabs.** A tab with about 100 or more columns still renders, but
+  the columns become too narrow to read in the PDF. The usual layout has 22
+  columns.
+- **Unknown strategy codes share one grey** (`#c3c2b7`). Two unknown codes next
+  to each other in the pie can only be told apart by the legend and the thin
+  white separator.
+- **Unsupported characters.** Characters that neither Liberation Sans nor
+  ZapfDingbats has (for example ⚠, ☐, Chinese/Japanese/Korean text, emoji)
+  print as empty boxes in the PDF. ZapfDingbats is a standard PDF font and is
+  not embedded.
+- **Sessions are lost on restart**, and the app must run as **one worker / one
+  instance**, because sessions live in memory.
+- **Browser size check is fixed at 20 MB.** If you change `MAX_UPLOAD_MB`, the
+  server enforces the new limit, but the browser still checks against 20 MB.
+- **Two-row analysis headers** (a group header above the real headers) are not
+  supported: the second header row is read as data and produces "is empty"
+  errors.
+- The `ROWS_AFTER_BLANK_ROW` check is a rule of thumb. A block of notes below
+  the table that fills three or more of the required columns also triggers it
+  (only a warning).
+- A stray value far down a sheet (near row 1,048,576) makes reading that sheet
+  about a second slower.
+- PDF rendering takes about 6 ms per analysis row. Very large reports (thousands
+  of rows) take several seconds; the PDF is then cached until the next upload.
+- On some Windows PCs, `npm run build` stays open for about five minutes after
+  it prints "built in ...". The build is already finished by then: Vite is
+  waiting for a background `net use` lookup. You can press `Ctrl+C`, or use
+  `start-app.bat`, which builds without that wait.
+- The in-page preview needs the browser's built-in PDF viewer. If it is turned
+  off, use Export.
+- On narrow (tablet) screens, the side menu does not trap keyboard focus while
+  it is open.
+- **Use one tab at a time.** All tabs of one browser share one sign-in and one
+  workbook. Opening the app in a second tab closes the first tab's workbook. If
+  you then upload a workbook in the second tab and go back to the first tab
+  without refreshing it, the first tab's Preview and Export would show the
+  second tab's workbook.
+- Discarding the workbook when you leave the page is best effort. If the
+  browser crashes or the network drops at that moment, the server forgets it
+  the next time you open the app, when you sign out, or after
+  `SESSION_IDLE_MINUTES` without activity.
+- **Email the PDF** works only on Windows with classic Outlook, and only when
+  the app runs on that same computer. It has been checked with automated tests
+  and a PowerShell syntax check, but not yet with a real Outlook: check the
+  first email it opens. The introduction is placed above the default signature
+  that Outlook adds when it shows the email.
+- Signed-in users are trusted not to flood the server: several very large
+  uploads at once from one session each use memory while they are read.

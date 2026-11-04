@@ -1,0 +1,22 @@
+__pycache__/
+*.pyc
+.venv/
+.env
+.pytest_cache/
+node_modules/
+frontend/.vite/
+test-output/
+*.log
+# Local settings and secrets
+/.env.*
+!/.env.example
+.claude/settings.local.json
+
+# Engineer workbooks, data exports and generated reports are never committed
+*.xlsx
+*.xlsm
+*.xlsb
+*.xls
+*.csv
+FMEA_Report_*.pdf
+!backend/tests/fixtures/SYNTHETIC_*.xlsx

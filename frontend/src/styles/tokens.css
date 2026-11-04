@@ -1,0 +1,72 @@
+/* Design tokens: engineering reliability workspace.
+   Navy structure, electric blue / cyan accents, light readable surfaces.
+   Amber and red are reserved for warnings and blocking errors. */
+:root {
+  /* Structure */
+  --navy-950: #06182d;
+  --navy-900: #0a2340;
+  --navy-850: #0d2a4c;
+  --navy-800: #11335a;
+  --navy-700: #1b4474;
+
+  /* Accents */
+  --blue-700: #1a5a9a;
+  --blue-600: #1e6fbf;
+  --blue-500: #2f86d6;
+  --blue-100: #d8e8f8;
+  --blue-50: #ecf4fc;
+  --cyan-400: #22b8e6;
+  --cyan-300: #6fd3f2;
+  --cyan-50: #e8f8fd;
+
+  /* Surfaces and lines */
+  --page: #f4f7fb;
+  --surface: #ffffff;
+  --surface-muted: #f8fafd;
+  --zebra: #f4f8fc;
+  --hairline: #dce4ee;
+  --hairline-strong: #c8d4e2;
+  --table-head: #1e6fbf;
+
+  /* Text */
+  --ink-strong: #0a2340;
+  --ink: #1f2933;
+  --muted: #5b6770;
+  /* Lightest text colour. Still at least 4.5:1 on white, the page and zebra rows,
+     because hints and location labels carry real information. */
+  --faint: #66727e;
+
+  /* Status (always with an icon and a label) */
+  --amber-600: #b7791f;
+  --amber-700: #8a5a12;
+  --amber-400: #fab219;
+  --amber-50: #fff7e6;
+  --amber-100: #fdebc4;
+  --red-600: #c53030;
+  --red-700: #9f2424;
+  --red-50: #fdf0f0;
+  --red-100: #f8d4d4;
+  --green-600: #1d7a55;
+  --green-50: #e9f6ef;
+  --green-100: #cbe9da;
+
+  /* Shape and depth */
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 12px;
+  --shadow-sm: 0 1px 2px rgba(10, 35, 64, 0.06);
+  --shadow-card: 0 1px 2px rgba(10, 35, 64, 0.05), 0 6px 20px -8px rgba(10, 35, 64, 0.1);
+  --shadow-pop: 0 12px 32px -10px rgba(10, 35, 64, 0.28);
+  --ring: 0 0 0 3px rgba(34, 184, 230, 0.35);
+
+  /* Type */
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Mono', 'Segoe UI Mono', Consolas, 'Liberation Mono', monospace;
+  --font-cover: 'Liberation Sans', Arial, Helvetica, sans-serif;
+
+  /* Layout */
+  --sidebar-w: 268px;
+  --topbar-h: 68px;
+  --content-pad: 32px;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+}

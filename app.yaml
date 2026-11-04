@@ -1,0 +1,49 @@
+# Databricks Apps configuration for the FMEA Report Generator.
+# Not used when running locally (python app.py reads .env instead).
+#
+# Before deploying, build the frontend so frontend/dist is included:
+#   cd frontend && npm ci && npm run build
+#
+# Databricks sets DATABRICKS_APP_PORT itself; the app listens on it automatically.
+
+command: ['python', 'app.py']
+
+env:
+  # Listen on all interfaces inside the Databricks container.
+  - name: HOST
+    value: '0.0.0.0'
+
+  # Users are already signed in by Databricks; the app reads their identity from
+  # the X-Forwarded-Email header added by the Databricks proxy. No login page.
+  - name: AUTH_MODE
+    value: 'databricks'
+
+  # Databricks Apps are served over HTTPS, so the session cookie is HTTPS-only.
+  - name: COOKIE_SECURE
+    value: 'true'
+
+  - name: SESSION_IDLE_MINUTES
+    value: '60'
+  - name: MAX_SESSIONS
+    value: '200'
+  - name: MAX_UPLOAD_MB
+    value: '20'
+  - name: LOG_LEVEL
+    value: 'info'
+
+  # "Email the PDF" opens classic Outlook on the computer running the app,
+  # which on Databricks is a server without Outlook. Users download the PDF.
+  - name: OUTLOOK_EMAIL
+    value: 'off'
+
+  # --- Secrets -------------------------------------------------------------
+  # Only needed if AUTH_MODE is changed to 'local' (username + password login).
+  # Never put the hash itself in this file. Instead:
+  #   1. Create the hash locally:  python tools/hash_password.py
+  #   2. Store it in a Databricks secret scope.
+  #   3. Add that secret to the app as a resource with the key 'admin-password-hash'.
+  #   4. Uncomment the entries below.
+  # - name: ADMIN_USERNAME
+  #   value: 'admin'
+  # - name: ADMIN_PASSWORD_HASH
+  #   valueFrom: 'admin-password-hash'

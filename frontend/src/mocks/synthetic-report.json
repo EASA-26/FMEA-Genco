@@ -1,0 +1,2017 @@
+{
+  "source_filename": "SYNTHETIC_Kenanga_Bay_FMEA_2026.xlsx",
+  "station": "Kenanga Bay Power Station (SYNTHETIC)",
+  "analysis_date": "2026-08-20",
+  "analysis_date_text": "20 August 2026",
+  "team": [
+    {
+      "no": "1",
+      "name": "Alya Sample (SYNTHETIC)",
+      "staff_no": "00071001",
+      "section": "Reliability Engineering",
+      "source_row": 6
+    },
+    {
+      "no": "2",
+      "name": "Badrul Example (SYNTHETIC)",
+      "staff_no": "00071002",
+      "section": "Mechanical Maintenance",
+      "source_row": 7
+    },
+    {
+      "no": "3",
+      "name": "Chen Placeholder (SYNTHETIC)",
+      "staff_no": "00071003",
+      "section": "Instrument & Control",
+      "source_row": 8
+    },
+    {
+      "no": "4",
+      "name": "Devi Testcase (SYNTHETIC)",
+      "staff_no": "00071004",
+      "section": "Electrical Maintenance",
+      "source_row": 9
+    },
+    {
+      "no": "5",
+      "name": "Evan Mockdata (SYNTHETIC)",
+      "staff_no": "00071005",
+      "section": "Operations",
+      "source_row": 10
+    }
+  ],
+  "failure_details": [
+    {
+      "no": "1",
+      "uoir_id": "901",
+      "title": "SYNTHETIC - Boiler feed pump B tripped on low suction pressure",
+      "faulty_date": "2026-03-04",
+      "faulty_date_text": "4 March 2026",
+      "uoir_date": "2026-03-05",
+      "uoir_date_text": "5 March 2026",
+      "corrective_action": "1. Replaced the suction strainer basket\n2. Flushed the suction line\n3. Restarted pump and monitored for 4 hours",
+      "preventive_action": "Add strainer differential pressure reading to the weekly rounds sheet",
+      "equipment": "Boiler Feed Pump B",
+      "source_row": 5
+    },
+    {
+      "no": "2",
+      "uoir_id": "902",
+      "title": "SYNTHETIC - Cooling water pump motor high winding temperature",
+      "faulty_date": "2026-05-11",
+      "faulty_date_text": "11 May 2026",
+      "uoir_date": "2026-05-12",
+      "uoir_date_text": "12 May 2026",
+      "corrective_action": "Cleaned motor cooling fins and fan cowl",
+      "preventive_action": "Thermography survey every 3 months\nReview motor loading against pump curve",
+      "equipment": "CW Pump Motor 2",
+      "source_row": 6
+    },
+    {
+      "no": "3",
+      "uoir_id": "903",
+      "title": "SYNTHETIC - Instrument air compressor A unplanned stop during load change",
+      "faulty_date": "2026-06-22",
+      "faulty_date_text": "22 June 2026",
+      "uoir_date": null,
+      "uoir_date_text": "TBC",
+      "corrective_action": "Reset compressor controller and replaced discharge temperature switch",
+      "preventive_action": "Include the switch in the yearly trip test programme",
+      "equipment": "Instrument Air Compressor A",
+      "source_row": 7
+    },
+    {
+      "no": "4",
+      "uoir_id": "903",
+      "title": "SYNTHETIC - Instrument air compressor A unplanned stop during load change",
+      "faulty_date": "2026-06-22",
+      "faulty_date_text": "22 June 2026",
+      "uoir_date": null,
+      "uoir_date_text": "TBC",
+      "corrective_action": "Replaced desiccant in dryer tower 1",
+      "preventive_action": "",
+      "equipment": "Air Dryer A",
+      "source_row": 8
+    }
+  ],
+  "uoirs": [
+    {
+      "uoir_id": "901",
+      "title": "SYNTHETIC - Boiler feed pump B tripped on low suction pressure",
+      "equipment": [
+        "Boiler Feed Pump B"
+      ],
+      "sheet_name": "UOIR ID 901 - Boiler feed pump",
+      "notes": [
+        {
+          "cell": "B12",
+          "text": "Root cause (SYNTHETIC): suction strainer choked by debris after outage work"
+        }
+      ],
+      "analysis": {
+        "sheet": "UOIR ID 901 - Boiler feed pump",
+        "header_row": 2,
+        "columns": [
+          "No.",
+          "Failure Mode",
+          "Failure Effect",
+          "H",
+          "S",
+          "E",
+          "O",
+          "1",
+          "2",
+          "3",
+          "H4",
+          "H5",
+          "S4",
+          "RecommendedStrategy",
+          "Task",
+          "Frequency",
+          "Trade",
+          "KKS",
+          "New Task",
+          "Review task",
+          "Maintenance Plan No",
+          "Remark"
+        ],
+        "column_letters": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E",
+          "F",
+          "G",
+          "H",
+          "I",
+          "J",
+          "K",
+          "L",
+          "M",
+          "N",
+          "O",
+          "P",
+          "Q",
+          "R",
+          "S",
+          "T",
+          "U",
+          "V"
+        ],
+        "rows": [
+          {
+            "source_row": 3,
+            "cells": [
+              "1",
+              "Suction strainer blocked",
+              "Low suction pressure, pump trips on protection",
+              "N",
+              "N",
+              "Y",
+              "Y",
+              "Y",
+              "N",
+              "",
+              "",
+              "",
+              "",
+              "OC",
+              "Monitor strainer differential pressure and clean when above 0.5 bar",
+              "Weekly",
+              "SYNMECH",
+              "SYN-10LAC20AP001",
+              "Yes",
+              "Review with operations",
+              "SYN-MP-10021",
+              ""
+            ]
+          },
+          {
+            "source_row": 4,
+            "cells": [
+              "2",
+              "Mechanical seal leakage",
+              "Loss of feedwater, reduced pump availability",
+              "N",
+              "N",
+              "Y",
+              "Y",
+              "Y",
+              "N",
+              "",
+              "",
+              "",
+              "",
+              "OC",
+              "Inspect seal flush line and record leakage rate",
+              "Monthly",
+              "SYNMECH",
+              "SYN-10LAC20AP001",
+              "No",
+              "",
+              "SYN-MP-10022",
+              "Existing plan"
+            ]
+          },
+          {
+            "source_row": 5,
+            "cells": [
+              "3",
+              "Bearing wear due to lubrication breakdown",
+              "High vibration leading to pump trip",
+              "N",
+              "N",
+              "Y",
+              "Y",
+              "Y",
+              "N",
+              "",
+              "",
+              "",
+              "",
+              "SR",
+              "Replace lubricating oil and flush bearing housing",
+              "6 Monthly",
+              "SYNMECH",
+              "SYN-10LAC20AP001",
+              "Yes",
+              "",
+              "",
+              ""
+            ]
+          },
+          {
+            "source_row": 6,
+            "cells": [
+              "4",
+              "Suction pressure transmitter drift",
+              "Spurious low suction pressure trip",
+              "N",
+              "Y",
+              "N",
+              "N",
+              "N",
+              "Y",
+              "",
+              "",
+              "",
+              "N",
+              "FF",
+              "Functional test of low suction pressure trip loop / compare against local gauge",
+              "Yearly",
+              "SYNINST",
+              "SYN-10LAC20CP101",
+              "No",
+              "",
+              "SYN-MP-10023",
+              ""
+            ]
+          },
+          {
+            "source_row": 7,
+            "cells": [
+              "5",
+              "Impeller erosion",
+              "Reduced discharge pressure and flow",
+              "N",
+              "N",
+              "Y",
+              "Y",
+              "Y",
+              "N",
+              "",
+              "",
+              "",
+              "",
+              "R-Spare",
+              "Keep one spare impeller in store (min. stock 1)",
+              "As required",
+              "SYNMECH",
+              "SYN-10LAC20AP001",
+              "Yes",
+              "",
+              "",
+              "Raise stock code request"
+            ]
+          },
+          {
+            "source_row": 8,
+            "cells": [
+              "6",
+              "Motor winding insulation degradation",
+              "Motor trips on earth fault",
+              "N",
+              "N",
+              "Y",
+              "Y",
+              "Y",
+              "N",
+              "",
+              "",
+              "",
+              "",
+              "SD",
+              "Replace motor terminal box gasket set",
+              "4 Yearly",
+              "SYNELEC",
+              "SYN-10LAC20AP001",
+              "No",
+              "",
+              "SYN-MP-10024",
+              ""
+            ]
+          },
+          {
+            "source_row": 9,
+            "cells": [
+              "7",
+              "Recirculation valve actuator seized",
+              "Pump runs below minimum flow and overheats",
+              "Y",
+              "N",
+              "N",
+              "Y",
+              "Y",
+              "N",
+              "",
+              "N",
+              "Y",
+              "",
+              "R-hardware",
+              "Install actuator with position feedback (design change request SYN-DCR-07)",
+              "One-off",
+              "SYNINST",
+              "SYN-10LAC20AA101",
+              "Yes",
+              "",
+              "",
+              ""
+            ]
+          }
+        ],
+        "merged": []
+      },
+      "tasks": [
+        {
+          "source_row": 3,
+          "failure_mode": "Suction strainer blocked",
+          "failure_effect": "Low suction pressure, pump trips on protection",
+          "strategy_code": "OC",
+          "strategy_raw": "OC",
+          "task": "Monitor strainer differential pressure and clean when above 0.5 bar",
+          "frequency": "Weekly",
+          "trade": "SYNMECH",
+          "trade_key": "SYNMECH",
+          "kks": "SYN-10LAC20AP001",
+          "new_task": "yes",
+          "new_task_raw": "Yes",
+          "is_duplicate": false,
+          "duplicate_of_row": null
+        },
+        {
+          "source_row": 4,
+          "failure_mode": "Mechanical seal leakage",
+          "failure_effect": "Loss of feedwater, reduced pump availability",
+          "strategy_code": "OC",
+          "strategy_raw": "OC",
+          "task": "Inspect seal flush line and record leakage rate",
+          "frequency": "Monthly",
+          "trade": "SYNMECH",
+          "trade_key": "SYNMECH",
+          "kks": "SYN-10LAC20AP001",
+          "new_task": "no",
+          "new_task_raw": "No",
+          "is_duplicate": false,
+          "duplicate_of_row": null
+        },
+        {
+          "source_row": 5,
+          "failure_mode": "Bearing wear due to lubrication breakdown",
+          "failure_effect": "High vibration leading to pump trip",
+          "strategy_code": "SR",
+          "strategy_raw": "SR",
+          "task": "Replace lubricating oil and flush bearing housing",
+          "frequency": "6 Monthly",
+          "trade": "SYNMECH",
+          "trade_key": "SYNMECH",
+          "kks": "SYN-10LAC20AP001",
+          "new_task": "yes",
+          "new_task_raw": "Yes",
+          "is_duplicate": false,
+          "duplicate_of_row": null
+        },
+        {
+          "source_row": 6,
+          "failure_mode": "Suction pressure transmitter drift",
+          "failure_effect": "Spurious low suction pressure trip",
+          "strategy_code": "FF",
+          "strategy_raw": "FF",
+          "task": "Functional test of low suction pressure trip loop / compare against local gauge",
+          "frequency": "Yearly",
+          "trade": "SYNINST",
+          "trade_key": "SYNINST",
+          "kks": "SYN-10LAC20CP101",
+          "new_task": "no",
+          "new_task_raw": "No",
+          "is_duplicate": false,
+          "duplicate_of_row": null
+        },
+        {
+          "source_row": 7,
+          "failure_mode": "Impeller erosion",
+          "failure_effect": "Reduced discharge pressure and flow",
+          "strategy_code": "R-SPARE",
+          "strategy_raw": "R-Spare",
+          "task": "Keep one spare impeller in store (min. stock 1)",
+          "frequency": "As required",
+          "trade": "SYNMECH",
+          "trade_key": "SYNMECH",
+          "kks": "SYN-10LAC20AP001",
+          "new_task": "yes",
+          "new_task_raw": "Yes",
+          "is_duplicate": false,
+          "duplicate_of_row": null
+        },
+        {
+          "source_row": 8,
+          "failure_mode": "Motor winding insulation degradation",
+          "failure_effect": "Motor trips on earth fault",
+          "strategy_code": "SD",
+          "strategy_raw": "SD",
+          "task": "Replace motor terminal box gasket set",
+          "frequency": "4 Yearly",
+          "trade": "SYNELEC",
+          "trade_key": "SYNELEC",
+          "kks": "SYN-10LAC20AP001",
+          "new_task": "no",
+          "new_task_raw": "No",
+          "is_duplicate": false,
+          "duplicate_of_row": null
+        },
+        {
+          "source_row": 9,
+          "failure_mode": "Recirculation valve actuator seized",
+          "failure_effect": "Pump runs below minimum flow and overheats",
+          "strategy_code": "R-HARDWARE",
+          "strategy_raw": "R-hardware",
+          "task": "Install actuator with position feedback (design change request SYN-DCR-07)",
+          "frequency": "One-off",
+          "trade": "SYNINST",
+          "trade_key": "SYNINST",
+          "kks": "SYN-10LAC20AA101",
+          "new_task": "yes",
+          "new_task_raw": "Yes",
+          "is_duplicate": false,
+          "duplicate_of_row": null
+        }
+      ],
+      "summary": {
+        "failure_mode_count": 7,
+        "maintenance_task_count": 7,
+        "task_executed_count": 3,
+        "strategy_rows": [
+          {
+            "code": "OC",
+            "label": "OC - On Condition",
+            "existing": 1,
+            "new": 1,
+            "total": 2,
+            "color": "#2a78d6",
+            "standard": true
+          },
+          {
+            "code": "SR",
+            "label": "SR - Schedule Restore",
+            "existing": 0,
+            "new": 1,
+            "total": 1,
+            "color": "#eb6834",
+            "standard": true
+          },
+          {
+            "code": "SD",
+            "label": "SD - Schedule Discard",
+            "existing": 1,
+            "new": 0,
+            "total": 1,
+            "color": "#1baf7a",
+            "standard": true
+          },
+          {
+            "code": "FF",
+            "label": "FF - Failure Finding",
+            "existing": 1,
+            "new": 0,
+            "total": 1,
+            "color": "#eda100",
+            "standard": true
+          },
+          {
+            "code": "NSM",
+            "label": "NSM - No Schedule Maintenance",
+            "existing": 0,
+            "new": 0,
+            "total": 0,
+            "color": "#e87ba4",
+            "standard": true
+          },
+          {
+            "code": "R-SPARE",
+            "label": "R-SPARE - Redesign Spare",
+            "existing": 0,
+            "new": 1,
+            "total": 1,
+            "color": "#008300",
+            "standard": true
+          },
+          {
+            "code": "N/A",
+            "label": "Not Analysed",
+            "existing": 0,
+            "new": 0,
+            "total": 0,
+            "color": "#898781",
+            "standard": true
+          },
+          {
+            "code": "R-HARDWARE",
+            "label": "R-HARDWARE - Redesign Hardware",
+            "existing": 0,
+            "new": 1,
+            "total": 1,
+            "color": "#4a3aa7",
+            "standard": false
+          }
+        ],
+        "pie": [
+          {
+            "code": "OC",
+            "label": "OC - On Condition",
+            "count": 2,
+            "percent": 28.5,
+            "color": "#2a78d6"
+          },
+          {
+            "code": "SR",
+            "label": "SR - Schedule Restore",
+            "count": 1,
+            "percent": 14.3,
+            "color": "#eb6834"
+          },
+          {
+            "code": "SD",
+            "label": "SD - Schedule Discard",
+            "count": 1,
+            "percent": 14.3,
+            "color": "#1baf7a"
+          },
+          {
+            "code": "FF",
+            "label": "FF - Failure Finding",
+            "count": 1,
+            "percent": 14.3,
+            "color": "#eda100"
+          },
+          {
+            "code": "R-SPARE",
+            "label": "R-SPARE - Redesign Spare",
+            "count": 1,
+            "percent": 14.3,
+            "color": "#008300"
+          },
+          {
+            "code": "R-HARDWARE",
+            "label": "R-HARDWARE - Redesign Hardware",
+            "count": 1,
+            "percent": 14.3,
+            "color": "#4a3aa7"
+          }
+        ],
+        "pie_total": 7,
+        "work_centre_rows": [
+          {
+            "work_centre": "SYNMECH",
+            "total": 4,
+            "executed": 1,
+            "pending": 3
+          },
+          {
+            "work_centre": "SYNINST",
+            "total": 2,
+            "executed": 1,
+            "pending": 1
+          },
+          {
+            "work_centre": "SYNELEC",
+            "total": 1,
+            "executed": 1,
+            "pending": 0
+          }
+        ],
+        "not_counted": [],
+        "duplicate_rows": []
+      },
+      "recommendations": [
+        {
+          "equipment": "Boiler Feed Pump B",
+          "kks": "SYN-10LAC20AP001",
+          "heading": "Boiler Feed Pump B, SYN-10LAC20AP001",
+          "rows": [
+            {
+              "source_row": 3,
+              "failure_mode": "Suction strainer blocked",
+              "task": "Monitor strainer differential pressure and clean when above 0.5 bar",
+              "frequency": "Weekly",
+              "new_task": "yes"
+            },
+            {
+              "source_row": 4,
+              "failure_mode": "Mechanical seal leakage",
+              "task": "Inspect seal flush line and record leakage rate",
+              "frequency": "Monthly",
+              "new_task": "no"
+            },
+            {
+              "source_row": 5,
+              "failure_mode": "Bearing wear due to lubrication breakdown",
+              "task": "Replace lubricating oil and flush bearing housing",
+              "frequency": "6 Monthly",
+              "new_task": "yes"
+            },
+            {
+              "source_row": 7,
+              "failure_mode": "Impeller erosion",
+              "task": "Keep one spare impeller in store (min. stock 1)",
+              "frequency": "As required",
+              "new_task": "yes"
+            },
+            {
+              "source_row": 8,
+              "failure_mode": "Motor winding insulation degradation",
+              "task": "Replace motor terminal box gasket set",
+              "frequency": "4 Yearly",
+              "new_task": "no"
+            }
+          ]
+        },
+        {
+          "equipment": "Boiler Feed Pump B",
+          "kks": "SYN-10LAC20CP101",
+          "heading": "Boiler Feed Pump B, SYN-10LAC20CP101",
+          "rows": [
+            {
+              "source_row": 6,
+              "failure_mode": "Suction pressure transmitter drift",
+              "task": "Functional test of low suction pressure trip loop / compare against local gauge",
+              "frequency": "Yearly",
+              "new_task": "no"
+            }
+          ]
+        },
+        {
+          "equipment": "Boiler Feed Pump B",
+          "kks": "SYN-10LAC20AA101",
+          "heading": "Boiler Feed Pump B, SYN-10LAC20AA101",
+          "rows": [
+            {
+              "source_row": 9,
+              "failure_mode": "Recirculation valve actuator seized",
+              "task": "Install actuator with position feedback (design change request SYN-DCR-07)",
+              "frequency": "One-off",
+              "new_task": "yes"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "uoir_id": "902",
+      "title": "SYNTHETIC - Cooling water pump motor high winding temperature",
+      "equipment": [
+        "CW Pump Motor 2"
+      ],
+      "sheet_name": "UOIR ID 902 - CW pump motor hig",
+      "notes": [
+        {
+          "cell": "C1",
+          "text": "RCA (SYNTHETIC): blocked cooling air path on the motor fan cowl"
+        },
+        {
+          "cell": "B11",
+          "text": "Checked against the OEM manual revision B (SYNTHETIC reference)"
+        }
+      ],
+      "analysis": {
+        "sheet": "UOIR ID 902 - CW pump motor hig",
+        "header_row": 2,
+        "columns": [
+          "No.",
+          "Failure Mode",
+          "Failure Effect",
+          "H",
+          "S",
+          "E",
+          "O",
+          "1",
+          "2",
+          "3",
+          "H4",
+          "H5",
+          "S4",
+          "RecommendedStrategy",
+          "Task",
+          "Frequency",
+          "Trade",
+          "KKS",
+          "New Task",
+          "Review task",
+          "Maintenance Plan No",
+          "Remark"
+        ],
+        "column_letters": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E",
+          "F",
+          "G",
+          "H",
+          "I",
+          "J",
+          "K",
+          "L",
+          "M",
+          "N",
+          "O",
+          "P",
+          "Q",
+          "R",
+          "S",
+          "T",
+          "U",
+          "V"
+        ],
+        "rows": [
+          {
+            "source_row": 3,
+            "cells": [
+              "1",
+              "Cooling fins fouled with dust and oil mist",
+              "Winding temperature high, motor trips on thermal protection",
+              "N",
+              "N",
+              "Y",
+              "Y",
+              "Y",
+              "N",
+              "",
+              "",
+              "",
+              "",
+              "OC",
+              "Thermography of motor frame and bearings",
+              "Quarterly",
+              "SYNELEC",
+              "SYN-20PAC20AN001",
+              "Yes",
+              "",
+              "SYN-MP-20011",
+              ""
+            ]
+          },
+          {
+            "source_row": 4,
+            "cells": [
+              "",
+              "",
+              "",
+              "N",
+              "N",
+              "Y",
+              "Y",
+              "Y",
+              "N",
+              "",
+              "",
+              "",
+              "",
+              "SR",
+              "Clean cooling fins and fan cowl",
+              "6 Monthly",
+              "SynElec",
+              "SYN-20PAC20AN001",
+              "No",
+              "",
+              "SYN-MP-20012",
+              ""
+            ]
+          },
+          {
+            "source_row": 5,
+            "cells": [
+              "2",
+              "Cooling fan blade cracked",
+              "Reduced air flow, gradual temperature rise",
+              "N",
+              "N",
+              "Y",
+              "Y",
+              "Y",
+              "N",
+              "",
+              "",
+              "",
+              "",
+              "CBM",
+              "Vibration trend on motor non-drive end",
+              "Monthly",
+              "SYNMECH",
+              "SYN-20PAC20AN001",
+              "No",
+              "",
+              "SYN-MP-20013",
+              ""
+            ]
+          },
+          {
+            "source_row": 6,
+            "cells": [
+              "3",
+              "Winding RTD failed open circuit",
+              "Loss of temperature indication and alarm",
+              "N",
+              "Y",
+              "N",
+              "N",
+              "N",
+              "Y",
+              "",
+              "",
+              "",
+              "N",
+              "R-Pro",
+              "Update DCS alarm logic to flag RTD open circuit",
+              "One-off",
+              "SYNINST",
+              "SYN-20PAC20CT101",
+              "Yes",
+              "Plan to be raised after outage",
+              "",
+              "Engineering to confirm"
+            ]
+          },
+          {
+            "source_row": 7,
+            "cells": [
+              "4",
+              "Motor overloaded by fouled pump impeller",
+              "High stator current and winding temperature",
+              "N",
+              "N",
+              "Y",
+              "Y",
+              "Y",
+              "N",
+              "",
+              "",
+              "",
+              "",
+              "OC",
+              "Trend motor current against flow each shift",
+              "Daily",
+              "SYNOPER",
+              "SYN-20PAC20AN001",
+              "No",
+              "",
+              "",
+              ""
+            ]
+          },
+          {
+            "source_row": 8,
+            "cells": [
+              "5",
+              "Terminal box moisture ingress",
+              "Insulation resistance low, motor cannot start",
+              "N",
+              "N",
+              "Y",
+              "Y",
+              "Y",
+              "N",
+              "",
+              "",
+              "",
+              "",
+              "N/A",
+              "Insulation resistance test before start after long shutdown",
+              "As required",
+              "SYNELEC",
+              "SYN-20PAC20AN001",
+              "No",
+              "",
+              "",
+              ""
+            ]
+          }
+        ],
+        "merged": [
+          {
+            "first_row": 0,
+            "first_col": 1,
+            "last_row": 1,
+            "last_col": 1
+          },
+          {
+            "first_row": 0,
+            "first_col": 2,
+            "last_row": 1,
+            "last_col": 2
+          },
+          {
+            "first_row": 3,
+            "first_col": 19,
+            "last_row": 3,
+            "last_col": 20
+          }
+        ]
+      },
+      "tasks": [
+        {
+          "source_row": 3,
+          "failure_mode": "Cooling fins fouled with dust and oil mist",
+          "failure_effect": "Winding temperature high, motor trips on thermal protection",
+          "strategy_code": "OC",
+          "strategy_raw": "OC",
+          "task": "Thermography of motor frame and bearings",
+          "frequency": "Quarterly",
+          "trade": "SYNELEC",
+          "trade_key": "SYNELEC",
+          "kks": "SYN-20PAC20AN001",
+          "new_task": "yes",
+          "new_task_raw": "Yes",
+          "is_duplicate": false,
+          "duplicate_of_row": null
+        },
+        {
+          "source_row": 4,
+          "failure_mode": "Cooling fins fouled with dust and oil mist",
+          "failure_effect": "Winding temperature high, motor trips on thermal protection",
+          "strategy_code": "SR",
+          "strategy_raw": "SR",
+          "task": "Clean cooling fins and fan cowl",
+          "frequency": "6 Monthly",
+          "trade": "SynElec",
+          "trade_key": "SYNELEC",
+          "kks": "SYN-20PAC20AN001",
+          "new_task": "no",
+          "new_task_raw": "No",
+          "is_duplicate": false,
+          "duplicate_of_row": null
+        },
+        {
+          "source_row": 5,
+          "failure_mode": "Cooling fan blade cracked",
+          "failure_effect": "Reduced air flow, gradual temperature rise",
+          "strategy_code": "CBM",
+          "strategy_raw": "CBM",
+          "task": "Vibration trend on motor non-drive end",
+          "frequency": "Monthly",
+          "trade": "SYNMECH",
+          "trade_key": "SYNMECH",
+          "kks": "SYN-20PAC20AN001",
+          "new_task": "no",
+          "new_task_raw": "No",
+          "is_duplicate": false,
+          "duplicate_of_row": null
+        },
+        {
+          "source_row": 6,
+          "failure_mode": "Winding RTD failed open circuit",
+          "failure_effect": "Loss of temperature indication and alarm",
+          "strategy_code": "R-PRO",
+          "strategy_raw": "R-Pro",
+          "task": "Update DCS alarm logic to flag RTD open circuit",
+          "frequency": "One-off",
+          "trade": "SYNINST",
+          "trade_key": "SYNINST",
+          "kks": "SYN-20PAC20CT101",
+          "new_task": "yes",
+          "new_task_raw": "Yes",
+          "is_duplicate": false,
+          "duplicate_of_row": null
+        },
+        {
+          "source_row": 7,
+          "failure_mode": "Motor overloaded by fouled pump impeller",
+          "failure_effect": "High stator current and winding temperature",
+          "strategy_code": "OC",
+          "strategy_raw": "OC",
+          "task": "Trend motor current against flow each shift",
+          "frequency": "Daily",
+          "trade": "SYNOPER",
+          "trade_key": "SYNOPER",
+          "kks": "SYN-20PAC20AN001",
+          "new_task": "no",
+          "new_task_raw": "No",
+          "is_duplicate": false,
+          "duplicate_of_row": null
+        },
+        {
+          "source_row": 8,
+          "failure_mode": "Terminal box moisture ingress",
+          "failure_effect": "Insulation resistance low, motor cannot start",
+          "strategy_code": "N/A",
+          "strategy_raw": "N/A",
+          "task": "Insulation resistance test before start after long shutdown",
+          "frequency": "As required",
+          "trade": "SYNELEC",
+          "trade_key": "SYNELEC",
+          "kks": "SYN-20PAC20AN001",
+          "new_task": "no",
+          "new_task_raw": "No",
+          "is_duplicate": false,
+          "duplicate_of_row": null
+        }
+      ],
+      "summary": {
+        "failure_mode_count": 6,
+        "maintenance_task_count": 6,
+        "task_executed_count": 4,
+        "strategy_rows": [
+          {
+            "code": "OC",
+            "label": "OC - On Condition",
+            "existing": 1,
+            "new": 1,
+            "total": 2,
+            "color": "#2a78d6",
+            "standard": true
+          },
+          {
+            "code": "SR",
+            "label": "SR - Schedule Restore",
+            "existing": 1,
+            "new": 0,
+            "total": 1,
+            "color": "#eb6834",
+            "standard": true
+          },
+          {
+            "code": "SD",
+            "label": "SD - Schedule Discard",
+            "existing": 0,
+            "new": 0,
+            "total": 0,
+            "color": "#1baf7a",
+            "standard": true
+          },
+          {
+            "code": "FF",
+            "label": "FF - Failure Finding",
+            "existing": 0,
+            "new": 0,
+            "total": 0,
+            "color": "#eda100",
+            "standard": true
+          },
+          {
+            "code": "NSM",
+            "label": "NSM - No Schedule Maintenance",
+            "existing": 0,
+            "new": 0,
+            "total": 0,
+            "color": "#e87ba4",
+            "standard": true
+          },
+          {
+            "code": "R-SPARE",
+            "label": "R-SPARE - Redesign Spare",
+            "existing": 0,
+            "new": 0,
+            "total": 0,
+            "color": "#008300",
+            "standard": true
+          },
+          {
+            "code": "N/A",
+            "label": "Not Analysed",
+            "existing": 1,
+            "new": 0,
+            "total": 1,
+            "color": "#898781",
+            "standard": true
+          },
+          {
+            "code": "CBM",
+            "label": "CBM",
+            "existing": 1,
+            "new": 0,
+            "total": 1,
+            "color": "#c3c2b7",
+            "standard": false
+          },
+          {
+            "code": "R-PRO",
+            "label": "R-PRO - Redesign Procedure",
+            "existing": 0,
+            "new": 1,
+            "total": 1,
+            "color": "#9085e9",
+            "standard": false
+          }
+        ],
+        "pie": [
+          {
+            "code": "OC",
+            "label": "OC - On Condition",
+            "count": 2,
+            "percent": 33.3,
+            "color": "#2a78d6"
+          },
+          {
+            "code": "SR",
+            "label": "SR - Schedule Restore",
+            "count": 1,
+            "percent": 16.7,
+            "color": "#eb6834"
+          },
+          {
+            "code": "N/A",
+            "label": "Not Analysed",
+            "count": 1,
+            "percent": 16.7,
+            "color": "#898781"
+          },
+          {
+            "code": "CBM",
+            "label": "CBM",
+            "count": 1,
+            "percent": 16.7,
+            "color": "#c3c2b7"
+          },
+          {
+            "code": "R-PRO",
+            "label": "R-PRO - Redesign Procedure",
+            "count": 1,
+            "percent": 16.6,
+            "color": "#9085e9"
+          }
+        ],
+        "pie_total": 6,
+        "work_centre_rows": [
+          {
+            "work_centre": "SYNELEC",
+            "total": 3,
+            "executed": 2,
+            "pending": 1
+          },
+          {
+            "work_centre": "SYNMECH",
+            "total": 1,
+            "executed": 1,
+            "pending": 0
+          },
+          {
+            "work_centre": "SYNINST",
+            "total": 1,
+            "executed": 0,
+            "pending": 1
+          },
+          {
+            "work_centre": "SYNOPER",
+            "total": 1,
+            "executed": 1,
+            "pending": 0
+          }
+        ],
+        "not_counted": [],
+        "duplicate_rows": []
+      },
+      "recommendations": [
+        {
+          "equipment": "CW Pump Motor 2",
+          "kks": "SYN-20PAC20AN001",
+          "heading": "CW Pump Motor 2, SYN-20PAC20AN001",
+          "rows": [
+            {
+              "source_row": 3,
+              "failure_mode": "Cooling fins fouled with dust and oil mist",
+              "task": "Thermography of motor frame and bearings",
+              "frequency": "Quarterly",
+              "new_task": "yes"
+            },
+            {
+              "source_row": 4,
+              "failure_mode": "Cooling fins fouled with dust and oil mist",
+              "task": "Clean cooling fins and fan cowl",
+              "frequency": "6 Monthly",
+              "new_task": "no"
+            },
+            {
+              "source_row": 5,
+              "failure_mode": "Cooling fan blade cracked",
+              "task": "Vibration trend on motor non-drive end",
+              "frequency": "Monthly",
+              "new_task": "no"
+            },
+            {
+              "source_row": 7,
+              "failure_mode": "Motor overloaded by fouled pump impeller",
+              "task": "Trend motor current against flow each shift",
+              "frequency": "Daily",
+              "new_task": "no"
+            },
+            {
+              "source_row": 8,
+              "failure_mode": "Terminal box moisture ingress",
+              "task": "Insulation resistance test before start after long shutdown",
+              "frequency": "As required",
+              "new_task": "no"
+            }
+          ]
+        },
+        {
+          "equipment": "CW Pump Motor 2",
+          "kks": "SYN-20PAC20CT101",
+          "heading": "CW Pump Motor 2, SYN-20PAC20CT101",
+          "rows": [
+            {
+              "source_row": 6,
+              "failure_mode": "Winding RTD failed open circuit",
+              "task": "Update DCS alarm logic to flag RTD open circuit",
+              "frequency": "One-off",
+              "new_task": "yes"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "uoir_id": "903",
+      "title": "SYNTHETIC - Instrument air compressor A unplanned stop during load change",
+      "equipment": [
+        "Instrument Air Compressor A",
+        "Air Dryer A"
+      ],
+      "sheet_name": "UOIR ID 903 - Instrument air co",
+      "notes": [],
+      "analysis": {
+        "sheet": "UOIR ID 903 - Instrument air co",
+        "header_row": 2,
+        "columns": [
+          "No.",
+          "Failure Mode",
+          "Failure Effect",
+          "H",
+          "S",
+          "E",
+          "O",
+          "1",
+          "2",
+          "3",
+          "H4",
+          "H5",
+          "S4",
+          "RecommendedStrategy",
+          "Task",
+          "Frequency",
+          "Trade",
+          "KKS",
+          "New Task",
+          "Review task",
+          "Maintenance Plan No",
+          "Remark"
+        ],
+        "column_letters": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E",
+          "F",
+          "G",
+          "H",
+          "I",
+          "J",
+          "K",
+          "L",
+          "M",
+          "N",
+          "O",
+          "P",
+          "Q",
+          "R",
+          "S",
+          "T",
+          "U",
+          "V"
+        ],
+        "rows": [
+          {
+            "source_row": 3,
+            "cells": [
+              "1",
+              "Inlet air filter clogged",
+              "Low discharge pressure, standby compressor starts",
+              "N",
+              "N",
+              "Y",
+              "Y",
+              "Y",
+              "N",
+              "",
+              "",
+              "",
+              "",
+              "OC",
+              "Check filter differential pressure indicator",
+              "Weekly",
+              "SYNOPER",
+              "SYN-00QFA10AN001",
+              "No",
+              "",
+              "SYN-MP-30011",
+              ""
+            ]
+          },
+          {
+            "source_row": 4,
+            "cells": [
+              "2",
+              "Oil separator element saturated",
+              "Oil carry-over to air network",
+              "N",
+              "N",
+              "Y",
+              "Y",
+              "Y",
+              "N",
+              "",
+              "",
+              "",
+              "",
+              "SD",
+              "Replace oil separator element",
+              "4000 running hours",
+              "SYNMECH",
+              "SYN-00QFA10AN001",
+              "Yes",
+              "",
+              "",
+              ""
+            ]
+          },
+          {
+            "source_row": 5,
+            "cells": [
+              "3",
+              "Compressor discharge temperature switch faulty",
+              "Unplanned stop on false high temperature",
+              "N",
+              "Y",
+              "N",
+              "N",
+              "N",
+              "Y",
+              "",
+              "",
+              "",
+              "N",
+              "FF",
+              "Test high temperature trip at set point",
+              "Yearly",
+              "SYNINST",
+              "SYN-00QFA10CT101",
+              "No",
+              "",
+              "SYN-MP-30012",
+              ""
+            ]
+          },
+          {
+            "source_row": 6,
+            "cells": [
+              "4",
+              "Desiccant exhausted",
+              "Wet air to instruments, valve positioner faults",
+              "N",
+              "N",
+              "Y",
+              "Y",
+              "Y",
+              "N",
+              "",
+              "",
+              "",
+              "",
+              "SR",
+              "Replace desiccant charge",
+              "2 Yearly",
+              "SYNMECH",
+              "SYN-00QFA20AT001",
+              "Yes",
+              "",
+              "",
+              ""
+            ]
+          },
+          {
+            "source_row": 7,
+            "cells": [
+              "5",
+              "Dryer purge valve sticks open",
+              "Excess air consumption",
+              "N",
+              "N",
+              "N",
+              "Y",
+              "Y",
+              "N",
+              "",
+              "",
+              "",
+              "",
+              "NSM",
+              "Run to failure; repair on breakdown",
+              "",
+              "SYNOPER",
+              "SYN-00QFA20AT001",
+              "",
+              "",
+              "",
+              "NSM - no New Task expected"
+            ]
+          },
+          {
+            "source_row": 8,
+            "cells": [
+              "6",
+              "Drain valve leaking",
+              "Minor air loss",
+              "N",
+              "N",
+              "N",
+              "Y",
+              "Y",
+              "N",
+              "",
+              "",
+              "",
+              "",
+              "NSM",
+              "Run to failure; replace on breakdown",
+              "",
+              "SYNOPER",
+              "SYN-00QFA10AA101",
+              "",
+              "",
+              "",
+              ""
+            ]
+          },
+          {
+            "source_row": 9,
+            "cells": [
+              "7",
+              "Auto drain timer failed",
+              "Condensate build-up in receiver",
+              "N",
+              "N",
+              "Y",
+              "Y",
+              "Y",
+              "N",
+              "",
+              "",
+              "",
+              "",
+              "OC",
+              "Verify drain operation during rounds",
+              "Daily",
+              "SYNOPER",
+              "SYN-00QFA10AA101",
+              "",
+              "",
+              "",
+              "New Task to be confirmed"
+            ]
+          },
+          {
+            "source_row": 10,
+            "cells": [
+              "8",
+              "Receiver safety valve set point drift",
+              "Over-pressure protection not available",
+              "N",
+              "Y",
+              "N",
+              "N",
+              "N",
+              "Y",
+              "",
+              "",
+              "",
+              "N",
+              "FF",
+              "Bench test safety valve",
+              "2 Yearly",
+              "SYNMECH",
+              "SYN-00QFA10AA101",
+              "Yes",
+              "",
+              "",
+              ""
+            ]
+          },
+          {
+            "source_row": 11,
+            "cells": [
+              "9",
+              "Receiver safety valve set point drift",
+              "Over-pressure protection not available",
+              "N",
+              "Y",
+              "N",
+              "N",
+              "N",
+              "Y",
+              "",
+              "",
+              "",
+              "N",
+              "FF",
+              "Bench test safety valve",
+              "2 Yearly",
+              "SYNMECH",
+              "SYN-00QFA10AA101",
+              "Yes",
+              "",
+              "",
+              ""
+            ]
+          }
+        ],
+        "merged": []
+      },
+      "tasks": [
+        {
+          "source_row": 3,
+          "failure_mode": "Inlet air filter clogged",
+          "failure_effect": "Low discharge pressure, standby compressor starts",
+          "strategy_code": "OC",
+          "strategy_raw": "OC",
+          "task": "Check filter differential pressure indicator",
+          "frequency": "Weekly",
+          "trade": "SYNOPER",
+          "trade_key": "SYNOPER",
+          "kks": "SYN-00QFA10AN001",
+          "new_task": "no",
+          "new_task_raw": "No",
+          "is_duplicate": false,
+          "duplicate_of_row": null
+        },
+        {
+          "source_row": 4,
+          "failure_mode": "Oil separator element saturated",
+          "failure_effect": "Oil carry-over to air network",
+          "strategy_code": "SD",
+          "strategy_raw": "SD",
+          "task": "Replace oil separator element",
+          "frequency": "4000 running hours",
+          "trade": "SYNMECH",
+          "trade_key": "SYNMECH",
+          "kks": "SYN-00QFA10AN001",
+          "new_task": "yes",
+          "new_task_raw": "Yes",
+          "is_duplicate": false,
+          "duplicate_of_row": null
+        },
+        {
+          "source_row": 5,
+          "failure_mode": "Compressor discharge temperature switch faulty",
+          "failure_effect": "Unplanned stop on false high temperature",
+          "strategy_code": "FF",
+          "strategy_raw": "FF",
+          "task": "Test high temperature trip at set point",
+          "frequency": "Yearly",
+          "trade": "SYNINST",
+          "trade_key": "SYNINST",
+          "kks": "SYN-00QFA10CT101",
+          "new_task": "no",
+          "new_task_raw": "No",
+          "is_duplicate": false,
+          "duplicate_of_row": null
+        },
+        {
+          "source_row": 6,
+          "failure_mode": "Desiccant exhausted",
+          "failure_effect": "Wet air to instruments, valve positioner faults",
+          "strategy_code": "SR",
+          "strategy_raw": "SR",
+          "task": "Replace desiccant charge",
+          "frequency": "2 Yearly",
+          "trade": "SYNMECH",
+          "trade_key": "SYNMECH",
+          "kks": "SYN-00QFA20AT001",
+          "new_task": "yes",
+          "new_task_raw": "Yes",
+          "is_duplicate": false,
+          "duplicate_of_row": null
+        },
+        {
+          "source_row": 7,
+          "failure_mode": "Dryer purge valve sticks open",
+          "failure_effect": "Excess air consumption",
+          "strategy_code": "NSM",
+          "strategy_raw": "NSM",
+          "task": "Run to failure; repair on breakdown",
+          "frequency": "",
+          "trade": "SYNOPER",
+          "trade_key": "SYNOPER",
+          "kks": "SYN-00QFA20AT001",
+          "new_task": "blank",
+          "new_task_raw": "",
+          "is_duplicate": false,
+          "duplicate_of_row": null
+        },
+        {
+          "source_row": 8,
+          "failure_mode": "Drain valve leaking",
+          "failure_effect": "Minor air loss",
+          "strategy_code": "NSM",
+          "strategy_raw": "NSM",
+          "task": "Run to failure; replace on breakdown",
+          "frequency": "",
+          "trade": "SYNOPER",
+          "trade_key": "SYNOPER",
+          "kks": "SYN-00QFA10AA101",
+          "new_task": "blank",
+          "new_task_raw": "",
+          "is_duplicate": false,
+          "duplicate_of_row": null
+        },
+        {
+          "source_row": 9,
+          "failure_mode": "Auto drain timer failed",
+          "failure_effect": "Condensate build-up in receiver",
+          "strategy_code": "OC",
+          "strategy_raw": "OC",
+          "task": "Verify drain operation during rounds",
+          "frequency": "Daily",
+          "trade": "SYNOPER",
+          "trade_key": "SYNOPER",
+          "kks": "SYN-00QFA10AA101",
+          "new_task": "blank",
+          "new_task_raw": "",
+          "is_duplicate": false,
+          "duplicate_of_row": null
+        },
+        {
+          "source_row": 10,
+          "failure_mode": "Receiver safety valve set point drift",
+          "failure_effect": "Over-pressure protection not available",
+          "strategy_code": "FF",
+          "strategy_raw": "FF",
+          "task": "Bench test safety valve",
+          "frequency": "2 Yearly",
+          "trade": "SYNMECH",
+          "trade_key": "SYNMECH",
+          "kks": "SYN-00QFA10AA101",
+          "new_task": "yes",
+          "new_task_raw": "Yes",
+          "is_duplicate": false,
+          "duplicate_of_row": null
+        },
+        {
+          "source_row": 11,
+          "failure_mode": "Receiver safety valve set point drift",
+          "failure_effect": "Over-pressure protection not available",
+          "strategy_code": "FF",
+          "strategy_raw": "FF",
+          "task": "Bench test safety valve",
+          "frequency": "2 Yearly",
+          "trade": "SYNMECH",
+          "trade_key": "SYNMECH",
+          "kks": "SYN-00QFA10AA101",
+          "new_task": "yes",
+          "new_task_raw": "Yes",
+          "is_duplicate": true,
+          "duplicate_of_row": 10
+        }
+      ],
+      "summary": {
+        "failure_mode_count": 8,
+        "maintenance_task_count": 6,
+        "task_executed_count": 2,
+        "strategy_rows": [
+          {
+            "code": "OC",
+            "label": "OC - On Condition",
+            "existing": 1,
+            "new": 0,
+            "total": 2,
+            "color": "#2a78d6",
+            "standard": true
+          },
+          {
+            "code": "SR",
+            "label": "SR - Schedule Restore",
+            "existing": 0,
+            "new": 1,
+            "total": 1,
+            "color": "#eb6834",
+            "standard": true
+          },
+          {
+            "code": "SD",
+            "label": "SD - Schedule Discard",
+            "existing": 0,
+            "new": 1,
+            "total": 1,
+            "color": "#1baf7a",
+            "standard": true
+          },
+          {
+            "code": "FF",
+            "label": "FF - Failure Finding",
+            "existing": 1,
+            "new": 1,
+            "total": 2,
+            "color": "#eda100",
+            "standard": true
+          },
+          {
+            "code": "NSM",
+            "label": "NSM - No Schedule Maintenance",
+            "existing": 0,
+            "new": 0,
+            "total": 2,
+            "color": "#e87ba4",
+            "standard": true
+          },
+          {
+            "code": "R-SPARE",
+            "label": "R-SPARE - Redesign Spare",
+            "existing": 0,
+            "new": 0,
+            "total": 0,
+            "color": "#008300",
+            "standard": true
+          },
+          {
+            "code": "N/A",
+            "label": "Not Analysed",
+            "existing": 0,
+            "new": 0,
+            "total": 0,
+            "color": "#898781",
+            "standard": true
+          }
+        ],
+        "pie": [
+          {
+            "code": "OC",
+            "label": "OC - On Condition",
+            "count": 2,
+            "percent": 25,
+            "color": "#2a78d6"
+          },
+          {
+            "code": "SR",
+            "label": "SR - Schedule Restore",
+            "count": 1,
+            "percent": 12.5,
+            "color": "#eb6834"
+          },
+          {
+            "code": "SD",
+            "label": "SD - Schedule Discard",
+            "count": 1,
+            "percent": 12.5,
+            "color": "#1baf7a"
+          },
+          {
+            "code": "FF",
+            "label": "FF - Failure Finding",
+            "count": 2,
+            "percent": 25,
+            "color": "#eda100"
+          },
+          {
+            "code": "NSM",
+            "label": "NSM - No Schedule Maintenance",
+            "count": 2,
+            "percent": 25,
+            "color": "#e87ba4"
+          }
+        ],
+        "pie_total": 8,
+        "work_centre_rows": [
+          {
+            "work_centre": "SYNMECH",
+            "total": 3,
+            "executed": 0,
+            "pending": 3
+          },
+          {
+            "work_centre": "SYNOPER",
+            "total": 1,
+            "executed": 1,
+            "pending": 0
+          },
+          {
+            "work_centre": "SYNINST",
+            "total": 1,
+            "executed": 1,
+            "pending": 0
+          }
+        ],
+        "not_counted": [
+          {
+            "source_row": 9,
+            "reason": "New Task blank",
+            "strategy": "OC",
+            "trade": "SYNOPER"
+          }
+        ],
+        "duplicate_rows": [
+          11
+        ]
+      },
+      "recommendations": [
+        {
+          "equipment": "Instrument Air Compressor A / Air Dryer A",
+          "kks": "SYN-00QFA10AN001",
+          "heading": "Instrument Air Compressor A / Air Dryer A, SYN-00QFA10AN001",
+          "rows": [
+            {
+              "source_row": 3,
+              "failure_mode": "Inlet air filter clogged",
+              "task": "Check filter differential pressure indicator",
+              "frequency": "Weekly",
+              "new_task": "no"
+            },
+            {
+              "source_row": 4,
+              "failure_mode": "Oil separator element saturated",
+              "task": "Replace oil separator element",
+              "frequency": "4000 running hours",
+              "new_task": "yes"
+            }
+          ]
+        },
+        {
+          "equipment": "Instrument Air Compressor A / Air Dryer A",
+          "kks": "SYN-00QFA10CT101",
+          "heading": "Instrument Air Compressor A / Air Dryer A, SYN-00QFA10CT101",
+          "rows": [
+            {
+              "source_row": 5,
+              "failure_mode": "Compressor discharge temperature switch faulty",
+              "task": "Test high temperature trip at set point",
+              "frequency": "Yearly",
+              "new_task": "no"
+            }
+          ]
+        },
+        {
+          "equipment": "Instrument Air Compressor A / Air Dryer A",
+          "kks": "SYN-00QFA20AT001",
+          "heading": "Instrument Air Compressor A / Air Dryer A, SYN-00QFA20AT001",
+          "rows": [
+            {
+              "source_row": 6,
+              "failure_mode": "Desiccant exhausted",
+              "task": "Replace desiccant charge",
+              "frequency": "2 Yearly",
+              "new_task": "yes"
+            },
+            {
+              "source_row": 7,
+              "failure_mode": "Dryer purge valve sticks open",
+              "task": "Run to failure; repair on breakdown",
+              "frequency": "",
+              "new_task": "blank"
+            }
+          ]
+        },
+        {
+          "equipment": "Instrument Air Compressor A / Air Dryer A",
+          "kks": "SYN-00QFA10AA101",
+          "heading": "Instrument Air Compressor A / Air Dryer A, SYN-00QFA10AA101",
+          "rows": [
+            {
+              "source_row": 8,
+              "failure_mode": "Drain valve leaking",
+              "task": "Run to failure; replace on breakdown",
+              "frequency": "",
+              "new_task": "blank"
+            },
+            {
+              "source_row": 9,
+              "failure_mode": "Auto drain timer failed",
+              "task": "Verify drain operation during rounds",
+              "frequency": "Daily",
+              "new_task": "blank"
+            },
+            {
+              "source_row": 10,
+              "failure_mode": "Receiver safety valve set point drift",
+              "task": "Bench test safety valve",
+              "frequency": "2 Yearly",
+              "new_task": "yes"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "issues": [
+    {
+      "severity": "warning",
+      "code": "NEW_TASK_BLANK",
+      "message": "New Task is empty on row 9 of 'UOIR ID 903 - Instrument air co'. This row is left out of the Existing, New and Work-Centre counts.",
+      "sheet": "UOIR ID 903 - Instrument air co",
+      "row": 9,
+      "column": "New Task",
+      "cell": "S9",
+      "uoir_id": "903"
+    },
+    {
+      "severity": "warning",
+      "code": "DUPLICATE_ROW",
+      "message": "Row 11 is identical to row 10 and is counted once.",
+      "sheet": "UOIR ID 903 - Instrument air co",
+      "row": 11,
+      "column": null,
+      "cell": null,
+      "uoir_id": "903"
+    },
+    {
+      "severity": "warning",
+      "code": "STRATEGY_UNKNOWN",
+      "message": "Strategy 'CBM' on row 5 is not a known strategy code. It is shown as written.",
+      "sheet": "UOIR ID 902 - CW pump motor hig",
+      "row": 5,
+      "column": "RecommendedStrategy",
+      "cell": "N5",
+      "uoir_id": "902"
+    },
+    {
+      "severity": "warning",
+      "code": "UOIR_DATE_NOT_DATE",
+      "message": "Date of UOIR 'TBC' on row 7 is not a date. It is shown as written.",
+      "sheet": "UOIR",
+      "row": 7,
+      "column": "Date of UOIR",
+      "cell": "E7",
+      "uoir_id": "903"
+    },
+    {
+      "severity": "warning",
+      "code": "UOIR_DATE_NOT_DATE",
+      "message": "Date of UOIR 'TBC' on row 8 is not a date. It is shown as written.",
+      "sheet": "UOIR",
+      "row": 8,
+      "column": "Date of UOIR",
+      "cell": "E8",
+      "uoir_id": "903"
+    },
+    {
+      "severity": "info",
+      "code": "MERGED_CELLS_CARRIED",
+      "message": "Merged cells in Failure Mode and Failure Effect on 'UOIR ID 902 - CW pump motor hig' cover more than one row. Their value is used for each covered row.",
+      "sheet": "UOIR ID 902 - CW pump motor hig",
+      "row": 3,
+      "column": "Failure Mode",
+      "cell": "B3",
+      "uoir_id": "902"
+    },
+    {
+      "severity": "info",
+      "code": "TRADE_SPELLING_MERGED",
+      "message": "Trade 'SynElec' (row 4) and 'SYNELEC' are treated as the same work centre.",
+      "sheet": "UOIR ID 902 - CW pump motor hig",
+      "row": 4,
+      "column": "Trade",
+      "cell": "Q4",
+      "uoir_id": "902"
+    },
+    {
+      "severity": "info",
+      "code": "SHEET_NOT_USED",
+      "message": "Sheet 'Lookup Lists' is not used in the report.",
+      "sheet": "Lookup Lists",
+      "row": null,
+      "column": null,
+      "cell": null,
+      "uoir_id": null
+    }
+  ],
+  "can_export": true,
+  "pdf_filename": "FMEA_Report_Kenanga_Bay_Power_Station_SYNTHETIC_2026-08-20.pdf",
+  "generated_at": "2026-09-17T09:30:00"
+}
