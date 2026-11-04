@@ -32,7 +32,7 @@ real station, person or plant record.
 9. [How the numbers are calculated](#how-the-numbers-are-calculated)
 10. [Checks and messages](#checks-and-messages)
 11. [The PDF](#the-pdf)
-12. [Emailing the PDF (Outlook)](#emailing-the-pdf-outlook)
+12. [Emailing the PDF](#emailing-the-pdf)
 13. [Changing the workbook layout](#changing-the-workbook-layout)
 14. [Deploying to Databricks Apps](#deploying-to-databricks-apps)
 15. [Security notes](#security-notes)
@@ -56,10 +56,10 @@ Sign in  ->  Upload Excel  ->  Review Data  ->  Preview Report  ->  Export PDF
    - each UOIR's analysis table and summary;
    - the recommendations.
 3. **Preview Report.** The finished PDF is shown inside the page.
-4. **Export PDF.** The same PDF is downloaded with a standard file name. When
-   the app runs on your own Windows computer, **Email the PDF** can also open a
-   new Outlook email with the PDF attached (see
-   [Emailing the PDF](#emailing-the-pdf-outlook)).
+4. **Export PDF.** The same PDF is downloaded with a standard file name.
+   **Email the PDF** opens a new email for it: with classic Outlook on this PC
+   the PDF is already attached; otherwise the PDF is downloaded for you to
+   attach (see [Emailing the PDF](#emailing-the-pdf)).
 
 There is **no intermediate working file**. The upload is read in memory and
 turned straight into report data. The review screens, the preview and the PDF
@@ -132,9 +132,10 @@ UOIR sheet.
     needed) **New Task not set** filter tabs.
 - A PDF preview inside the page, and a one-click export with a standard file
   name.
-- Optional **Email the PDF** (local Windows with classic Outlook): opens a new
-  Outlook email with the PDF attached and the recipients you typed. You check
-  it and press Send in Outlook; the app never sends email itself.
+- Optional **Email the PDF**: opens a new email with the recipients you typed.
+  With classic Outlook on this PC the PDF is attached for you; with the new
+  Outlook (or any other mail app) the PDF is downloaded for you to attach. You
+  check it and press Send; the app never sends email itself.
 - Counts follow fixed, documented rules: exact duplicate rows are counted once,
   non-breaking spaces count as blank, and merged cells are handled safely.
 - The PDF has selectable text and embedded fonts, repeats table headers on
@@ -326,7 +327,7 @@ Settings come from environment variables. Locally they can also come from
 | `HOST` | `127.0.0.1` | Network address. `127.0.0.1` = this computer only. |
 | `PORT` | `8000` | Port. `DATABRICKS_APP_PORT`, when set, takes priority. |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warning` or `error`. |
-| `OUTLOOK_EMAIL` | `auto` | **Email the PDF** through classic Outlook. `auto` = offered only when the app runs on this computer (Windows, `AUTH_MODE=local` and `HOST` = `127.0.0.1`, `localhost` or `::1`). `on` = always offered on Windows; Outlook opens on the computer running the server (a warning is logged when others can reach it). `off` = never offered. Any other value stops the app at startup. |
+| `OUTLOOK_EMAIL` | `auto` | **Open in Outlook** (PDF attached through classic Outlook). `auto` = offered only when the app runs on this computer (Windows, `AUTH_MODE=local` and `HOST` = `127.0.0.1`, `localhost` or `::1`) and classic Outlook is installed and in use (the "New Outlook" toggle off). `on` = always offered on Windows, without the Outlook check; Outlook opens on the computer running the server (a warning is logged when others can reach it). `off` = never offered. Whenever it is not offered, the page offers **Download PDF & open email** instead. Any other value stops the app at startup. |
 | `FMEA_SAMPLE_WORKBOOK` | not set | Tests only: path to a workbook on your own machine for the opt-in smoke test (see [Running tests](#running-tests)). |
 
 ---
@@ -890,12 +891,21 @@ signing on paper. The app never fills them.
 
 ---
 
-## Emailing the PDF (Outlook)
+## Emailing the PDF
 
 On the **Export PDF** step, under the download card, **Email the PDF** opens a
-new email in the classic Outlook desktop app with the PDF attached. **The app
-never sends anything.** You check the email in Outlook and press **Send**
-yourself.
+new email for the report. **The app never sends anything.** You check the email
+and press **Send** yourself. It works in one of two ways, chosen automatically:
+
+| This computer has | Button | What happens |
+|---|---|---|
+| **Classic Outlook** in use, and the app runs on this PC | **Open in Outlook** | A new Outlook email opens **with the PDF already attached** (below). |
+| **New Outlook** (the "New Outlook" toggle is on), no classic Outlook, or the app runs on a server | **Download PDF & open email** | A new email opens in your default mail app with the recipients, subject and text filled in, and the PDF is saved to your Downloads folder. **Drag the PDF into the email**, then press Send. |
+
+The new Outlook for Windows cannot be controlled by other programs, so the app
+cannot attach the PDF there. The app checks which Outlook is in use each time
+the page opens, so switching the "New Outlook" toggle takes effect after a
+refresh, without restarting the app.
 
 ### How to use it
 
@@ -903,9 +913,12 @@ yourself.
    exported.
 2. Optionally type the recipients in **Recipients (optional)**. Separate several
    addresses with a semicolon (commas, spaces and new lines work too). Leave the
-   box empty to choose the recipients in Outlook.
-3. Click **Open in Outlook**. The button shows "Opening Outlook…" while Outlook
-   starts, which can take a few seconds when Outlook was closed.
+   box empty to choose the recipients in your mail app.
+3. Click the button. With **Download PDF & open email**, the email opens in your
+   mail app and the PDF is downloaded; the app then says where the PDF was
+   saved. Attach it and press Send. The rest of this section is about
+   **Open in Outlook**, which shows "Opening Outlook…" while Outlook starts
+   (a few seconds when Outlook was closed).
 4. A new Outlook email opens with:
    - **To:** the addresses you typed;
    - **Subject:** `FMEA Report - <Station> - <Date of Analysis>`, for example
@@ -928,31 +941,36 @@ The addresses are checked in your browser and again by the server:
   `o'name@example.com`, is fine);
 - the message names the first address that is not valid.
 
-### When it is available
+### When "Open in Outlook" is offered
 
 - Only when the app runs on **your own Windows computer**, with the **classic
-  Outlook** desktop app installed and signed in. It uses classic Outlook's
-  automation interface, which the new Outlook for Windows and Outlook on the web
-  do not offer.
+  Outlook** desktop app installed, signed in **and in use** (the "New Outlook"
+  toggle off). It uses classic Outlook's automation interface, which the new
+  Outlook for Windows and Outlook on the web do not offer. The app reads two
+  registry values to decide: that classic Outlook is installed
+  (`Outlook.Application`) and that `UseNewOutlook` under
+  `HKCU\Software\Microsoft\Office\16.0\Outlook\Preferences` is not `1`.
 - The `OUTLOOK_EMAIL` setting controls it (see [Settings](#settings)). With the
   default `auto` it is offered only with `AUTH_MODE=local` and `HOST` set to
   `127.0.0.1`, `localhost` or `::1`, that is, when your browser and Outlook are
-  on the same PC. `off` hides it. On Databricks, `app.yaml` sets `off`.
-- `on` offers it on any Windows server, but the email then opens in Outlook **on
-  the computer running the server**, not on the user's computer. Use it only
-  when those are the same PC. The server log shows a warning when `on` is used on
-  a server others can reach.
-- When it is not available, the card is replaced by the note "Email through
-  Outlook is available when the app runs on your own computer. Download the PDF
-  and attach it to an email instead."
+  on the same PC, and only while classic Outlook is in use. `off` hides it. On
+  Databricks, `app.yaml` sets `off`.
+- `on` offers it on any Windows server **without** checking which Outlook is in
+  use, and the email then opens in Outlook **on the computer running the
+  server**, not on the user's computer. Use it only when those are the same PC.
+  The server log shows a warning when `on` is used on a server others can reach.
+- Whenever it is not offered, the card shows **Download PDF & open email**
+  instead. If **Open in Outlook** fails, the error message has a **Download PDF
+  & open email instead** button.
 
 ### Messages
 
 | Message | What happened |
 |---|---|
-| "Outlook could not open a new email. Make sure Outlook is installed and signed in, or download the PDF and attach it yourself." | Outlook is missing, not signed in, refused the request, or did not answer within 2 minutes. If Outlook asks whether to allow another program to use it, allow it; otherwise you get this message. |
+| "Outlook could not open a new email. Make sure Outlook is installed and signed in, or download the PDF and attach it yourself." | Outlook is missing, not signed in, refused the request, or did not answer within 2 minutes. If Outlook asks whether to allow another program to use it, allow it; otherwise you get this message. Use **Download PDF & open email instead**. |
 | "Outlook is still opening the previous email. Please wait a moment." | Only one email is opened at a time. Wait, then try again. |
-| "Email through Outlook is only available when the app runs on your own computer. Download the PDF and attach it to an email instead." | The feature is switched off for this server (see above). |
+| "Outlook can only open the email here when the app runs on your own computer with the classic Outlook app. Download the PDF and attach it to an email instead." | Outlook drafts are not available here (see above), for example after switching to the new Outlook while the page was open. Use **Download PDF & open email instead**. |
+| Nothing opens after **Download PDF & open email** | No default mail app is set in Windows (Settings > Apps > Default apps > Email). The PDF is still downloaded; attach it to an email yourself. |
 | "... is not a valid email address. Check it and try again." | Fix the address that is named. |
 | "This workbook is no longer open. ..." | The workbook was discarded (see [One-time use](#one-time-use)). Upload it again. |
 
@@ -1123,8 +1141,11 @@ Check what gets uploaded:
   introduction and file path only through environment variables, so nothing a
   user types or a workbook contains can change what the script does. One email
   is opened at a time, and recipient addresses are never logged. With the
-  default `OUTLOOK_EMAIL=auto`, the feature is off unless the app runs on the
-  user's own Windows computer.
+  default `OUTLOOK_EMAIL=auto`, Outlook drafts are off unless the app runs on
+  the user's own Windows computer with classic Outlook in use. The **Download
+  PDF & open email** fallback runs entirely in the browser: it opens a
+  `mailto:` link (recipients, subject and text only) and downloads the PDF
+  like the Download button; the server is not involved beyond serving the PDF.
 - **No macros, no formulas, no links.** Workbooks are opened read-only with
   their saved values. Macros in `.xlsm` files are never run, formulas are never
   calculated, and external links are not followed.
@@ -1200,10 +1221,12 @@ Check what gets uploaded:
   browser crashes or the network drops at that moment, the server forgets it
   the next time you open the app, when you sign out, or after
   `SESSION_IDLE_MINUTES` without activity.
-- **Email the PDF** works only on Windows with classic Outlook, and only when
-  the app runs on that same computer. It has been checked with automated tests
-  and a PowerShell syntax check, but not yet with a real Outlook: check the
-  first email it opens. The introduction is placed above the default signature
-  that Outlook adds when it shows the email.
+- **Open in Outlook** (PDF attached automatically) works only on Windows with
+  classic Outlook in use, and only when the app runs on that same computer. With
+  the new Outlook the app falls back to **Download PDF & open email**, where you
+  attach the downloaded PDF yourself. The Outlook draft has been checked with
+  automated tests and a PowerShell syntax check, but not yet with a real classic
+  Outlook: check the first email it opens. The introduction is placed above the
+  default signature that Outlook adds when it shows the email.
 - Signed-in users are trusted not to flood the server: several very large
   uploads at once from one session each use memory while they are read.

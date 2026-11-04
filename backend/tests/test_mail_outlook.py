@@ -125,6 +125,71 @@ def test_mailer_defaults():
 
 
 # --------------------------------------------------------------------------- #
+# Classic vs new Outlook (registry check)
+# --------------------------------------------------------------------------- #
+def _raise_os_error():
+    raise OSError("SYNTHETIC registry failure")
+
+
+@pytest.mark.parametrize(
+    "registered,new_outlook,expected",
+    [(True, False, True), (True, True, False), (False, False, False), (False, True, False)],
+)
+def test_classic_outlook_ready_needs_classic_installed_and_new_outlook_off(registered, new_outlook, expected):
+    ready = outlook.classic_outlook_ready(
+        "win32", class_registered=lambda: registered, new_outlook_selected=lambda: new_outlook
+    )
+    assert ready is expected
+
+
+@pytest.mark.parametrize("platform", ["linux", "darwin", "SYNTHETIC-os"])
+def test_classic_outlook_ready_is_false_off_windows_without_touching_the_registry(platform):
+    assert outlook.classic_outlook_ready(platform, class_registered=_raise_os_error,
+                                         new_outlook_selected=_raise_os_error) is False
+
+
+def test_classic_outlook_ready_is_false_when_the_registry_cannot_be_read():
+    assert outlook.classic_outlook_ready("win32", class_registered=_raise_os_error) is False
+    assert outlook.classic_outlook_ready(
+        "win32", class_registered=lambda: True, new_outlook_selected=_raise_os_error
+    ) is False
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="reads the Windows registry")
+def test_registry_readers_return_booleans_on_windows():
+    assert isinstance(outlook._classic_class_registered(), bool)
+    assert isinstance(outlook._new_outlook_selected(), bool)
+
+
+@pytest.mark.parametrize(
+    "setting,classic_ready,expected",
+    [
+        ("auto", True, True),
+        ("auto", False, False),   # new Outlook in use: the browser offers its own fallback
+        ("on", False, True),      # forced on: no Outlook check
+        ("off", True, False),
+    ],
+)
+def test_mailer_offers_drafts_only_with_classic_outlook_unless_forced(setting, classic_ready, expected):
+    settings = make_settings(outlook_email=setting)
+    assert make_outlook(platform="win32", classic_ready=classic_ready).available(settings) is expected
+
+
+def test_mailer_checks_outlook_on_every_call():
+    answers = iter([False, True])
+    mailer = OutlookMailer(runner=FakeRunner(), platform="win32", lock=threading.Lock(),
+                           classic_ready=lambda: next(answers))
+    settings = make_settings()
+    assert mailer.available(settings) is False
+    assert mailer.available(settings) is True
+
+
+def test_mailer_default_check_uses_its_platform():
+    # Off Windows the default check answers False without reading the registry.
+    assert OutlookMailer(platform="linux").classic_ready() is False
+
+
+# --------------------------------------------------------------------------- #
 # Recipients
 # --------------------------------------------------------------------------- #
 @pytest.mark.parametrize("text", ["", None, "   ", ";;, ,", "\n\r\n\t", " ; , \u00a0 "])

@@ -76,3 +76,48 @@ export function parseRecipients(text) {
 export function recipientsText(recipients) {
   return recipients.join(';');
 }
+
+// --------------------------------------------------------------------------- //
+// Fallback when Outlook cannot open a draft (new Outlook, or the app is not on this PC):
+// the browser downloads the PDF and opens a new email in the default mail app.
+// Subject and text match the server's email_subject / email_intro_html.
+// --------------------------------------------------------------------------- //
+
+const SUBJECT_PREFIX = 'FMEA Report';
+
+/** Text made safe for one line: control and space characters become single spaces. */
+function oneLine(text) {
+  if (typeof text !== 'string') return '';
+  return text.replace(/[\s\p{C}\p{Z}]+/gu, ' ').trim();
+}
+
+/** "FMEA Report - <station> - <date>"; missing parts are left out. */
+export function emailSubject(station, analysisDateText) {
+  return [SUBJECT_PREFIX, oneLine(station), oneLine(analysisDateText)].filter(Boolean).join(' - ');
+}
+
+/** Plain-text version of the server's introduction. */
+export function emailBody(station, analysisDateText) {
+  const stationText = oneLine(station);
+  const dateText = oneLine(analysisDateText);
+  let sentence = 'Please find attached the Failure Mode Effect Analysis (FMEA) report';
+  if (stationText) sentence += ` for ${stationText}`;
+  if (dateText) sentence += ` (Date of Analysis: ${dateText})`;
+  return `Hello,\r\n\r\n${sentence}.\r\n\r\n`;
+}
+
+/** Percent-encode for a mailto: URL, keeping "@" readable (RFC 6068 allows either). */
+function mailtoEncode(text) {
+  return encodeURIComponent(text).replace(/%40/g, '@');
+}
+
+/**
+ * mailto: link for a new email with the checked recipients, subject and text filled in.
+ * Recipients come from parseRecipients, so they hold no separators, quotes or spaces.
+ */
+export function mailtoLink(recipients, station, analysisDateText) {
+  const to = (recipients || []).map(mailtoEncode).join(',');
+  const subject = mailtoEncode(emailSubject(station, analysisDateText));
+  const body = mailtoEncode(emailBody(station, analysisDateText));
+  return `mailto:${to}?subject=${subject}&body=${body}`;
+}

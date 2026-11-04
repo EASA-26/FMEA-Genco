@@ -176,7 +176,7 @@ async function mockEmail(init) {
   if (!outlookEmail) {
     return json(501, {
       detail:
-        'Email through Outlook is only available when the app runs on your own computer. Download the PDF and attach it to an email instead.',
+        'Outlook can only open the email here when the app runs on your own computer with the classic Outlook app. Download the PDF and attach it to an email instead.',
     });
   }
   let body = {};

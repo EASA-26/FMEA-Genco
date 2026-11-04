@@ -6,53 +6,113 @@ import Spinner from '../components/Spinner.jsx';
 import { Alert } from '../components/Feedback.jsx';
 import { BlockedByErrors } from './PreviewView.jsx';
 import { plural } from '../lib/report.js';
-import { MAX_RECIPIENTS_TEXT, parseRecipients, recipientsText } from '../lib/email.js';
+import { MAX_RECIPIENTS_TEXT, mailtoLink, parseRecipients, recipientsText } from '../lib/email.js';
 
-const EMAIL_IDLE = { phase: 'idle', error: '', invalid: false };
+const EMAIL_IDLE = { phase: 'idle', error: '', invalid: false, offerMailApp: false };
+
+/** Open a mailto: link in the default mail app. Called straight from a click, so the
+ * browser treats it as the user's own action. */
+function openMailApp(link) {
+  const anchor = document.createElement('a');
+  anchor.href = link;
+  anchor.rel = 'noopener';
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+}
 
 /**
- * "Email the PDF": the server opens a new classic-Outlook email on this computer with
- * the PDF attached. Nothing is sent from here; the user checks it and presses Send.
+ * "Email the PDF". Two ways, chosen by what this computer offers:
+ * - Outlook draft (features.outlook_email): the server opens a new classic-Outlook email
+ *   with the PDF attached.
+ * - Mail app (new Outlook, or the app is not on this PC): the browser opens a new email
+ *   in the default mail app with recipients, subject and text filled in, and downloads
+ *   the PDF for the user to attach.
+ * Nothing is sent from here; the user checks the email and presses Send.
  */
-function EmailCard({ onWorkbookClosed }) {
+function EmailCard({ report, outlookDraft, onWorkbookClosed }) {
   const [to, setTo] = useState('');
   const [state, setState] = useState(EMAIL_IDLE);
   const inputRef = useRef(null);
   const working = state.phase === 'working';
 
-  async function handleSubmit(event) {
-    event.preventDefault();
-    if (working) return;
+  function checkedRecipients() {
     const { recipients, error } = parseRecipients(to);
     if (error) {
-      setState({ phase: 'error', error, invalid: true });
+      setState({ ...EMAIL_IDLE, phase: 'error', error, invalid: true });
       if (inputRef.current) inputRef.current.focus();
-      return;
+      return null;
     }
-    setState({ phase: 'working', error: '', invalid: false });
+    return recipients;
+  }
+
+  function handleWorkbookClosed(err) {
+    if (api.isWorkbookClosed(err) && onWorkbookClosed) {
+      onWorkbookClosed();
+      return true;
+    }
+    return false;
+  }
+
+  async function sendWithMailApp(recipients) {
+    // Open the email first, while this still counts as the user's click; then download.
+    openMailApp(mailtoLink(recipients, report.station, report.analysis_date_text));
+    setState({ ...EMAIL_IDLE, phase: 'working' });
     try {
-      await api.emailPdf(recipientsText(recipients));
-      setState({ phase: 'done', error: '', invalid: false });
+      await api.downloadPdf(report.pdf_filename);
+      setState({ ...EMAIL_IDLE, phase: 'doneMailApp' });
     } catch (err) {
-      if (api.isWorkbookClosed(err) && onWorkbookClosed) {
-        onWorkbookClosed();
-        return;
-      }
+      if (handleWorkbookClosed(err)) return;
       setState({
+        ...EMAIL_IDLE,
         phase: 'error',
-        error: err.message || 'Outlook could not open a new email. Download the PDF and attach it yourself.',
-        invalid: err instanceof api.ApiError && err.status === 400,
+        error: err.message || 'The PDF could not be downloaded. Please try again.',
       });
     }
+  }
+
+  async function sendWithOutlook(recipients) {
+    setState({ ...EMAIL_IDLE, phase: 'working' });
+    try {
+      await api.emailPdf(recipientsText(recipients));
+      setState({ ...EMAIL_IDLE, phase: 'done' });
+    } catch (err) {
+      if (handleWorkbookClosed(err)) return;
+      const status = err instanceof api.ApiError ? err.status : 0;
+      setState({
+        ...EMAIL_IDLE,
+        phase: 'error',
+        error: err.message || 'Outlook could not open a new email.',
+        invalid: status === 400,
+        // Outlook could not do it (failed, or not available after all): offer the mail app.
+        offerMailApp: status === 502 || status === 501,
+      });
+    }
+  }
+
+  function handleSubmit(event) {
+    event.preventDefault();
+    if (working) return;
+    const recipients = checkedRecipients();
+    if (recipients === null) return;
+    if (outlookDraft) sendWithOutlook(recipients);
+    else sendWithMailApp(recipients);
+  }
+
+  function handleMailAppInstead() {
+    if (working) return;
+    const recipients = checkedRecipients();
+    if (recipients !== null) sendWithMailApp(recipients);
   }
 
   function handleChange(event) {
     setTo(event.target.value);
     // A result or message about the previous recipients no longer applies.
-    if (state.phase === 'done' || state.phase === 'error') setState(EMAIL_IDLE);
+    if (state.phase !== 'idle' && state.phase !== 'working') setState(EMAIL_IDLE);
   }
 
   const describedBy = state.phase === 'error' ? 'email-to-hint email-error' : 'email-to-hint';
+  const workingText = outlookDraft ? 'Opening Outlook…' : 'Downloading PDF…';
 
   return (
     <section className="card export-email" aria-labelledby="email-title">
@@ -65,7 +125,9 @@ function EmailCard({ onWorkbookClosed }) {
             Email the PDF
           </h2>
           <p className="card-meta">
-            Opens a new email in Outlook on this computer with the PDF attached. Nothing is sent until you press Send in Outlook.
+            {outlookDraft
+              ? 'Opens a new email in Outlook on this computer with the PDF attached. Nothing is sent until you press Send in Outlook.'
+              : 'Opens a new email in your mail app with the recipients and subject filled in, and downloads the PDF for you to attach. Nothing is sent until you press Send.'}
           </p>
         </div>
       </div>
@@ -93,7 +155,9 @@ function EmailCard({ onWorkbookClosed }) {
             aria-describedby={describedBy}
           />
           <span id="email-to-hint" className="field-hint">
-            Separate several addresses with a semicolon. Leave empty to choose recipients in Outlook.
+            {outlookDraft
+              ? 'Separate several addresses with a semicolon. Leave empty to choose recipients in Outlook.'
+              : 'Separate several addresses with a semicolon. Leave empty to choose recipients in your mail app.'}
           </span>
         </div>
 
@@ -101,25 +165,46 @@ function EmailCard({ onWorkbookClosed }) {
           <button type="submit" className="btn btn-secondary" disabled={working}>
             {working ? (
               <>
-                <Spinner size={16} /> Opening Outlook…
+                <Spinner size={16} /> {workingText}
+              </>
+            ) : outlookDraft ? (
+              <>
+                <Mail size={16} aria-hidden="true" /> Open in Outlook
               </>
             ) : (
               <>
-                <Mail size={16} aria-hidden="true" /> Open in Outlook
+                <Mail size={16} aria-hidden="true" /> Download PDF &amp; open email
               </>
             )}
           </button>
         </div>
 
         <div className="export-email-status" aria-live="polite">
-          {working && <span className="visually-hidden">Opening Outlook…</span>}
+          {working && <span className="visually-hidden">{workingText}</span>}
           {state.phase === 'done' && (
             <Alert tone="success" label="Email ready">
               Outlook opened a new email with the PDF attached. Check it, then press Send in Outlook.
             </Alert>
           )}
+          {state.phase === 'doneMailApp' && (
+            <Alert tone="success" label="Email opened">
+              A new email was opened in your mail app and {report.pdf_filename} was saved to your Downloads folder. Attach
+              the PDF to the email, then press Send.
+            </Alert>
+          )}
           {state.phase === 'error' && (
-            <Alert id="email-error" tone="error" label="Email not opened">
+            <Alert
+              id="email-error"
+              tone="error"
+              label="Email not opened"
+              actions={
+                state.offerMailApp ? (
+                  <button type="button" className="btn btn-secondary" onClick={handleMailAppInstead}>
+                    <Mail size={16} aria-hidden="true" /> Download PDF &amp; open email instead
+                  </button>
+                ) : null
+              }
+            >
               {state.error}
             </Alert>
           )}
@@ -188,9 +273,7 @@ export default function ExportView({
   return (
     <div className="view-export">
       <PageHeader eyebrow="Step 4 · Export PDF" title="Export PDF">
-        {outlookEmail
-          ? 'Download the finished report to share, print or sign, or attach it to a new Outlook email.'
-          : 'Download the finished report to share, print or sign.'}
+        Download the finished report to share, print or sign, or email it.
       </PageHeader>
 
       {!report.can_export ? (
@@ -249,17 +332,7 @@ export default function ExportView({
               </div>
             </section>
 
-            {outlookEmail ? (
-              <EmailCard onWorkbookClosed={onWorkbookClosed} />
-            ) : (
-              <p className="export-email-note">
-                <Mail size={16} aria-hidden="true" />
-                <span>
-                  Email through Outlook is available when the app runs on your own computer. Download the PDF and attach it to an
-                  email instead.
-                </span>
-              </p>
-            )}
+            <EmailCard report={report} outlookDraft={outlookEmail} onWorkbookClosed={onWorkbookClosed} />
           </div>
 
           <section className="card export-contents" aria-labelledby="contents-title">

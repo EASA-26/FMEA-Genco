@@ -1917,21 +1917,6 @@
   margin-top: 0;
 }
 
-.export-email-note {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 0 4px;
-  font-size: 13px;
-  color: var(--muted);
-}
-
-.export-email-note svg {
-  flex: none;
-  margin-top: 2px;
-  color: var(--faint);
-}
-
 .export-contents {
   padding: 20px 22px;
 }

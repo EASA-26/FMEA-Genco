@@ -141,6 +141,9 @@ class ReportServices:
 def outlook_email_available(settings: Settings, platform: str = sys.platform) -> bool
     # True only when platform == "win32" and OUTLOOK_EMAIL != "off" and (OUTLOOK_EMAIL == "on" or
     #   (AUTH_MODE == "local" and HOST in {"127.0.0.1", "localhost", "::1"}))
+def classic_outlook_ready(platform: str = sys.platform, *, class_registered=..., new_outlook_selected=...) -> bool
+    # True on Windows when classic Outlook's COM class is registered and UseNewOutlook != 1 (4.2)
+# OutlookMailer.available(settings) = outlook_email_available(...) and (OUTLOOK_EMAIL == "on" or classic_ready())
 def parse_recipients(text: str | None) -> list[str]   # raises RecipientError (.message = plain text)
 def email_subject(station: str | None, analysis_date_text: str | None) -> str
 def email_intro_html(station: str | None, analysis_date_text: str | None) -> str
@@ -429,7 +432,7 @@ A new code must be added here and to the README "Checks and messages" tables.
 | `GET /api/health` | no | `{"status":"ok"}` |
 | `POST /api/auth/login` `{username,password}` | no | 200 `{"user":{"name":"admin"},"auth_mode":"local","features":{"outlook_email":<bool>}}` + a **new** session cookie (any previous session of that browser is destroyed); 401 "Incorrect username or password."; 429 "Too many sign-in attempts. Please wait a few minutes and try again." with `Retry-After: <seconds>` after 5 failures in 5 min per username+client **or** 50 failures in 5 min per client across all usernames; 400 "Sign-in is handled by Databricks for this app." in databricks mode |
 | `POST /api/auth/logout` | yes | 204; session (and its report) destroyed, cookie cleared |
-| `GET /api/auth/me` | yes | 200 `{"user":{"name":…},"auth_mode":…,"features":{"outlook_email":<bool>}}`; 401 when not signed in. In databricks mode it returns 200 (creating the session) whenever a valid identity header is present. `features.outlook_email` = `outlook_email_available(settings)` (4.2); the browser shows the Email card only when it is exactly `true` |
+| `GET /api/auth/me` | yes | 200 `{"user":{"name":…},"auth_mode":…,"features":{"outlook_email":<bool>}}`; 401 when not signed in. In databricks mode it returns 200 (creating the session) whenever a valid identity header is present. `features.outlook_email` = `OutlookMailer.available(settings)` (4.2: allowed by the settings and classic Outlook in use); exactly `true` gives the Outlook-draft button, anything else the mail-app fallback |
 | `POST /api/workbook` multipart `file` | yes | See upload rules below. 200 Report JSON (content issues are inside the report). Only a **successful** upload replaces the session's report and PDF cache; any failure keeps the previous ones. Parsing runs in the threadpool. 409 "This upload was cancelled before it finished: the workbook was closed or another upload started. Upload the workbook again to continue." when, while this upload was being read, the workbook was discarded (`DELETE /api/workbook`, sign-out) or a newer upload started (that one wins), or the browser disconnected (Cancel, page left; the previous report is then kept); nothing is stored (4.1). |
 | `GET /api/report` | yes | 200 Report JSON; 404 "No workbook uploaded yet." **Not called by the frontend**: a page never restores a report from the server (4.1). Kept for tests. |
 | `DELETE /api/workbook` | yes | 204, clears report and PDF cache (also 204 when there is none) and cancels an upload still being read. The frontend calls it when the workspace opens, on `pagehide` (keepalive) while the page holds a report or an upload is running, when the workspace itself fails to draw, and for "Remove" (4.1) |
@@ -571,18 +574,33 @@ The app keeps nothing between visits. There is no database and no file store.
   open the app in another tab. Upload it again to continue." (`WORKBOOK_CLOSED_MESSAGE` in
   `src/api/client.js`). Starting a new upload clears the notice.
 
-### 4.2 Email the PDF (classic Outlook on this computer)
+### 4.2 Email the PDF (Outlook draft, or mail-app fallback)
 
-The app never sends email. It asks the classic Outlook desktop app, on the computer running the
-server, to show a **new email** (Display, never Send) with To, Subject, a short introduction and the
-PDF attached; the user checks it and presses Send in Outlook. Implemented in
-`backend/mail/outlook.py` with PowerShell COM automation (`New-Object -ComObject
-Outlook.Application`); no Python or npm package was added.
+The app never sends email. Two ways, chosen by `features.outlook_email`:
 
-Availability (`outlook_email_available`, reported as `features.outlook_email` by `/api/auth/me`
-and `/api/auth/login`): only when `sys.platform == "win32"` and `OUTLOOK_EMAIL` is not `off`, and
-either `OUTLOOK_EMAIL=on` or (`auto`, the default) `AUTH_MODE=local` with `HOST` one of `127.0.0.1`,
-`localhost`, `::1` — i.e. the browser and Outlook are on the same PC. app.yaml sets `off`.
+- **Outlook draft** (`outlook_email` true, button "Open in Outlook"): the server asks the classic
+  Outlook desktop app, on the computer running the server, to show a **new email** (Display, never
+  Send) with To, Subject, a short introduction and the PDF attached; the user checks it and presses
+  Send in Outlook. Implemented in `backend/mail/outlook.py` with PowerShell COM automation
+  (`New-Object -ComObject Outlook.Application`); no Python or npm package was added.
+- **Mail-app fallback** (`outlook_email` false, button "Download PDF & open email"): entirely in the
+  browser (`src/lib/email.js` `mailtoLink`). From the click it opens
+  `mailto:<recipients joined with ",">?subject=…&body=…` (same subject as `email_subject`, plain-text
+  version of `email_intro_html`; "@" kept, everything else percent-encoded) and then downloads the PDF
+  as the Download button does; the user attaches it. Works with any default mail app, including the
+  new Outlook for Windows, which cannot be automated.
+
+Availability of the draft (`OutlookMailer.available`, reported as `features.outlook_email` by
+`/api/auth/me` and `/api/auth/login`, checked on every request):
+`outlook_email_available(settings)` — `sys.platform == "win32"`, `OUTLOOK_EMAIL` not `off`, and
+either `OUTLOOK_EMAIL=on` or (`auto`, the default) `AUTH_MODE=local` with `HOST` one of
+`127.0.0.1`, `localhost`, `::1` (the browser and Outlook are on the same PC) — **and**, unless
+`OUTLOOK_EMAIL=on`, `classic_outlook_ready()`: the `Outlook.Application\CLSID` class is registered
+(HKCR) and `UseNewOutlook` under `HKCU\Software\Microsoft\Office\16.0\Outlook\Preferences` is not 1.
+With the "New Outlook" toggle on, classic Outlook started for automation hands over to the new
+Outlook and exits; Windows only reports that after ~30 s (DCOM event 10010,
+CO_E_SERVER_EXEC_FAILURE 0x80080005), so the app checks first. Registry errors count as "not
+ready". app.yaml sets `off`.
 
 `POST /api/report/email`, body `{"to": "<string>"}` (`to` defaults to ""; empty means "choose
 recipients in Outlook"). A body over 64 KB gets 413 from the middleware first; after that the
@@ -592,7 +610,7 @@ checks run in this order:
 |---|---|---|
 | 401 | not signed in | usual 401 message |
 | 422 | malformed JSON, or `to` not a string | usual 422 message |
-| 501 | not available (rule above) | `{"detail":"Email through Outlook is only available when the app runs on your own computer. Download the PDF and attach it to an email instead."}` |
+| 501 | draft not available (rule above) | `{"detail":"Outlook can only open the email here when the app runs on your own computer with the classic Outlook app. Download the PDF and attach it to an email instead."}` |
 | 400 | bad recipient list (rules below) | `{"detail":"<plain message naming the first bad address>"}` |
 | 404 | the session has no report | `{"detail":"No workbook uploaded yet."}` |
 | 409 | the report has errors | `{"detail":"Fix the errors listed before previewing or exporting.","error_count":n}` (as the PDF endpoint) |
@@ -835,17 +853,22 @@ Launch (`OutlookMailer.open_draft`, run in the threadpool):
   - Export: downloads via `fetch('/api/report/pdf?download=1')` -> blob -> `<a download=pdf_filename>`,
     so a failure shows a clear message instead of a JSON page; success message after the download
     starts; "Export blocked" state when `can_export` is false. A 404 -> "Workbook closed" (4.1).
-  - Export, **Email the PDF** card (under the download card, only when `report.can_export`): when
-    `features.outlook_email` is true, an optional text input labelled "Recipients (optional)" (label/for,
-    hint "Separate several addresses with a semicolon. Leave empty to choose recipients in Outlook."
-    linked by `aria-describedby`), button "Open in Outlook" (lucide `Mail` icon), working state "Opening
-    Outlook…", success alert "Outlook opened a new email with the PDF attached. Check it, then press
-    Send in Outlook.", error alert with the server message. The recipient check of 4.2 runs in the
-    browser first (`src/lib/email.js`); a bad address marks the input `aria-invalid` and points it at
-    the error. Status messages sit in an `aria-live="polite"` region. A 404 -> "Workbook closed".
-    When `features.outlook_email` is false the card is replaced by a muted note: "Email through Outlook
-    is available when the app runs on your own computer. Download the PDF and attach it to an email
-    instead."
+  - Export, **Email the PDF** card (under the download card, only when `report.can_export`; always
+    shown): an optional text input labelled "Recipients (optional)" (label/for, hint linked by
+    `aria-describedby`), and one button chosen by `features.outlook_email`:
+    - true: "Open in Outlook" (lucide `Mail` icon), hint "Separate several addresses with a semicolon.
+      Leave empty to choose recipients in Outlook.", working state "Opening Outlook…", success alert
+      "Outlook opened a new email with the PDF attached. Check it, then press Send in Outlook.", error
+      alert with the server message; on 502 or 501 the alert also has a "Download PDF & open email
+      instead" button (the fallback below).
+    - false: "Download PDF & open email", hint "… Leave empty to choose recipients in your mail app.";
+      the click opens the `mailto:` link (4.2) straight away (while it still counts as the user's
+      action), then downloads the PDF ("Downloading PDF…"); success alert "A new email was opened in
+      your mail app and <pdf_filename> was saved to your Downloads folder. Attach the PDF to the email,
+      then press Send."
+    The recipient check of 4.2 runs in the browser first (`src/lib/email.js`); a bad address marks the
+    input `aria-invalid` and points it at the error. Status messages sit in an `aria-live="polite"`
+    region. A 404 -> "Workbook closed".
   - Error messages: server `detail` strings are shown when plain; otherwise per-status fallbacks,
     including 502/503/504 ("The FMEA service is not available right now…") and network failures.
   - **ErrorBoundary** (`src/components/ErrorBoundary.jsx`): a "section" boundary around the content
@@ -871,11 +894,19 @@ Launch (`OutlookMailer.open_draft`, run in the threadpool):
 | Tests (owner) | Starlette 1.6 deprecates `TestClient` with httpx; pin a compatible client before upgrading | warning only |
 | Frontend | Trap focus in the open tablet drawer; more room in the top bar at 1280px; sidebar UOIR links from Recommendation stay in Recommendation | not done |
 | Parser | Two-row analysis headers (group header above sub-headers) | not supported; sub-header row read as data (blank-value errors) |
-| Email | Try "Email the PDF" against a real classic Outlook (introduction above the default signature, Outlook's "another program is accessing" security prompt) | checked with a fake runner and the PowerShell parse check (tools/check_outlook_script.py) only; never run against Outlook |
+| Email | Try "Open in Outlook" against a real classic Outlook (introduction above the default signature, Outlook's "another program is accessing" security prompt) | the only PC tried (2026-11-04) uses the new Outlook, so the draft was refused by Windows (DCOM 10010) and the app now offers the mail-app fallback there; the draft itself is checked with a fake runner and the PowerShell parse check only |
 | API / frontend | Tie the report to the page that uploaded it (e.g. a report id checked by preview, download and email), so a stale tab can never get another tab's PDF | one report per browser session: opening a second tab closes the first tab's workbook, but if the second tab then uploads, a not-refreshed first tab's Preview/Export/Email serve the second tab's workbook |
 
 ## Change log
 
+- **2026-11-04 — Email the PDF works with the new Outlook (mail-app fallback).**
+  - Real test: on a PC with the "New Outlook" toggle on, the Outlook draft failed after ~34 s
+    (CO_E_SERVER_EXEC_FAILURE; the new Outlook cannot be automated).
+  - `classic_outlook_ready()` (registry: Outlook.Application class registered, UseNewOutlook != 1)
+    now gates `features.outlook_email` unless `OUTLOOK_EMAIL=on`; checked on every request.
+  - When drafts are not offered, the Export card shows "Download PDF & open email" (mailto: link
+    + PDF download, 4.2/5) instead of a note; a 502/501 from "Open in Outlook" offers the same
+    fallback. 501 message reworded.
 - **2026-11-04 — review fixes for one-time use and Email the PDF.**
   - Security: `LocalOnlyMiddleware` (local-only Host and Origin check, 403) when the app runs only
     for this computer; `create_app(extra_local_hosts=...)` for tests.

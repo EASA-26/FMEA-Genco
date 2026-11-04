@@ -189,13 +189,17 @@ def make_outlook(
     runner: FakeRunner | None = None,
     platform: str = SYNTHETIC_PLATFORM,
     lock: threading.Lock | None = None,
+    classic_ready: bool = True,
 ) -> OutlookMailer:
     """An Outlook launcher that never starts PowerShell, with its own lock
-    (so one test holding the lock never affects another)."""
+    (so one test holding the lock never affects another). ``classic_ready``
+    stands in for the registry check (classic Outlook installed and in use),
+    so tests never depend on which Outlook this PC has."""
     return OutlookMailer(
         runner=runner if runner is not None else FakeRunner(),
         platform=platform,
         lock=lock if lock is not None else threading.Lock(),
+        classic_ready=lambda: classic_ready,
     )
 
 

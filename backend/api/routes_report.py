@@ -43,8 +43,8 @@ MSG_UPLOAD_SUPERSEDED = (
 MSG_EXPORT_BLOCKED = "Fix the errors listed before previewing or exporting."
 MSG_PDF_FAILED = "The PDF could not be created. Please try again or contact support."
 MSG_EMAIL_UNAVAILABLE = (
-    "Email through Outlook is only available when the app runs on your own computer. "
-    "Download the PDF and attach it to an email instead."
+    "Outlook can only open the email here when the app runs on your own computer with the "
+    "classic Outlook app. Download the PDF and attach it to an email instead."
 )
 MSG_OUTLOOK_FAILED = (
     "Outlook could not open a new email. Make sure Outlook is installed and signed in, "

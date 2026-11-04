@@ -70,6 +70,64 @@ def outlook_email_available(settings: Settings, platform: str = sys.platform) ->
     return settings.auth_mode == "local" and settings.host.strip().lower() in LOCAL_HOSTS
 
 
+def outlook_email_forced(settings: Settings) -> bool:
+    """``OUTLOOK_EMAIL=on``: offer drafts without checking which Outlook is in use."""
+    return (settings.outlook_email or OUTLOOK_EMAIL_AUTO).strip().lower() == OUTLOOK_EMAIL_ON
+
+
+# Classic Outlook's automation class, and the switch the "New Outlook" toggle sets.
+CLASSIC_OUTLOOK_CLASS_KEY = r"Outlook.Application\CLSID"
+NEW_OUTLOOK_PREFERENCES_KEY = r"Software\Microsoft\Office\16.0\Outlook\Preferences"
+NEW_OUTLOOK_VALUE = "UseNewOutlook"
+
+
+def _classic_class_registered() -> bool:
+    import winreg  # Windows only
+
+    try:
+        with winreg.OpenKey(winreg.HKEY_CLASSES_ROOT, CLASSIC_OUTLOOK_CLASS_KEY):
+            return True
+    except OSError:
+        return False
+
+
+def _new_outlook_selected() -> bool:
+    import winreg  # Windows only
+
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, NEW_OUTLOOK_PREFERENCES_KEY) as key:
+            value, _kind = winreg.QueryValueEx(key, NEW_OUTLOOK_VALUE)
+    except OSError:
+        return False
+    try:
+        return int(value) == 1
+    except (TypeError, ValueError):
+        return False
+
+
+def classic_outlook_ready(
+    platform: str = sys.platform,
+    *,
+    class_registered: Callable[[], bool] = _classic_class_registered,
+    new_outlook_selected: Callable[[], bool] = _new_outlook_selected,
+) -> bool:
+    """True when classic Outlook on this PC can open a draft for the app.
+
+    False when classic Outlook is not installed, or when the user has switched
+    to the new Outlook ("New Outlook" toggle on, ``UseNewOutlook=1``). The new
+    Outlook cannot be automated, and classic Outlook started for automation
+    then hands over to it and exits, which Windows reports only after about
+    30 seconds as CO_E_SERVER_EXEC_FAILURE. The browser then offers its own
+    fallback: download the PDF and open a new email in the mail app.
+    """
+    if platform != "win32":
+        return False
+    try:
+        return class_registered() and not new_outlook_selected()
+    except OSError:
+        return False
+
+
 # --------------------------------------------------------------------------- #
 # Recipients
 # --------------------------------------------------------------------------- #
@@ -370,9 +428,9 @@ def _remove_folder(folder: str) -> None:
 class OutlookMailer:
     """Opens Outlook drafts. One instance lives on ``app.state.outlook``.
 
-    ``runner`` and ``platform`` are for tests (a fake runner never starts
-    PowerShell; ``platform`` decides availability). ``lock`` defaults to the
-    process-wide launch lock.
+    ``runner``, ``platform`` and ``classic_ready`` are for tests (a fake runner
+    never starts PowerShell; ``platform`` and ``classic_ready`` decide
+    availability). ``lock`` defaults to the process-wide launch lock.
     """
 
     def __init__(
@@ -381,14 +439,25 @@ class OutlookMailer:
         platform: str = sys.platform,
         timeout: float = LAUNCH_TIMEOUT_SECONDS,
         lock: threading.Lock | None = None,
+        classic_ready: Callable[[], bool] | None = None,
     ) -> None:
         self.runner: Runner = runner if runner is not None else run_powershell
         self.platform = platform
         self.timeout = timeout
         self.lock = lock if lock is not None else _LAUNCH_LOCK
+        self.classic_ready: Callable[[], bool] = (
+            classic_ready if classic_ready is not None else (lambda: classic_outlook_ready(self.platform))
+        )
 
     def available(self, settings: Settings) -> bool:
-        return outlook_email_available(settings, platform=self.platform)
+        """Drafts can be offered: the setting allows it and classic Outlook is in use.
+
+        Checked on every request (a registry read), so switching between the
+        new and the classic Outlook takes effect without restarting the app.
+        """
+        if not outlook_email_available(settings, platform=self.platform):
+            return False
+        return outlook_email_forced(settings) or self.classic_ready()
 
     def open_draft(
         self,

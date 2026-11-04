@@ -298,6 +298,23 @@ def test_email_unavailable_is_501(platform, settings):
     assert runner.calls == [] and services.render_calls == 0
 
 
+def test_new_outlook_in_use_turns_drafts_off_for_me_and_email():
+    """The "New Outlook" toggle is on (or classic Outlook is missing): the browser is told
+    drafts are off (it offers download + new email instead) and the endpoint answers 501
+    at once, without starting PowerShell and waiting for Windows to time out."""
+    services, runner = FakeServices(), FakeRunner()
+    client = make_client(None, services, outlook=make_outlook(runner, platform="win32", classic_ready=False))
+    signed_in = login(client)
+    assert signed_in.status_code == 200
+    assert signed_in.json()["features"] == {"outlook_email": False}
+    assert client.get("/api/auth/me").json()["features"] == {"outlook_email": False}
+    assert upload(client).status_code == 200
+    response = _email(client)
+    assert response.status_code == 501
+    assert response.json() == {"detail": MSG_EMAIL_UNAVAILABLE}
+    assert runner.calls == [] and services.render_calls == 0
+
+
 def test_email_unavailable_in_databricks_mode_by_default():
     client, _, runner = _client(make_settings(auth_mode="databricks", host="0.0.0.0"))
     assert upload(client, headers=WHO).status_code == 200
