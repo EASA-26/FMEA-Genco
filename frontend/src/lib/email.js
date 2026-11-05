@@ -20,6 +20,7 @@ const CONTROL_OR_SPACE = /[\s\p{C}\p{Z}]/u;
 
 export const MSG_RECIPIENTS_TOO_LONG = `The list of email addresses is too long. Enter at most ${MAX_RECIPIENTS} addresses.`;
 export const MSG_TOO_MANY_RECIPIENTS = `Enter at most ${MAX_RECIPIENTS} email addresses.`;
+export const MSG_NO_RECIPIENTS = 'Enter at least one email address.';
 
 function length(text) {
   return Array.from(text).length;
@@ -49,9 +50,10 @@ export function invalidAddressMessage(address) {
 /**
  * Parse what was typed in the Recipients box.
  * Returns { recipients: string[], error: string }; error is a plain message (empty when fine).
- * An empty box is fine: the user chooses recipients in Outlook.
+ * The server accepts no recipients (Outlook opens with an empty To line); the Export
+ * step passes `required` because its Send button needs at least one address.
  */
-export function parseRecipients(text) {
+export function parseRecipients(text, { required = false } = {}) {
   const raw = typeof text === 'string' ? text : '';
   if (length(raw) > MAX_RECIPIENTS_TEXT) return { recipients: [], error: MSG_RECIPIENTS_TOO_LONG };
 
@@ -66,6 +68,8 @@ export function parseRecipients(text) {
     recipients.push(address);
   }
   if (recipients.length > MAX_RECIPIENTS) return { recipients: [], error: MSG_TOO_MANY_RECIPIENTS };
+  // Only separators typed (e.g. ";"): nothing to send to.
+  if (required && recipients.length === 0) return { recipients: [], error: MSG_NO_RECIPIENTS };
   return { recipients, error: '' };
 }
 
@@ -80,6 +84,7 @@ export function recipientsText(recipients) {
 // --------------------------------------------------------------------------- //
 // Fallback when Outlook cannot open a draft (new Outlook, or the app is not on this PC):
 // the browser downloads the PDF and opens a new email in the default mail app.
+// A mailto: link can never carry an attachment, so the user attaches the PDF by hand.
 // Subject and text match the server's email_subject / email_intro_html.
 // --------------------------------------------------------------------------- //
 

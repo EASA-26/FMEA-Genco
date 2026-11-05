@@ -1,7 +1,7 @@
 /* Base elements and shared components (IZ's Genco Project Theme).
    Buttons, cards, labels, inputs, tabs, badges, icon tiles and links come from
    genco-theme.css (gt- classes). This file keeps the app's own pieces (alerts,
-   chips, tags, count pills, location chips, tables, page header, splash) on the
+   chips, tags, count pills, location chips, tables, splash) on the
    theme's tokens. Status colours: -700 text on -50 tints; icons at 3:1 or better. */
 *,
 *::before,
@@ -615,61 +615,8 @@ a {
   white-space: pre-line;
 }
 
-/* ------------------------------------------------------------------ Page header */
-.page-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px 24px;
-  margin-bottom: 22px;
-}
-
-/* Home header: the app icon tile beside the heading */
-.page-header-icon {
-  align-self: center;
-}
-
-.page-header-text {
-  flex: 1 1 420px;
-  min-width: 0;
-  max-width: 820px;
-}
-
-.eyebrow {
-  margin-bottom: 6px;
-  font-size: 11.5px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--electric-600);
-}
-
-.page-title {
-  font-size: 24px;
-  font-weight: 700;
-  line-height: 1.25;
-  letter-spacing: -0.025em;
-  color: var(--ink-strong);
-}
-
-.page-lead {
-  margin-top: 6px;
-  color: var(--muted);
-  font-size: 14.5px;
-  overflow-wrap: anywhere;
-}
-
-.page-lead strong {
-  color: var(--ink);
-}
-
-.page-header-actions {
-  display: flex;
-  flex: none;
-  flex-wrap: wrap;
-  gap: 8px;
-}
+/* Pages have no header of their own: the title and subtitle are in the top bar
+   (TopBar.jsx), and a page's buttons sit in a .page-actions row (flow.css). */
 
 /* Windows High Contrast: keep an edge on the app's borderless buttons and chips. */
 @media (forced-colors: active) {

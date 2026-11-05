@@ -27,10 +27,6 @@
   max-width: 980px;
 }
 
-.view-upload .page-header {
-  margin-bottom: 4px;
-}
-
 /* One-time use: how the uploaded workbook is handled. */
 .memory-note {
   display: flex;
@@ -45,45 +41,6 @@
   flex: none;
   margin-top: 2px;
   color: var(--electric-600);
-}
-
-.current-file {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.current-file-text {
-  flex: 1;
-  min-width: 0;
-}
-
-.current-file-label {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--electric-600);
-}
-
-.current-file-name {
-  overflow: hidden;
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--ink-strong);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.current-file-meta {
-  font-size: 13px;
-  color: var(--muted);
-}
-
-.current-file-actions {
-  display: flex;
-  flex: none;
-  gap: 8px;
 }
 
 .dropzone {
@@ -241,21 +198,18 @@
   .requirement-list {
     grid-template-columns: minmax(0, 1fr);
   }
-
-  .current-file {
-    flex-wrap: wrap;
-  }
 }
 
 /* ================================================================== Data checks */
 .view-checks {
   display: grid;
   gap: 16px;
-  max-width: 1180px;
 }
 
-.view-checks .page-header {
-  margin-bottom: 6px;
+/* The content keeps its reading width; the Back / Next row spans the canvas so it sits
+   in the same place on every page. */
+.view-checks > :not(.page-actions) {
+  max-width: 1180px;
 }
 
 .fact-grid {
@@ -289,11 +243,6 @@
   line-height: 1.35;
   color: var(--ink-strong);
   overflow-wrap: anywhere;
-}
-
-.fact-source {
-  font-size: 12px;
-  color: var(--faint);
 }
 
 .issue-group {
@@ -426,6 +375,13 @@
 }
 
 /* ================================================================== Front page */
+/* The Back / Next row spans the canvas, as on every page; the cover and its facts keep
+   their own fixed column widths. */
+.view-front {
+  display: grid;
+  gap: 18px;
+}
+
 .front-layout {
   display: grid;
   grid-template-columns: minmax(0, 540px) minmax(260px, 360px);
@@ -646,10 +602,6 @@
   gap: 18px;
 }
 
-.view-intro .page-header {
-  margin-bottom: 4px;
-}
-
 .table-card {
   overflow: hidden;
   padding: 0;
@@ -710,11 +662,6 @@
   display: grid;
   gap: 18px;
   min-width: 0;
-}
-
-.view-analysis .page-header,
-.view-recommendation .page-header {
-  margin-bottom: 0;
 }
 
 .uoir-selector {
@@ -1552,10 +1499,6 @@
   gap: 16px;
 }
 
-.view-preview .page-header {
-  margin-bottom: 0;
-}
-
 .pdf-frame {
   position: relative;
   height: calc(100vh - var(--topbar-h) - 170px);
@@ -1649,10 +1592,6 @@
 .view-export {
   display: grid;
   gap: 18px;
-}
-
-.view-export .page-header {
-  margin-bottom: 0;
 }
 
 .export-layout {

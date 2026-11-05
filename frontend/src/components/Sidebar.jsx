@@ -4,14 +4,15 @@ import {
   ClipboardList,
   Factory,
   Lock,
-  LogOut,
   OctagonAlert,
   ShieldCheck,
   TriangleAlert,
+  Users,
   Wrench,
   X,
 } from 'lucide-react';
 import { issuesForUoir, countIssues, plural } from '../lib/report.js';
+import AppIcon from './AppIcon';
 import brandmark1x from '../assets/tnb-genco-ted-white@1x.png';
 import brandmark2x from '../assets/tnb-genco-ted-white@2x.png';
 import brandmark3x from '../assets/tnb-genco-ted-white@3x.png';
@@ -49,21 +50,10 @@ function stepDetail(step, report, counts, uploadBusy) {
   return { text: step === 'preview' ? 'See the PDF as it will print' : report.pdf_filename };
 }
 
-export default function Sidebar({
-  report,
-  counts,
-  nav,
-  uoirId,
-  user,
-  authMode,
-  uploadBusy,
-  onStep,
-  onSection,
-  onSignOut,
-  onClose,
-}) {
+// The signed-in user and Sign out live in the top bar; the sidebar foot names the
+// team that runs this process.
+export default function Sidebar({ report, counts, nav, uoirId, uploadBusy, onStep, onSection, onClose }) {
   const currentIndex = STEPS.findIndex((s) => s.id === nav.step);
-  const userName = (user && user.name) || 'Engineer';
 
   return (
     <aside className="sidebar gt-sidebar" aria-label="Workspace navigation">
@@ -78,9 +68,15 @@ export default function Sidebar({
           alt="TNB GENCO · TED"
           className="gt-brandmark"
         />
+        {/* Product block: the app icon next to the name, then the one-line description.
+            The sidebar is on every page, so the icon is always in view (pages never repeat it). */}
         <div className="gt-product">
-          <p className="gt-product-eyebrow">ALCM - Maintenance Strategy</p>
-          <p className="gt-product-name">FMEA Report</p>
+          <div className="gt-product-head">
+            <span className="gt-product-icon" aria-hidden="true">
+              <AppIcon app="fmea" className="gt-app-icon" />
+            </span>
+            <p className="gt-product-name">FMEA Report</p>
+          </div>
           <p className="gt-product-desc">Failure Mode &amp; Effects Analysis</p>
         </div>
       </div>
@@ -193,21 +189,13 @@ export default function Sidebar({
       </div>
 
       <div className="sidebar-foot gt-sidebar-foot">
-        <span className="gt-avatar" aria-hidden="true">
-          {userName.slice(0, 1).toUpperCase()}
+        <span className="sidebar-team-icon" aria-hidden="true">
+          <Users size={18} />
         </span>
-        <div className="user-text">
-          <div className="user-name" title={userName}>
-            {userName}
-          </div>
-          <div className="user-meta">{authMode === 'databricks' ? 'Signed in with Databricks' : 'Signed in'}</div>
+        <div className="sidebar-team-text">
+          <div className="sidebar-team-label">Team</div>
+          <div className="sidebar-team-name">ALCM - Maintenance Strategy</div>
         </div>
-        {authMode !== 'databricks' && (
-          <button type="button" className="signout-btn" onClick={onSignOut}>
-            <LogOut size={16} aria-hidden="true" />
-            Sign out
-          </button>
-        )}
       </div>
     </aside>
   );

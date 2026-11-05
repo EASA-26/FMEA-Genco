@@ -464,10 +464,51 @@ def test_script_opens_a_draft_and_never_sends():
     # Display comes before the body is changed, so Outlook's default signature is
     # already in HTMLBody when the introduction is put above it.
     assert script.index("Display($false)") < script.index("[string]$mail.HTMLBody") < script.index("$mail.HTMLBody = $body")
-    assert re.search(r"catch \{\s*\[Console\]::Error\.WriteLine\(\$_\.Exception\.Message\)\s*exit 1\s*\}", script)
-    # Only bringing the window to the front may fail quietly: the email is open by then.
-    assert script.count("catch { }") == 1
+    _, _, handler = script.rpartition("\n} catch {\n")
+    assert handler.lstrip().startswith("[Console]::Error.WriteLine($_.Exception.Message)")
+    assert re.search(r"exit 1\s*\}$", handler)
+    # Only two steps may fail quietly: bringing the window to the front (the
+    # email is open by then) and discarding a half-made email after a failure.
+    assert script.count("catch { }") == 2
     assert "try { $mail.GetInspector.Activate() } catch { }" in script
+    assert "try { $mail.Close(1) } catch { }" in handler
+
+
+ATTACHMENT_CHECK = "if ($mail.Attachments.Count -lt 1) { throw 'The PDF could not be attached.' }"
+
+
+def test_script_checks_the_pdf_is_attached_after_adding_it_and_before_finishing():
+    script = POWERSHELL_SCRIPT
+    body, _, handler = script.rpartition("\n} catch {\n")
+    assert body.count(ATTACHMENT_CHECK) == 2 and ATTACHMENT_CHECK not in handler
+    first = body.index(ATTACHMENT_CHECK)
+    second = body.index(ATTACHMENT_CHECK, first + 1)
+    # Straight after Attachments.Add, before the email is shown...
+    added = body.index("$null = $mail.Attachments.Add($attachment)")
+    assert body[added:first].strip() == "$null = $mail.Attachments.Add($attachment)"
+    assert first < body.index("$mail.Display($false)")
+    # ...and again once the introduction is in the body, before the success exit.
+    assert body.index("$mail.HTMLBody = $body") < second < body.index("$mail.GetInspector.Activate()")
+    assert second < body.index("exit 0") and body.count("exit 0") == 1
+    # The message is in single quotes: the script must stay free of double quotes.
+    assert "'The PDF could not be attached.'" in script and '"' not in script
+
+
+def test_script_discards_a_half_made_email_when_anything_fails():
+    script = POWERSHELL_SCRIPT
+    body, _, handler = script.rpartition("\n} catch {\n")
+    # $mail starts empty outside the try, so the handler knows whether a draft exists.
+    assert script.index("$mail = $null") < script.index("try {") < script.index("$mail = $outlook.CreateItem(0)")
+    assert "$mail = $null" not in body.partition("try {")[2]
+    discard = "if ($null -ne $mail) { try { $mail.Close(1) } catch { } }"
+    assert handler.count(discard) == 1
+    # The reason is written first, then the draft goes, then the failure exit.
+    assert handler.index("[Console]::Error.WriteLine(") < handler.index(discard) < handler.index("exit 1")
+    # Close(1) is olDiscard: never olSave (0) or olPromptForSave (2), never saved
+    # as a draft, and never closed on the success path.
+    assert re.findall(r"\.Close\((\d)\)", script) == ["1"]
+    assert ".Close(" not in body
+    assert ".Save(" not in script and ".SaveAs(" not in script
 
 
 def test_script_text_survives_the_windows_command_line():

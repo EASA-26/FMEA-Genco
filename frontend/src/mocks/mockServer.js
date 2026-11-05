@@ -8,7 +8,7 @@
 // Handy switches while building screens:
 //   ?mock_auth=databricks     no sign-in page (forwarded identity)
 //   ?mock_signed_in=1         start signed in (local mode)
-//   ?mock_outlook=0           "Email the PDF" is not available (as on a hosted server)
+//   ?mock_outlook=0           no Outlook drafts: Export offers the mail-app fallback (as with the new Outlook)
 //   ?mock_reset=1             forget the remembered mock session
 // Sign in with any username; password "wrong" -> incorrect, "locked" -> too many attempts.
 // Upload any .xlsx: a name containing "error" gives a report with blocking errors,

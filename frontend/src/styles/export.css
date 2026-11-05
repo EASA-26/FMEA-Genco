@@ -1,0 +1,84 @@
+/* ------------------------------------------------------------------ Steps 3-4 */
+/* New styles for Preview Report (step 3) and Export PDF (step 4). */
+
+/* Step 3: the preview reads as one viewer card, a small toolbar on top of the PDF frame. */
+.preview-panel {
+  overflow: hidden;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+.preview-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 8px 12px 8px 16px;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.preview-toolbar-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.preview-toolbar-note svg {
+  flex: none;
+  color: var(--electric-600);
+}
+
+.preview-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Inside the panel the frame keeps its height but loses its own card edge; the
+   toolbar takes about 50px of the screen, so the frame gives that back. */
+.preview-panel .pdf-frame {
+  height: calc(100vh - var(--topbar-h) - 220px);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* Step 4: "(optional)" sits in the heading but reads lighter than it. */
+.card-title-optional {
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--muted);
+}
+
+/* Upload another / Finish: the last thing on the page, right-aligned like the Back
+   button at the top (both rows span the canvas, so they line up on every width). */
+.export-finish {
+  display: grid;
+  padding-top: 18px;
+  border-top: 1px solid var(--hairline);
+}
+
+/* The status area stays in place for screen readers and takes no room while empty;
+   only one message shows at a time. */
+.export-finish-status > .alert {
+  margin-bottom: 12px;
+}
+
+.export-finish-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+@media (max-width: 640px) {
+  .export-finish-actions > * {
+    flex: 1 1 auto;
+  }
+}

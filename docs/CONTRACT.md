@@ -2,7 +2,8 @@
 
 This is the single source of truth for everyone building the app. Engineers
 upload an FMEA workbook, review the extracted data, preview the report and export
-a PDF (optionally opening it in a new Outlook email). The app is **one-time use**:
+a PDF (optionally emailing it: "Send via Outlook" opens a new classic-Outlook email with the PDF
+attached). The app is **one-time use**:
 nothing is stored, and the workbook, report and PDF last only for the current page
 visit (4.1). **Accuracy of extraction and counts is the top priority**; never invent,
 silently drop, or double count data.
@@ -80,6 +81,8 @@ tools/check_outlook_script.py      Windows only: PowerShell's parser checks the 
                                    (parsed, never run; not part of the test suite)
 frontend/                  React (Vite, JavaScript) app, builds to frontend/dist           [FRONTEND]
   src/lib/email.js         browser copy of the recipient check (same rules as the server)
+  src/lib/pageHeading.js   pageHeading(nav, report): the top bar's title and subtitle for each page (6)
+  src/components/AppIcon.tsx   app icons (THEME-GUIDE section 11); "fmea" = gear + warning badge
 ```
 
 Shared test helpers live in `backend/tests/conftest.py` (PARSER: `sample_workbook_bytes`,
@@ -435,7 +438,7 @@ A new code must be added here and to the README "Checks and messages" tables.
 | `GET /api/auth/me` | yes | 200 `{"user":{"name":…},"auth_mode":…,"features":{"outlook_email":<bool>}}`; 401 when not signed in. In databricks mode it returns 200 (creating the session) whenever a valid identity header is present. `features.outlook_email` = `OutlookMailer.available(settings)` (4.2: allowed by the settings and classic Outlook in use); exactly `true` gives the Outlook-draft button, anything else the mail-app fallback |
 | `POST /api/workbook` multipart `file` | yes | See upload rules below. 200 Report JSON (content issues are inside the report). Only a **successful** upload replaces the session's report and PDF cache; any failure keeps the previous ones. Parsing runs in the threadpool. 409 "This upload was cancelled before it finished: the workbook was closed or another upload started. Upload the workbook again to continue." when, while this upload was being read, the workbook was discarded (`DELETE /api/workbook`, sign-out) or a newer upload started (that one wins), or the browser disconnected (Cancel, page left; the previous report is then kept); nothing is stored (4.1). |
 | `GET /api/report` | yes | 200 Report JSON; 404 "No workbook uploaded yet." **Not called by the frontend**: a page never restores a report from the server (4.1). Kept for tests. |
-| `DELETE /api/workbook` | yes | 204, clears report and PDF cache (also 204 when there is none) and cancels an upload still being read. The frontend calls it when the workspace opens, on `pagehide` (keepalive) while the page holds a report or an upload is running, when the workspace itself fails to draw, and for "Remove" (4.1) |
+| `DELETE /api/workbook` | yes | 204, clears report and PDF cache (also 204 when there is none) and cancels an upload still being read. The frontend calls it when the workspace opens, on `pagehide` (keepalive) while the page holds a report or an upload is running, when the workspace itself fails to draw, for **Remove** (Upload step), and for **Upload another** and **Finish** (Export step) (4.1) |
 | `GET /api/report/pdf?download=0\|1` | yes | 404 if no report; 409 `{"detail":"Fix the errors listed before previewing or exporting.","error_count":n}` if `can_export` false; else `application/pdf`, `Content-Disposition: inline\|attachment; filename="<ASCII-safe pdf_filename>"` plus `; filename*=UTF-8''<percent-encoded>` when the ASCII form had to change, `Cache-Control: no-store`. PDF bytes cached per session until the next upload/delete; a per-session lock makes concurrent preview + download render once. Render failure -> 500 "The PDF could not be created. Please try again or contact support." (logged, not cached). A `download` value that is not a boolean -> 422. |
 | `POST /api/report/email` `{"to": "<string>"}` | yes | Opens a new classic-Outlook email with the PDF attached on the computer running the server (Display, never Send). 200 `{"status":"opened","recipients":[…normalised…],"attachment":"<file name>"}`. Errors and the order they are checked: see 4.2 |
 
@@ -563,9 +566,18 @@ The app keeps nothing between visits. There is no database and no file store.
   are gone.
 - Cancel during an upload aborts the request; the server sees the disconnect and keeps nothing (the
   report the page still shows, if any, stays).
-- Moving between the app's own steps (Upload, Data Checks, review sections, Preview, Export) is
-  client-side and keeps the report. Sign-out calls `POST /api/auth/logout`, which destroys the session
-  and its report.
+- Moving between the app's own steps (Upload, Review Data and its sections, Preview, Export) is
+  client-side and keeps the report; Upload with a report open shows the file card (6), not an empty
+  drop area. Sign-out (top bar) calls `POST /api/auth/logout`, which destroys the session and its
+  report. A file dropped outside the upload card is ignored (6, "Stray drops"): otherwise the browser
+  would open it, leaving the page and so discarding the workbook.
+- **Remove** (Upload step), **Upload another** and **Finish** (Export step) await `discardWorkbook()`
+  (`DELETE /api/workbook`) and only then drop the report: Remove and Upload another show an empty
+  Upload step, Finish shows the "Report complete" screen (step `'done'`). A failed discard keeps the
+  report and shows the error ("Not removed" / "Not cleared"). The user stays signed in.
+- Wording (exact strings). Upload step note: "Nothing is saved in this app. Your workbook and report
+  are cleared when you sign out or close this page." Sign-in page footer: "Nothing is saved in this
+  app. Workbooks and reports are cleared when you sign out or close the page."
 - The session cookie belongs to the browser, not the tab: opening the app in another tab runs the
   mount discard and so closes the workbook of the first tab.
 - A **404** from preview (prepare-PDF), download or email means the server no longer holds the
@@ -578,17 +590,22 @@ The app keeps nothing between visits. There is no database and no file store.
 
 The app never sends email. Two ways, chosen by `features.outlook_email`:
 
-- **Outlook draft** (`outlook_email` true, button "Open in Outlook"): the server asks the classic
+- **Outlook draft** (`outlook_email` true, button "Send via Outlook"): the server asks the classic
   Outlook desktop app, on the computer running the server, to show a **new email** (Display, never
   Send) with To, Subject, a short introduction and the PDF attached; the user checks it and presses
-  Send in Outlook. Implemented in `backend/mail/outlook.py` with PowerShell COM automation
+  Send in Outlook (the button name says what the user is about to do; the app itself never sends,
+  user decision 2026-11-05). The script checks the PDF is attached and discards a half-made email
+  (Launch, below). Implemented in `backend/mail/outlook.py` with PowerShell COM automation
   (`New-Object -ComObject Outlook.Application`); no Python or npm package was added.
 - **Mail-app fallback** (`outlook_email` false, button "Download PDF & open email"): entirely in the
   browser (`src/lib/email.js` `mailtoLink`). From the click it opens
   `mailto:<recipients joined with ",">?subject=…&body=…` (same subject as `email_subject`, plain-text
   version of `email_intro_html`; "@" kept, everything else percent-encoded) and then downloads the PDF
-  as the Download button does; the user attaches it. Works with any default mail app, including the
-  new Outlook for Windows, which cannot be automated.
+  as the Download button does. A `mailto:` link can never carry an attachment, so the user attaches
+  the PDF by hand; the card text and the success message say so plainly (6). Works with any default
+  mail app, including the new Outlook for Windows, which cannot be automated. (An email without its
+  PDF seen on 2026-11-05 came from this fallback while the new Outlook was in use; the classic-Outlook
+  draft attached the PDF.)
 
 Availability of the draft (`OutlookMailer.available`, reported as `features.outlook_email` by
 `/api/auth/me` and `/api/auth/login`, checked on every request):
@@ -602,9 +619,10 @@ Outlook and exits; Windows only reports that after ~30 s (DCOM event 10010,
 CO_E_SERVER_EXEC_FAILURE 0x80080005), so the app checks first. Registry errors count as "not
 ready". app.yaml sets `off`.
 
-`POST /api/report/email`, body `{"to": "<string>"}` (`to` defaults to ""; empty means "choose
-recipients in Outlook"). A body over 64 KB gets 413 from the middleware first; after that the
-checks run in this order:
+`POST /api/report/email`, body `{"to": "<string>"}` (`to` defaults to ""; the server still accepts
+an empty list, which opens the email with an empty To line, but the Export step's button needs at
+least one address, so the browser never sends one). A body over 64 KB gets 413 from the middleware
+first; after that the checks run in this order:
 
 | Status | When | Body |
 |---|---|---|
@@ -616,7 +634,7 @@ checks run in this order:
 | 409 | the report has errors | `{"detail":"Fix the errors listed before previewing or exporting.","error_count":n}` (as the PDF endpoint) |
 | 500 | the PDF render failed | as the PDF endpoint |
 | 429 | another Outlook launch is still running in this process (non-blocking, process-wide lock) | `{"detail":"Outlook is still opening the previous email. Please wait a moment."}` |
-| 502 | PowerShell could not start, exited non-zero (Outlook missing, not signed in, COM error) or took over 120 s | `{"detail":"Outlook could not open a new email. Make sure Outlook is installed and signed in, or download the PDF and attach it yourself."}` |
+| 502 | PowerShell could not start, exited non-zero (Outlook missing, not signed in, COM error, the PDF not attached) or took over 120 s | `{"detail":"Outlook could not open a new email. Make sure Outlook is installed and signed in, or download the PDF and attach it yourself."}` |
 | 200 | the email is open in Outlook | `{"status":"opened","recipients":[…],"attachment":"<file name>"}` |
 
 So a 501 or 400 can arrive even when the workbook is already gone; the frontend treats a 404 as
@@ -637,6 +655,9 @@ Recipient rules (`parse_recipients`; the browser runs the same check first, `src
   control/space characters as `?`, cut to 80 characters). The browser gives exactly the same
   messages (lengths counted in characters, as on the server) and sends the list it accepted joined
   with `";"`, which is never longer than what was typed, so it always passes the length check.
+- browser only: the Export step calls `parseRecipients(text, { required: true })`, so a box holding
+  only separators gives "Enter at least one email address." (`MSG_NO_RECIPIENTS`); without
+  `required` (the default, as on the server) an empty list is fine.
 
 Email content:
 - Subject `FMEA Report - <station> - <analysis_date_text>`; a missing part is left out with its
@@ -662,11 +683,19 @@ Launch (`OutlookMailer.open_draft`, run in the threadpool):
 - `POWERSHELL_SCRIPT` is fixed text with no double quotes. Values reach it **only** through the
   environment variables `FMEA_MAIL_TO` (addresses joined with `"; "`), `FMEA_MAIL_SUBJECT`,
   `FMEA_MAIL_INTRO_HTML` and `FMEA_MAIL_ATTACHMENT` (NUL characters removed); they are never
-  interpolated into the script. The script checks the attachment exists, creates
-  `Outlook.Application`, `CreateItem(0)`, HTML format, sets To (when given) and Subject,
-  `Attachments.Add(path)`, `Display($false)`, inserts the introduction as above, then brings the
-  email window to the front (best effort: a failure there does not fail the request, the email is
-  already open). Any other failure exits 1.
+  interpolated into the script. `$mail = $null` is set before the `try`. The script checks the
+  attachment file exists, creates `Outlook.Application`, `CreateItem(0)`, HTML format, sets To (when
+  given) and Subject, `Attachments.Add(path)`, then **checks the attachment**
+  (`if ($mail.Attachments.Count -lt 1) { throw 'The PDF could not be attached.' }`),
+  `Display($false)`, inserts the introduction as above, **checks the attachment again** (rewriting
+  `HTMLBody` must not lose it), then brings the email window to the front (best effort: a failure
+  there does not fail the request, the email is already open) and exits 0.
+- Any other failure: the `catch` writes the reason to stderr, closes a draft already created with
+  `$mail.Close(1)` (olDiscard: closed without saving and without a prompt, so no half-made email or
+  draft is left; inside its own `try { } catch { }`) and exits 1 -> 502. The script never calls
+  `Save`/`SaveAs`, and never `Close` on the success path. Exactly two failures are swallowed: bringing
+  the window to the front and that discard. `backend/tests/test_mail_outlook.py` asserts the order of
+  both checks, the discard and the single success exit.
 - `creationflags=CREATE_NO_WINDOW` on Windows, stdin/stdout discarded, stderr captured; timeout
   120 s.
 - **Always** deletes the temporary folder in `finally`, whatever happened (Outlook copied the file
@@ -782,7 +811,8 @@ Launch (`OutlookMailer.open_draft`, run in the threadpool):
   Mock code is only reachable behind `import.meta.env.DEV && VITE_MOCK === '1'`, so a production build
   never contains it. As in the real app the mock report lives only in page memory (a refresh starts
   again on Upload); only the mock sign-in is remembered in `sessionStorage`. Switches: `?mock_reset=1`,
-  `?mock_signed_in=1`, `?mock_auth=databricks`, `?mock_outlook=0` (Email the PDF not available);
+  `?mock_signed_in=1`, `?mock_auth=databricks`, `?mock_outlook=0` (Outlook drafts not offered, so Export
+  shows the mail-app fallback);
   passwords `wrong`/`locked`; upload names containing `error`/`broken`/`slow`; Email recipients
   containing `outlook-fail` (502) or `outlook-busy` (429); `window.fmeaMock.expireSession()` (next
   request 401) and `window.fmeaMock.closeWorkbook()` (next preview/download/email 404, as after another
@@ -794,7 +824,19 @@ Launch (`OutlookMailer.open_draft`, run in the threadpool):
   + top bar 80px) round a gray-50 `#F9FAFB` canvas with a rounded top-left corner; white cards
   (rounded-2xl, hairline gray-100); electric blue `#0066FF` is the only accent; the current page in the
   sidebar has a 4px emerald `#34D399` bar, a soft electric glow and fill. Sidebar: TNB GENCO · TED
-  brandmark, then "ALCM - Maintenance Strategy" / "FMEA Report" / "Failure Mode & Effects Analysis".
+  brandmark, then the **product block** (`.gt-product`, padding 16px; theme guide section 6): a
+  `.gt-product-head` row with the app icon `<AppIcon app="fmea">` in a 44px `.gt-product-icon` tile
+  (12px radius, electric-400 at 10% fill, 1px inset ring electric-200 at 14%, icon electric-300
+  `#7AB3FF` at 24px, decorative) and the name "FMEA Report" beside it (20px bold white), then the
+  description "Failure Mode & Effects Analysis" underneath (14px medium, electric-100 at 80%). The
+  sidebar is on every workspace page, so the icon is always in view and **no page repeats it** (the
+  Upload page no longer shows it; outside the workspace it appears only on the sign-in screen and the
+  loading splash). The sidebar foot names the team that runs this process: "Team" / "ALCM -
+  Maintenance Strategy" (lucide `Users` icon).
+  **Page titles live only in the top bar** (theme guide section 4, "Top bar"): pages have no heading
+  of their own (no PageHeader, eyebrow or lead text; `PageHeader.jsx` is deleted). A page's buttons
+  sit in a right-aligned action row at its top, `<div className="page-actions">` (`styles/flow.css`),
+  with no heading in it.
   Status colours (Tailwind amber/red/green) only for warnings and errors, each with an icon + label.
   Light mode only (the theme's dark values live in genco-theme.css but nothing switches them on).
   Motion: only short entrances (0.2–0.35s) plus the functional spinner, upload progress and row
@@ -807,9 +849,17 @@ Launch (`OutlookMailer.open_draft`, run in the threadpool):
   `#3D8FFF` on the navy frame; muted text gray-500 `#6B7280` (≥ 4.5:1 on white and gray-50; gray-600
   on tinted fills); UOIR status in the sidebar uses icons with labels, not colour alone; the pie is
   not a keyboard stop and carries an `aria-label` listing every slice; "Sign in" is the sign-in page's
-  only h1. Disabled buttons use the theme's 60% fade (disabled controls are exempt from WCAG contrast);
-  the reason beside a disabled Export button stays at ≥ 4.5:1.
-- Screens / flow: **Sign in** -> workspace with stepper **Upload Excel → Review Data → Preview Report → Export PDF**.
+  only h1, and in the workspace the top bar's page title (`h1#page-title`) is every page's only h1
+  (cards use h2). Disabled buttons use the theme's 60% fade (disabled controls are exempt from WCAG
+  contrast); the reason beside a disabled Next button (red-700) stays at ≥ 4.5:1 and is linked to the
+  button with `aria-describedby`. Scrolling tables take keyboard focus (`tabIndex` 0) with a label:
+  the Failure Details / Team Members scrollers (`role="region"`, "Failure Details table" / "Team
+  Members table"), the analysis table scroller ("FMEA Analysis table for UOIR ID <id>") and the
+  Workbook data tab panel.
+- Screens / flow: **Sign in** -> workspace with stepper **Upload Excel → Review Data → Preview Report → Export PDF**,
+  then the **Report complete** screen after Finish. `nav.step` is `'upload' | 'review' | 'preview' |
+  'export' | 'done'`. After a successful upload the app **stays on Upload** (the file card offers
+  Proceed); it never jumps to Review Data by itself.
   - Sign in: the theme's split on navy. Left: "FMEA Report" + "Failure Mode & Effects Analysis",
     "Failure modes and effects, / analysed in one place", "Upload FMEA worksheets, check and review the
     data, and turn it into a report you can preview and export.", three features (Upload Excel
@@ -818,70 +868,211 @@ Launch (`OutlookMailer.open_draft`, run in the threadpool):
     "Use the account given to you by your ALCM administrator."); username/password; plain error messages
     (empty fields, 401, 429); skipped entirely when `/api/auth/me` returns `auth_mode: "databricks"`
     (no Sign out button; "Signed in with Databricks"). Any 401 from a signed-in call returns to sign-in
-    with a "Session ended" notice. Footer: "Workbooks are read in memory only and never saved. They
-    are discarded when you sign out or leave the page."
+    with a "Session ended" notice. Footer: "Nothing is saved in this app. Workbooks and reports are
+    cleared when you sign out or close the page."
   - `features` comes from `/api/auth/me` and `/api/auth/login` (`App.jsx`; `outlook_email` is true only
     when the server sends exactly `true`) and flows App -> Workspace -> ExportView.
   - Workspace lifecycle: one-time use as in 4.1 (discard on mount behind "Preparing your workspace…",
     discard on `pagehide`, reload on a back/forward-cache `pageshow`, 404 -> Upload with the "Workbook
     closed" notice).
-  - Shell: navy sidebar (brand, stepper, section nav: **Data Checks**, Front Page, Introduction,
-    Analysis (UOIR list), Recommendation; user + Sign out at the bottom). Top bar: file name, station/
-    date (full text in a tooltip), status chips (n errors / n warnings, opening Data Checks), "Upload
-    another", prominent **Export PDF** (disabled with a visible reason when errors; when enabled it
-    opens the Export step and starts the download once).
-  - Upload: drag-and-drop zone + browse; client checks `~$` lock files, `.xls` (save as .xlsx),
-    other extensions, empty files and size (hard-coded 20 MB in `src/api/client.js`, see 7); upload
-    progress, Cancel, then a "reading workbook" state; errors from the API shown above the dropzone;
-    focus returns to "Browse files" after Cancel or failure. A note under the header: "Your workbook
-    is read in memory only and never saved. It is discarded, with its report and PDF, when you sign
-    out or leave the page." The "Workbook closed" notice (4.1) shows here until dismissed or a new
-    upload starts. With a report open, **Remove** discards it (`DELETE /api/workbook`).
-  - Data Checks (validation panel): fact cards; "Ready to export" or "Export blocked" banner; groups
-    "Must fix before export" (errors) and "Please check" (warnings), hidden when empty; "For
+  - Shell: navy sidebar (brand, product block with the app icon, stepper, section nav: **Data
+    Checks**, Front Page, Introduction, Analysis (UOIR list), Recommendation; at the bottom the team
+    "ALCM - Maintenance Strategy"). The stepper's steps open directly once a workbook is read. Top
+    bar (`TopBar` props: heading, report, counts, user, authMode, onMenu, onShowChecks, onSignOut):
+    menu button (tablet), the **page title** `h1#page-title` (`.gt-topbar-title`, 24px bold white;
+    `tabIndex` -1, focused from script only, no focus ring) with the **subtitle** under it
+    (`.gt-topbar-subtitle`, 14px, electric-100 at 80%), each one line cut with "…" and the full text
+    in a tooltip; status chips (n errors / n warnings, or "Ready to export"; each opens Data Checks),
+    and at the right the **signed-in user** (avatar initial, name, "Signed in" or "Signed in with
+    Databricks") with **Sign out** (local mode only). The former "workbook file" block (file name,
+    station · date) is gone: the file name is in the Step 2 and Step 3 subtitles. At ≤ 820px the
+    title drops to 20px, the chips move to a second row (row 1: menu, title, user) and the user's
+    name and status line are visually hidden (kept for screen readers); at ≤ 640px Sign out becomes
+    an icon button with its label as accessible name. There is **no Export or Upload another button
+    in the top bar**: exporting is step 4. (`Sidebar` props: report, counts, nav, uoirId,
+    uploadBusy, onStep, onSection, onClose.)
+  - Page titles and subtitles: `pageHeading(nav, report)` (`src/lib/pageHeading.js`) gives
+    `{ title, subtitle }` for the page on screen; Workspace passes it to `TopBar` as `heading`.
+
+    | Page (`nav`) | Title (the page's h1) | Subtitle |
+    |---|---|---|
+    | `'upload'`, and any other step but `'done'` while no report is open (also "Preparing your workspace…") | "Upload the FMEA workbook" | "Step 1 of 4 · Upload Excel" |
+    | `'review'`, Data Checks (and any section not listed below) | "Review data" | "Step 2 of 4 · What was read from <source_filename>" |
+    | `'review'`, `front` | "Front Page" | "Report section · The cover of the report, as it will appear on the first page of the PDF" |
+    | `'review'`, `intro` | "Introduction" | "Report section · Failure details and the analysis team, exactly as written in the workbook" |
+    | `'review'`, `analysis` | "Analysis" | "Report section · The FMEA Analysis table and FMEA Summary counts for each UOIR" |
+    | `'review'`, `recommendation` | "Recommendation" | "Report section · Maintenance tasks for each UOIR, grouped by Equipment and KKS" |
+    | `'preview'` | "Preview report" | "Step 3 of 4 · <pdf_filename>, exactly as it will be exported" |
+    | `'export'` | "Export PDF" | "Step 4 of 4 · Download the finished report, or email it" |
+    | `'done'` with no report | "Report complete" | "The workbook and report have been cleared from the app" |
+
+    While the workspace is being prepared the title is "Upload the FMEA workbook" with no subtitle;
+    when it could not be prepared, "Workspace not ready" with no subtitle.
+  - Focus after a page change: Workspace watches the page key (step, plus the section on Review
+    Data) and compares it with the last page shown (so React's development double run of effects
+    is not a page change, and the first page of the visit is left alone). Back / Next, Proceed,
+    Finish and the like live inside the page they leave, so the pressed button disappears with it;
+    when focus has fallen to `<body>`, it moves to `#page-title` (`preventScroll`), which screen
+    readers read out. Focus that the new page placed itself (the Upload card's buttons; the Analysis
+    table's scroller after **Show in table**) or that is still on a desktop sidebar link stays.
+    Picking a step or section in the **tablet drawer** closes it and moves focus to `#page-title`.
+  - Stray file drops: Workspace listens for `dragover` and `drop` on `window`. For a drag that
+    carries files (`dataTransfer.types` includes `Files`) outside `.dropzone` (the upload card
+    handles its own events) it calls `preventDefault` and sets `dropEffect = 'none'`, so the cursor
+    shows "no drop" and the browser never opens the file, leaves the page or discards the open
+    workbook (4.1). Other drags (e.g. text into the Recipients box) are left alone.
+  - Step navigation (`src/components/StepNav.jsx`, styles in `styles/flow.css`), in the page's
+    right-aligned `page-actions` row at the top of each page: `back` = secondary "← <step name>"
+    (aria-label "Back to <step name>"), `next` = primary "<step name> →" (aria-label "Next: <step
+    name>"), disabled with a visible `reason` beside it. At ≤ 640px the row spans the width with Back
+    at the left and Next at the right. `ReviewStepNav` (same file; props counts, onBack, onNext) is
+    the Step 2 pair, used by **every Review Data page**: Data Checks, Front Page, Introduction,
+    Analysis and Recommendation (Workspace passes `counts`, `onBack` and `onNext` to each).
+
+    | Step | Back | Next |
+    |---|---|---|
+    | 1 Upload Excel | none | "Proceed to Review Data" on the file card |
+    | 2 Review Data (Data Checks and every report section) | "Upload Workbook" (to Upload, which shows the file card) | "Preview Report"; disabled with "Fix n errors to preview" |
+    | 3 Preview Report | "Review Data" (to Data Checks) | "Export PDF Report"; disabled with "Fix n errors to export" when `can_export` is false |
+    | 4 Export PDF | "Preview Report" (disabled while the report is being cleared) | none; "Upload another" and (when `can_export`) "Finish" at the bottom right |
+
+  - Upload (`UploadView` props: report, upload, notice, onFile, onCancel, onDismissError,
+    onDismissNotice, onContinue, onRemove): no heading and no app icon in the page (title and
+    subtitle in the top bar, the icon in the sidebar product block) and no action row (Proceed is on
+    the file card). A note at the top (`ShieldCheck` icon): "Nothing is saved in this app. Your
+    workbook and report are cleared when you sign out or close this page." One card:
+    - no report: drag-and-drop zone + "Browse files"; client checks `~$` lock files, `.xls` (save as
+      .xlsx), other extensions, empty files and size (hard-coded 20 MB in `src/api/client.js`, see 7);
+    - uploading: progress, Cancel, then a "reading workbook" state;
+    - report open: the **file card replaces the drop area** in the same card: "Workbook uploaded",
+      the file name, "station · date · n UOIRs" (plus "n errors" when there are any), **Remove**
+      (secondary, lucide `Trash2`; "Removing…" while it runs; awaits `onRemove`, a failure shows a
+      "Not removed" alert and keeps the report) and **Proceed to Review Data** (primary, described by
+      the file name and meta). Dropping a file on the card then only shows the note "Remove the
+      current workbook first to upload a different one." (every drag is `preventDefault`ed, so the
+      browser never opens the file and leaves the page; drops outside the card: see "Stray drops").
+
+    Errors from the API show above the card. Focus: Proceed after a successful upload, "Browse files"
+    after Cancel, a failed upload or a removal, Remove after a failed removal. The "What the workbook
+    needs" card stays below. The "Workbook closed" notice (4.1) shows here until dismissed or a new
+    upload starts.
+  - Review Data (`ChecksView` props: report, counts, onShowInTable, onBack, onNext): no heading
+    (top bar: "Review data" / "Step 2 of 4 · What was read from <source_filename>"); the
+    `page-actions` row with Back / Next; four fact cards (Station, Date of Analysis, UOIRs, Team
+    members) with **no sheet or cell captions**; "Ready to export" or "Export blocked" banner (no
+    buttons inside it); groups "Must fix before export" (errors) and "Please check" (warnings), hidden
+    when empty; "For
     information" (info) collapsed by default and hidden when empty; each item shows the message and
     location chips (sheet, row, column, cell) and, when it points into an analysis table, **Show in
     table** (switches UOIR, scrolls to the column and marks the row/cell).
-  - Front Page: HTML rendition of the cover data (station, date, blank Prepared by / Approved by boxes)
-    plus a note of where each value comes from.
-  - Introduction: Failure Details and Team Members tables (wrapping, multiline preserved).
-  - Analysis: UOIR list/selector (ID, title, counts); tabs **FMEA Analysis** (notes above; full table
-    with horizontal scroll, sticky header and an extra muted **Row** column with the Excel row number,
+  - Review Data, **Workbook data** card (`src/components/WorkbookData.jsx`) below the checks: the
+    data itself, **read-only** (user decision 2026-11-05: no editing in the app; the workbook stays
+    the single source of truth), with the note "Read-only. To change anything, edit the workbook in
+    Excel and upload it again." Tabs with counts: **Team Members** (Station, Date of Analysis, team
+    table), **Failure Details** (table), **Analysis** (UOIR selector, UOIR ID and title, notes, "n rows
+    · n columns", the analysis table with its Row column; no row focus). Empty states point to the
+    checks above. No sheet or cell references in this card. The tab panel and the table scrollers
+    take keyboard focus (labelled regions, see Accessibility). The Failure Details and Team Members
+    tables come from `src/components/IntroTables.jsx`, shared with the Introduction section.
+  - Report sections (no heading of their own: title and subtitle in the top bar, see "Page titles
+    and subtitles"; the `page-actions` row holds `ReviewStepNav`): **Review Data names no sheet or
+    cell** (user item 5; only a data-check message's location chips say where a problem is).
+  - Front Page (`FrontPageView` props: report, counts, onBack, onNext): HTML rendition of the cover
+    data (station, date, blank Prepared by / Approved by boxes) and an "On this page" card: Station
+    and Date of Analysis show their value only ("Not found in the workbook" when blank), with **no
+    "Team Member sheet, cell B2/B3" caption**; Prepared by / Approved by "Left blank for signatures"
+    ("Signed on the printed or digital copy"); PDF file name ("Station and Date of Analysis").
+  - Introduction (`IntroductionView` props: report, counts, onBack, onNext): Failure Details and Team
+    Members tables (wrapping, multiline preserved; the shared `IntroTables.jsx`); the card meta is
+    the count only ("n rows", "n members"), with **no "· UOIR sheet" / "· Team Member sheet"
+    caption**.
+  - Analysis (`AnalysisView` props: report, counts, uoir, onSelectUoir, tab, onTab, focus,
+    onShowChecks, onBack, onNext): UOIR list/selector (ID, title, counts); tabs **FMEA Analysis**
+    (notes above; full table with horizontal scroll, sticky header and an extra muted **Row** column with the Excel row number,
     not part of the report; merged cells via rowSpan/colSpan; cells drawn by header column so short or
     long `cells` lists never shift columns; merges outside the table ignored, others clipped, overlaps
     skipped; duplicate and warning rows marked) and **FMEA Summary** (3 cards; "Existing vs Revised"
     pie + legend with counts & % + strategy table, same colours, standard zero rows muted;
     "Work-Centre Execution" table; not-counted/duplicate notes; empty states when `summary` is None or
     the pie is empty).
-  - Recommendation: UOIR selector; tabs **New Task = Yes** and **New Task = No**, plus **New Task not
+  - Recommendation (`RecommendationView` props: report, counts, uoir, onSelectUoir, tab, onTab,
+    onBack, onNext): UOIR selector; tabs **New Task = Yes** and **New Task = No**, plus **New Task not
     set** only when such rows exist. "Not set" holds **every row whose new_task is not "yes" or "no"**
     (blank, invalid or unexpected), so each row is in exactly one tab; rows there are tagged "NSM · not
     required", "Blank" or "Not Yes or No: "<value>"". Switching to a UOIR without such rows falls back
     to the Yes tab. Groups with `heading`; table Failure Mode | Recommendations (Task, Frequency) with
     the Row column. Tabs are view filters only ("Tabs only filter this view. The PDF lists every row.").
-  - Preview: first `GET /api/report/pdf?download=0` with fetch, abandoning the body once the headers
-    arrive, so 409/500 show as plain messages; then `<iframe src="/api/report/pdf?download=0">` (served
-    from the PDF cache) with a hint for browsers that cannot show PDFs inline. Shows a "Preview blocked"
-    state listing the errors instead when `can_export` is false. A 404 -> "Workbook closed" (4.1).
-  - Export: downloads via `fetch('/api/report/pdf?download=1')` -> blob -> `<a download=pdf_filename>`,
-    so a failure shows a clear message instead of a JSON page; success message after the download
-    starts; "Export blocked" state when `can_export` is false. A 404 -> "Workbook closed" (4.1).
-  - Export, **Email the PDF** card (under the download card, only when `report.can_export`; always
-    shown): an optional text input labelled "Recipients (optional)" (label/for, hint linked by
-    `aria-describedby`), and one button chosen by `features.outlook_email`:
-    - true: "Open in Outlook" (lucide `Mail` icon), hint "Separate several addresses with a semicolon.
-      Leave empty to choose recipients in Outlook.", working state "Opening Outlook…", success alert
-      "Outlook opened a new email with the PDF attached. Check it, then press Send in Outlook.", error
-      alert with the server message; on 502 or 501 the alert also has a "Download PDF & open email
-      instead" button (the fallback below).
-    - false: "Download PDF & open email", hint "… Leave empty to choose recipients in your mail app.";
-      the click opens the `mailto:` link (4.2) straight away (while it still counts as the user's
-      action), then downloads the PDF ("Downloading PDF…"); success alert "A new email was opened in
-      your mail app and <pdf_filename> was saved to your Downloads folder. Attach the PDF to the email,
-      then press Send."
+  - Preview (`PreviewView` props: report, counts, onShowChecks, onBack, onNext, onWorkbookClosed):
+    no heading (the top bar's subtitle carries the PDF's file name); the `page-actions` row with
+    Back / Next; **view only**, with no download or Export button on this step (user request: the
+    PDF is downloaded once, on Export). First `GET /api/report/pdf?download=0` with fetch, abandoning the body once the
+    headers arrive, so 409/500 show as plain messages; then `<iframe>` on the preview address (served
+    from the PDF cache) with `#toolbar=0&navpanes=0` appended (`viewOnly`: added once, after any
+    existing fragment, never when a `toolbar=` is already there), which asks the browser's PDF viewer
+    to hide its toolbar with the download and print buttons (a viewer that ignores the parameters
+    still shows it). A strip above the frame: "Preview only. Download or email the PDF in the next
+    step.", **Reload** and **Open in new tab** (the same view-only address). Hint under it: "If the
+    preview stays blank, your browser may not show PDFs inside the page. Use “Open in new tab”
+    instead." Shows a "Preview blocked" state listing the errors instead when `can_export` is false.
+    A 404 -> "Workbook closed" (4.1).
+  - Export (`ExportView` props: report, counts, features, delivered, onDelivered, onShowChecks,
+    onBack, onWorkbookClosed, onUploadAnother, onFinish): no heading (top bar: "Export PDF" / "Step 4
+    of 4 · Download the finished report, or email it"); the `page-actions` row holds Back "Preview
+    Report" only (the former "Preview first" button and the top bar's auto-start download are gone).
+    **Download PDF** via `fetch('/api/report/pdf?download=1')` -> blob -> `<a download=pdf_filename>`,
+    so a failure shows a clear message instead of a JSON page; "Preparing PDF…", then "The PDF was
+    saved by your browser. Check your Downloads folder." and "Download again"; "Try again" after a
+    failure; "Export blocked" state when `can_export` is false. A 404 -> "Workbook closed" (4.1).
+    - **Delivered** (`delivered`, kept by Workspace, not by the Export view): set through
+      `onDelivered` after a successful download, a "Send via Outlook" email or the mail-app fallback;
+      it survives Back to Preview and Next again, and is reset whenever the report changes
+      (`applyReport`: a new upload, Remove, Upload another, Finish, "Workbook closed").
+    - **Leaving** (`leaving` = `'finish' | 'upload' | null`, kept by ExportView): while Finish or
+      Upload another is clearing the report, Download, Back and the email form (input read-only,
+      Send and "…instead" buttons disabled) are locked as well as both bottom buttons, so nothing new
+      starts.
+    - A request still running when the report was cleared can come back "workbook closed" after the
+      Export page is gone; it is ignored then (the view tracks whether it is still mounted), so the
+      next screen never shows a stray "Workbook closed" notice.
+  - Export, **Email the PDF (optional)** card (under the download card, only when
+    `report.can_export`): "(optional)" in the card title; a text input labelled "Recipients"
+    (label/for, hint "Enter at least one address to send. Separate several with a semicolon." linked
+    by `aria-describedby`; it also says why the button is disabled, since a disabled button cannot
+    take focus), and one button chosen by `features.outlook_email`, **disabled until something is
+    typed** (and while working or leaving); the browser check is
+    `parseRecipients(to, { required: true })`:
+    - true: "Send via Outlook" (lucide `Mail` icon); card text "Opens a new email in Outlook with the
+      PDF attached and the recipients filled in. Nothing is sent until you press Send in Outlook.";
+      working state "Opening Outlook…"; success alert "Outlook opened a new email with <pdf_filename>
+      attached. Check it, then press Send in Outlook."; error alert with the server message; on 502
+      or 501 the alert also has a "Download PDF & open email instead" button (the fallback below).
+    - false: "Download PDF & open email"; card text "This computer can't attach the PDF to a new email
+      automatically. The PDF is downloaded and a new email opens with the recipients filled in; attach
+      the PDF, then press Send."; the click opens the `mailto:` link (4.2) straight away (while it
+      still counts as the user's action), then downloads the PDF ("Downloading PDF…"); success alert
+      "A new email opened in your mail app and <pdf_filename> was saved to your Downloads folder. The
+      PDF is not attached yet: attach it to the email, then press Send."
     The recipient check of 4.2 runs in the browser first (`src/lib/email.js`); a bad address marks the
     input `aria-invalid` and points it at the error. Status messages sit in an `aria-live="polite"`
     region. A 404 -> "Workbook closed".
+  - Export, bottom right: **Upload another** (secondary, lucide `Upload`; always shown, also when
+    export is blocked) and **Finish** (primary, lucide `CircleCheck`; **only when `can_export`**:
+    with blocking errors there is no finished report to complete, so the row offers Upload another
+    only, and it acts straight away). Both are disabled while a download or email is running. If the
+    report can be exported and the PDF was not yet delivered (`delivered` false: neither downloaded
+    nor emailed for this report), the first click shows a "Not saved yet" warning: "The PDF hasn't
+    been downloaded or emailed yet. When you continue, the report is cleared and can't be opened
+    again." with "Finish anyway" / "Upload another anyway" (focused) and Cancel (focus back to the
+    button); the warning closes by itself once the PDF is delivered. Then "Finishing…" / "Clearing
+    the report…" while `onFinish` / `onUploadAnother` discard the workbook (4.1; the page is
+    `leaving`, above); a failure shows a "Not cleared" alert and keeps the report. Upload another ->
+    empty Upload step; Finish -> Report complete.
+  - Report complete (`src/views/CompleteView.jsx`, step `'done'`, prop onStartNew): no heading of
+    its own (top bar: "Report complete" / "The workbook and report have been cleared from the app");
+    one card (`aria-label` "Report complete") with a check icon, "Upload the next workbook whenever
+    you're ready." (it does not repeat the subtitle) and **Start a new report** (to Upload). The user
+    stays signed in. Focus moves to the top bar's title (the Finish button is gone; "Focus after a
+    page change").
   - Error messages: server `detail` strings are shown when plain; otherwise per-status fallbacks,
     including 502/503/504 ("The FMEA service is not available right now…") and network failures.
   - **ErrorBoundary** (`src/components/ErrorBoundary.jsx`): a "section" boundary around the content
@@ -907,11 +1098,68 @@ Launch (`OutlookMailer.open_draft`, run in the threadpool):
 | Tests (owner) | Starlette 1.6 deprecates `TestClient` with httpx; pin a compatible client before upgrading | warning only |
 | Frontend | Trap focus in the open tablet drawer; more room in the top bar at 1280px; sidebar UOIR links from Recommendation stay in Recommendation | not done |
 | Parser | Two-row analysis headers (group header above sub-headers) | not supported; sub-header row read as data (blank-value errors) |
-| Email | Try "Open in Outlook" against a real classic Outlook (introduction above the default signature, Outlook's "another program is accessing" security prompt) | the only PC tried (2026-11-04) uses the new Outlook, so the draft was refused by Windows (DCOM 10010) and the app now offers the mail-app fallback there; the draft itself is checked with a fake runner and the PowerShell parse check only |
+| Email | Keep checking "Send via Outlook" against real classic Outlook installs (introduction above the default signature, Outlook's "another program is accessing" security prompt) | 2026-11-05: on a PC with classic Outlook, test drafts opened with the PDF attached; the script now also checks the attachment twice and discards a half-made email (4.2). With the new Outlook (2026-11-04) the draft is refused by Windows (DCOM 10010) and the app offers the mail-app fallback, which cannot attach the PDF |
 | API / frontend | Tie the report to the page that uploaded it (e.g. a report id checked by preview, download and email), so a stale tab can never get another tab's PDF | one report per browser session: opening a second tab closes the first tab's workbook, but if the second tab then uploads, a not-refreshed first tab's Preview/Export/Email serve the second tab's workbook |
 
 ## Change log
 
+- **2026-11-05 — design pass: app icon in the sidebar, page titles in the top bar; review fixes.**
+  (User request. The design pass is design only, nothing works differently; it follows IZ's theme
+  guide, sections 3, 4 "Top bar", 6 product block and 11 "Using it". The review fixes follow an
+  earlier review of the step-by-step flow below.)
+  - 6 sidebar: the product block shows `<AppIcon app="fmea">` in a 44px tile (12px radius,
+    electric-400 at 10%, 1px inset ring electric-200 at 14%, icon electric-300 `#7AB3FF` at 24px)
+    beside "FMEA Report" (20px bold white, the user's chosen name), with "Failure Mode & Effects
+    Analysis" (14px medium, electric-100 at 80%) underneath; `.gt-product` padding 16px; new
+    `.gt-product-head` / `.gt-product-icon` in `genco-theme.css`. The icon left the Upload page.
+  - 6 top bar: the page title (`h1#page-title`, the page's only h1) and subtitle from
+    `src/lib/pageHeading.js` replace the "workbook file" block; the file name is now in the Step 2
+    and Step 3 subtitles. `TopBar` takes `heading`. `PageHeader.jsx` is deleted: pages have no
+    heading, eyebrow or lead text, and their buttons sit in a right-aligned `page-actions` row
+    (`styles/flow.css`).
+  - Review fixes. 6 flow: `ReviewStepNav` gives Back / Next on every Review Data page (Data Checks,
+    Front Page, Introduction, Analysis, Recommendation); Workspace focuses `#page-title` after a step
+    or section change when focus fell to `<body>`; window-level `dragover` / `drop` are
+    `preventDefault`ed outside `.dropzone`, so a stray dropped file no longer navigates away and
+    discards the workbook (4.1).
+  - 6 Export: `delivered` (downloaded or emailed) moved to Workspace (survives Back / Next, reset on
+    a new report; props `delivered` / `onDelivered`); `leaving` (Finish / Upload another running)
+    lifted into ExportView and locks Download, the email form and Back; a late "workbook closed"
+    reply after the view is gone is ignored; Finish is hidden when export is blocked (Upload another
+    only); recipient hint "Enter at least one address to send. Separate several with a semicolon."
+  - 6 Review Data (item 5, no sheet or cell naming): the Front Page "Team Member sheet, cell B2/B3"
+    captions and the Introduction "· UOIR sheet" / "· Team Member sheet" captions are removed. The
+    Workbook data tab panel and the table scrollers take keyboard focus (labelled regions).
+    `CompleteView` has no heading (its title is in the top bar) and no longer repeats the subtitle.
+- **2026-11-05 — step-by-step flow, top bar user, read-only Workbook data, Send via Outlook.**
+  (User request; numbers are the user's items.)
+  - 6 shell: the top bar's "Upload another" and locked **Export PDF** button are gone; the signed-in
+    user and Sign out moved there from the sidebar (1). The sidebar foot now names the team, "ALCM -
+    Maintenance Strategy", which left the brand block (15). `TopBar` / `Sidebar` props changed.
+  - 6 flow: `StepNav` Back / Next on every step (7, 8, 10); after an upload the app stays on Upload,
+    and the card shows the file with **Remove** (trash can) and **Proceed to Review Data** in place
+    of the drop area (4). The Upload sub-text is removed (3); the one-time-use note is now "Nothing is
+    saved in this app. Your workbook and report are cleared when you sign out or close this page.",
+    with matching sign-in footer wording (2).
+  - 6 Review Data: fact cards lose their sheet/cell captions (5); new read-only **Workbook data**
+    card with Team Members / Failure Details / Analysis tabs (6; user decided read-only, no editing);
+    the banner's "Preview report" and the header's "Review the report" buttons are removed (7).
+    `IntroTables.jsx` shares the Introduction tables.
+  - 6 Preview: view only; no Export/download button, and `#toolbar=0&navpanes=0` asks the PDF viewer
+    to hide its toolbar (9); Reload / Open in new tab moved to a strip above the frame.
+  - 6 Export: Back only ("Preview first" and the auto-start download removed) (10); "Email the PDF
+    (optional)" (11); "Open in Outlook" renamed **Send via Outlook** and disabled until a recipient
+    is typed; it still only opens the email, the user presses Send (13; user decision); browser
+    `parseRecipients(…, { required: true })` and "Enter at least one email address."; the mail-app
+    fallback says plainly that the PDF must be attached by hand (12). New **Upload another** /
+    **Finish** with a "Not saved yet" check, and the **Report complete** screen (`CompleteView`, step
+    `'done'`); the user stays signed in (14; user decided Finish clears the report).
+  - 4.2 (12): the "PDF not attached" email came from the mail-link fallback while the new Outlook was
+    in use; the classic-Outlook draft attached it. The PowerShell script now checks
+    `Attachments.Count` after `Attachments.Add` and again after the introduction, and on any failure
+    closes the draft with `Close(1)` (olDiscard, never saved) before exiting 1 (502). Tests in
+    `test_mail_outlook.py`. 4: `DELETE /api/workbook` is also used by Upload another and Finish
+    (4.1). 7: the Outlook row updated.
 - **2026-11-04 — Email the PDF works with the new Outlook (mail-app fallback).**
   - Real test: on a PC with the "New Outlook" toggle on, the Outlook draft failed after ~34 s
     (CO_E_SERVER_EXEC_FAILURE; the new Outlook cannot be automated).

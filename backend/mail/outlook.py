@@ -6,6 +6,11 @@ message, fills in To and Subject, attaches the PDF, shows the message and puts
 a short introduction above the user's default signature. The user checks the
 message and presses Send in Outlook.
 
+The script checks the PDF really is attached, both right after attaching it
+and once the introduction is in. If it is not, or any step fails, the
+half-made email is closed without saving and the request fails, so the user
+is never left with an email that is missing its PDF.
+
 Safety:
 
 * The PowerShell script is fixed text (`POWERSHELL_SCRIPT`). The recipients,
@@ -301,10 +306,15 @@ ENV_ATTACHMENT = "FMEA_MAIL_ATTACHMENT"
 # contains no double quotes, so it passes through the Windows command line
 # unchanged. Display (never Send): the user sends the email from Outlook.
 # Display comes first so Outlook adds the default signature; the introduction
-# is then put right after the <body> tag, above it. Any failure exits with 1
-# (bringing the window to the front is best-effort: the email is open anyway).
+# is then put right after the <body> tag, above it. The attachment is counted
+# twice, after Attachments.Add and again once HTMLBody has been rewritten, so
+# an email is never left open without its PDF. Any failure writes the reason
+# to stderr, closes a draft already created without saving it (Close(1) =
+# olDiscard) and exits with 1. Bringing the window to the front is
+# best-effort: the email is open anyway.
 POWERSHELL_SCRIPT = r"""
 $ErrorActionPreference = 'Stop'
+$mail = $null
 try {
     $to = [string]$env:FMEA_MAIL_TO
     $subject = [string]$env:FMEA_MAIL_SUBJECT
@@ -319,6 +329,7 @@ try {
     if ($to) { $mail.To = $to }
     $mail.Subject = $subject
     $null = $mail.Attachments.Add($attachment)
+    if ($mail.Attachments.Count -lt 1) { throw 'The PDF could not be attached.' }
     $mail.Display($false)
     $body = [string]$mail.HTMLBody
     $options = [System.Text.RegularExpressions.RegexOptions]::IgnoreCase
@@ -329,11 +340,15 @@ try {
         $body = $intro + $body
     }
     $mail.HTMLBody = $body
+    # The PDF must still be there once the body has been rewritten.
+    if ($mail.Attachments.Count -lt 1) { throw 'The PDF could not be attached.' }
     # Bring the new email to the front; the email is open either way.
     try { $mail.GetInspector.Activate() } catch { }
     exit 0
 } catch {
     [Console]::Error.WriteLine($_.Exception.Message)
+    # Never leave a half-made email open: close it without saving (1 = olDiscard).
+    if ($null -ne $mail) { try { $mail.Close(1) } catch { } }
     exit 1
 }
 """.strip()

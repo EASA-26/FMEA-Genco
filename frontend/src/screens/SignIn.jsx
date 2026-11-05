@@ -48,7 +48,7 @@ export default function SignIn({ notice, noticeLabel = 'Note', onSignedIn }) {
       icon="fmea"
       story={STORY}
       onSubmit={handleSubmit}
-      footer="Workbooks are read in memory only and never saved. They are discarded when you sign out or leave the page."
+      footer="Nothing is saved in this app. Workbooks and reports are cleared when you sign out or close the page."
     >
       <p className="signin-lead">Use the account given to you by your ALCM administrator.</p>
 
