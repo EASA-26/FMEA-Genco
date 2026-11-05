@@ -6,6 +6,12 @@
       "runtimeExecutable": "python",
       "runtimeArgs": ["app.py"],
       "port": 8000
+    },
+    {
+      "name": "fmea-frontend-mock",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "frontend", "run", "dev:mock", "--", "--port", "5173", "--strictPort"],
+      "port": 5173
     }
   ]
 }

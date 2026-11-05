@@ -789,20 +789,33 @@ Launch (`OutlookMailer.open_draft`, run in the threadpool):
   tab). The mock answers `POST /api/report/email` with the same 200/400/404/409/429/501/502 replies
   as the server (it checks 404/409 before 501/400). If the model changes, regenerate `src/mocks/synthetic-report.json` and validate it
   against `backend/report/models.py`.
-- Visual direction: engineering reliability workspace. Deep navy sidebar `#0A2340` with a subtle
-  technical grid; electric blue/cyan accents (`#1E6FBF`, `#22B8E6`); light content surfaces
-  (`#F4F7FB` page, white cards, hairline `#DCE4EE`); amber `#B7791F`/`#FAB219` only for warnings and red
-  `#C53030` only for blocking errors, each with an icon + label. Rounded cards (10–12px), generous
-  spacing, crisp tables, restrained animation (the pie is drawn without animation). Font: system UI
-  sans. Must work down to 1280px wide and degrade sensibly on tablet (≤ 1100px: the sidebar becomes a
-  drawer; hidden when closed, focus moves to Close, Escape/Close/backdrop return focus to the menu
-  button).
-- Accessibility as built: keyboard focus ring blue `#1E6FBF` on light surfaces (cyan only on the navy
-  sidebar); faint text token `#66727e` (≥ 4.5:1); UOIR status in the sidebar uses icons with labels,
-  not colour alone; the pie is not a keyboard stop and carries an `aria-label` listing every slice;
-  disabled Export button keeps ≥ 4.5:1 contrast.
+- Visual direction: IZ's Genco Project Theme, rebuilt in plain CSS (`frontend/src/styles/genco-theme.css`,
+  imported first; `tokens.css` maps the app's own names onto it). A navy `#041225` frame (sidebar 256px
+  + top bar 80px) round a gray-50 `#F9FAFB` canvas with a rounded top-left corner; white cards
+  (rounded-2xl, hairline gray-100); electric blue `#0066FF` is the only accent; the current page in the
+  sidebar has a 4px emerald `#34D399` bar, a soft electric glow and fill. Sidebar: TNB GENCO · TED
+  brandmark, then "ALCM - Maintenance Strategy" / "FMEA Report" / "Failure Mode & Effects Analysis".
+  Status colours (Tailwind amber/red/green) only for warnings and errors, each with an icon + label.
+  Light mode only (the theme's dark values live in genco-theme.css but nothing switches them on).
+  Motion: only short entrances (0.2–0.35s) plus the functional spinner, upload progress and row
+  flash; the sign-in and loading screens have the theme's slow animated background; all of it stops
+  under prefers-reduced-motion. The Front Page cover preview and the strategy colours keep the PDF's
+  own palette. Font: system UI sans. The page scrolls in the window. Must work down to 1280px wide and
+  degrade sensibly on tablet (≤ 1100px: the sidebar becomes a drawer; hidden when closed, focus moves
+  to Close, Escape/Close/backdrop return focus to the menu button).
+- Accessibility as built: keyboard focus ring electric-500 `#1A75FF` on light surfaces and electric-400
+  `#3D8FFF` on the navy frame; muted text gray-500 `#6B7280` (≥ 4.5:1 on white and gray-50; gray-600
+  on tinted fills); UOIR status in the sidebar uses icons with labels, not colour alone; the pie is
+  not a keyboard stop and carries an `aria-label` listing every slice; "Sign in" is the sign-in page's
+  only h1. Disabled buttons use the theme's 60% fade (disabled controls are exempt from WCAG contrast);
+  the reason beside a disabled Export button stays at ≥ 4.5:1.
 - Screens / flow: **Sign in** -> workspace with stepper **Upload Excel → Review Data → Preview Report → Export PDF**.
-  - Sign in: "FMEA Report" + "ALCM - Maintenance Strategy"; username/password; plain error messages
+  - Sign in: the theme's split on navy. Left: "FMEA Report" + "Failure Mode & Effects Analysis",
+    "Failure modes and effects, / analysed in one place", "Upload FMEA worksheets, check and review the
+    data, and turn it into a report you can preview and export.", three features (Upload Excel
+    worksheets · Run data checks · Preview and export the report) and "Developed by" + the TNB GENCO ·
+    TED logo. Right: the white card ("FMEA Report" + "Failure Mode & Effects Analysis", "Sign in",
+    "Use the account given to you by your ALCM administrator."); username/password; plain error messages
     (empty fields, 401, 429); skipped entirely when `/api/auth/me` returns `auth_mode: "databricks"`
     (no Sign out button; "Signed in with Databricks"). Any 401 from a signed-in call returns to sign-in
     with a "Session ended" notice. Footer: "Workbooks are read in memory only and never saved. They

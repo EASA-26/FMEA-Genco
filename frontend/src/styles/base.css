@@ -1,4 +1,8 @@
-/* Base elements and shared components. */
+/* Base elements and shared components (IZ's Genco Project Theme).
+   Buttons, cards, labels, inputs, tabs, badges, icon tiles and links come from
+   genco-theme.css (gt- classes). This file keeps the app's own pieces (alerts,
+   chips, tags, count pills, location chips, tables, page header, splash) on the
+   theme's tokens. Status colours: -700 text on -50 tints; icons at 3:1 or better. */
 *,
 *::before,
 *::after {
@@ -34,18 +38,15 @@ input {
 }
 
 a {
-  color: var(--blue-600);
+  color: var(--gt-link);
 }
 
-/* Keyboard focus ring: blue on light surfaces (cyan is too pale on white),
-   cyan on the navy sidebar where blue would disappear. */
+/* Keyboard focus ring (theme ring colour): electric-500 on light surfaces and
+   electric-400 on the navy frame, where .gt-sidebar / .gt-topbar set --gt-ring.
+   Theme buttons draw their own ring and keep a transparent outline. */
 :focus-visible {
-  outline: 2px solid var(--blue-600);
+  outline: 2px solid var(--gt-ring);
   outline-offset: 2px;
-}
-
-.sidebar :focus-visible {
-  outline-color: var(--cyan-400);
 }
 
 .visually-hidden {
@@ -60,6 +61,7 @@ a {
   border: 0;
 }
 
+/* Functional status indicator (busy), not decoration. */
 .spin {
   animation: spin 0.9s linear infinite;
 }
@@ -67,17 +69,6 @@ a {
 @keyframes spin {
   to {
     transform: rotate(360deg);
-  }
-}
-
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
   }
 }
 
@@ -93,177 +84,110 @@ a {
 }
 
 /* ------------------------------------------------------------------ Buttons */
-.btn {
+/* .gt-btn-primary / .gt-btn-secondary / .gt-btn-hero come from the theme.
+   App additions: a quiet ghost button and size modifiers. Icons 18px (guide). */
+.gt-btn-primary svg,
+.gt-btn-secondary svg,
+.btn-ghost svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+
+.btn-ghost {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  height: 38px;
-  padding: 0 16px;
-  border: 1px solid transparent;
-  border-radius: 9px;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--ink);
   font-size: 14px;
   font-weight: 600;
-  line-height: 1;
+  line-height: 20px;
   white-space: nowrap;
-  text-decoration: none;
   cursor: pointer;
   transition:
-    background-color 0.15s var(--ease),
-    border-color 0.15s var(--ease),
-    box-shadow 0.15s var(--ease),
-    color 0.15s var(--ease),
-    transform 0.15s var(--ease);
-}
-
-.btn:disabled {
-  cursor: not-allowed;
-}
-
-.btn-primary {
-  background: linear-gradient(180deg, #2479cc 0%, var(--blue-600) 100%);
-  border-color: #1a64ad;
-  color: #fff;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.18) inset, 0 4px 12px -4px rgba(30, 111, 191, 0.55);
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: linear-gradient(180deg, #2a84da 0%, #1b67b3 100%);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.2) inset, 0 6px 16px -4px rgba(30, 111, 191, 0.6);
-}
-
-.btn-primary:active:not(:disabled) {
-  transform: translateY(1px);
-}
-
-/* Disabled stays readable (the label and lock icon explain why it is off). */
-.btn-primary:disabled {
-  background: #e3e9f0;
-  border-color: #d3dce6;
-  color: var(--muted);
-  box-shadow: none;
-}
-
-.btn-secondary {
-  background: var(--surface);
-  border-color: var(--hairline-strong);
-  color: var(--ink-strong);
-  box-shadow: var(--shadow-sm);
-}
-
-.btn-secondary:hover:not(:disabled) {
-  border-color: var(--blue-500);
-  color: var(--blue-700);
-}
-
-.btn-secondary:disabled {
-  color: var(--faint);
-}
-
-.btn-ghost {
-  background: transparent;
-  color: var(--muted);
+    background-color var(--gt-duration) var(--gt-ease),
+    color var(--gt-duration) var(--gt-ease);
 }
 
 .btn-ghost:hover:not(:disabled) {
-  background: var(--blue-50);
-  color: var(--blue-700);
+  background: var(--electric-50);
+  color: var(--electric-700);
+}
+
+.btn-ghost:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .btn-sm {
-  height: 32px;
-  padding: 0 12px;
+  padding: 6px 12px;
   font-size: 13px;
-  border-radius: 8px;
+  line-height: 20px;
+}
+
+.btn-sm svg {
+  width: 16px;
+  height: 16px;
 }
 
 .btn-lg {
-  height: 46px;
-  padding: 0 22px;
+  padding: 12px 22px;
   font-size: 15px;
-  border-radius: 10px;
+  line-height: 22px;
 }
 
 .btn-block {
   width: 100%;
 }
 
-.icon-btn {
-  display: inline-grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  border: 1px solid var(--hairline);
-  border-radius: 9px;
-  background: var(--surface);
-  color: var(--ink-strong);
-  cursor: pointer;
-}
-
 /* ------------------------------------------------------------------ Forms */
+/* Labels and inputs are .gt-label / .gt-input; these are the app's extra states. */
 .field {
   display: grid;
-  gap: 6px;
   margin-bottom: 16px;
 }
 
-.field-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ink-strong);
-}
-
-.input {
-  width: 100%;
-  height: 44px;
-  padding: 0 14px;
-  border: 1px solid var(--hairline-strong);
-  border-radius: 10px;
-  background: var(--surface);
-  font-size: 15px;
-  transition:
-    border-color 0.15s var(--ease),
-    box-shadow 0.15s var(--ease);
-}
-
-.input:hover:not(:disabled) {
-  border-color: #a9bbcf;
-}
-
-.input:focus {
-  outline: none;
-  border-color: var(--blue-600);
-  box-shadow: 0 0 0 1px var(--blue-600), var(--ring);
-}
-
-.input:disabled {
-  background: var(--surface-muted);
-  color: var(--muted);
-}
-
-.input[readonly] {
-  background: var(--surface-muted);
-}
-
-.input[aria-invalid='true'] {
-  border-color: var(--red-600);
-}
-
-.input[aria-invalid='true']:focus {
-  box-shadow: 0 0 0 1px var(--red-600), 0 0 0 3px rgba(197, 48, 48, 0.18);
-}
-
 .field-hint {
+  margin-top: 6px;
   font-size: 12.5px;
   color: var(--muted);
 }
 
+.gt-input:hover:not(:disabled):not(:focus):not([aria-invalid='true']) {
+  border-color: var(--gray-600);
+}
+
+.gt-input:disabled {
+  background: var(--surface-muted);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.gt-input[readonly] {
+  background: var(--surface-muted);
+}
+
+.gt-input[aria-invalid='true'] {
+  border-color: var(--red-600);
+}
+
+.gt-input[aria-invalid='true']:focus {
+  border-color: var(--red-600);
+  box-shadow: 0 0 0 1px var(--red-600), 0 0 0 4px rgb(220 38 38 / 0.18);
+}
+
+/* Password field with a show/hide button inside it */
 .input-with-action {
   position: relative;
   display: block;
 }
 
-.input-with-action .input {
+.input-with-action .gt-input {
   padding-right: 48px;
 }
 
@@ -281,26 +205,23 @@ a {
   color: var(--muted);
   transform: translateY(-50%);
   cursor: pointer;
+  transition:
+    background-color var(--gt-duration) var(--gt-ease),
+    color var(--gt-duration) var(--gt-ease);
 }
 
 .input-action:hover {
-  background: var(--blue-50);
-  color: var(--blue-700);
+  background: var(--electric-50);
+  color: var(--electric-700);
 }
 
 /* ------------------------------------------------------------------ Cards */
-.card {
-  background: var(--surface);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
-}
-
+/* .gt-card is the theme card (white, rounded-2xl, hairline, shadow-sm, p-6). */
 .card-title {
   font-size: 15px;
   font-weight: 700;
+  letter-spacing: -0.025em;
   color: var(--ink-strong);
-  letter-spacing: -0.005em;
 }
 
 .card-meta {
@@ -308,43 +229,30 @@ a {
   color: var(--muted);
 }
 
+/* App icon tiles (list markers, the upload hero and the blocked state). The navy
+   tile next to a heading is .gt-icon-tile. */
 .icon-tile {
   display: inline-grid;
   flex: none;
   place-items: center;
   width: 38px;
   height: 38px;
-  border-radius: 10px;
+  border-radius: 12px;
 }
 
 .icon-tile-soft {
-  background: var(--blue-50);
-  color: var(--blue-600);
-  box-shadow: inset 0 0 0 1px rgba(30, 111, 191, 0.1);
+  background: var(--electric-50);
+  color: var(--electric-600);
 }
 
-.icon-tile-blue {
-  width: 46px;
-  height: 46px;
-  background: linear-gradient(135deg, var(--blue-600), var(--cyan-400));
-  color: #fff;
-}
-
-.icon-tile-muted {
-  width: 48px;
-  height: 48px;
-  background: var(--surface-muted);
-  color: var(--faint);
-  box-shadow: inset 0 0 0 1px var(--hairline);
-}
-
+/* Upload hero: the hero-button gradient, no glow (light mode stays still). */
 .icon-tile-glow {
   width: 64px;
   height: 64px;
-  border-radius: 18px;
-  background: radial-gradient(circle at 30% 20%, #2f9ae0, var(--blue-600) 70%);
-  color: #fff;
-  box-shadow: 0 10px 28px -10px rgba(30, 111, 191, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+  border-radius: 16px;
+  background-image: linear-gradient(to bottom, var(--electric-500), var(--electric-700));
+  color: var(--white);
+  box-shadow: var(--gt-shadow-hero);
 }
 
 .icon-tile-error {
@@ -352,18 +260,17 @@ a {
   height: 52px;
   background: var(--red-50);
   color: var(--red-600);
-  box-shadow: inset 0 0 0 1px var(--red-100);
 }
 
 /* ------------------------------------------------------------------ Alerts */
+/* Status tints are fill only. Labels in -700; icons at 3:1 or better on the tint. */
 .alert {
   display: flex;
   gap: 12px;
   padding: 14px 16px;
-  border: 1px solid;
-  border-radius: var(--radius);
+  border-radius: 12px;
   background: var(--surface);
-  animation: rise 0.25s var(--ease);
+  animation: gt-fade-in 0.3s ease-out;
 }
 
 .alert-icon {
@@ -405,48 +312,45 @@ a {
 }
 
 .alert-error {
-  border-color: var(--red-100);
   background: var(--red-50);
 }
 
-.alert-error .alert-icon,
-.alert-error .alert-label {
+.alert-error .alert-icon {
   color: var(--red-600);
 }
 
+.alert-error .alert-label {
+  color: var(--red-700);
+}
+
 .alert-warning {
-  border-color: var(--amber-100);
   background: var(--amber-50);
 }
 
-.alert-warning .alert-icon {
-  color: var(--amber-600);
-}
-
+.alert-warning .alert-icon,
 .alert-warning .alert-label {
   color: var(--amber-700);
 }
 
 .alert-info {
-  border-color: var(--blue-100);
-  background: var(--blue-50);
+  background: var(--electric-50);
 }
 
 .alert-info .alert-icon,
 .alert-info .alert-label {
-  color: var(--blue-700);
+  color: var(--electric-700);
 }
 
 .alert-success {
-  border-color: var(--green-100);
   background: var(--green-50);
 }
 
 .alert-success .alert-icon,
 .alert-success .alert-label {
-  color: var(--green-600);
+  color: var(--green-700);
 }
 
+/* Severity icons that stand without a label beside them use the text shades. */
 .sev-icon {
   flex: none;
 }
@@ -456,98 +360,94 @@ a {
 }
 
 .sev-warning {
-  color: var(--amber-600);
+  color: var(--amber-700);
 }
 
 .sev-info {
-  color: var(--blue-600);
+  color: var(--electric-600);
 }
 
 .sev-success {
-  color: var(--green-600);
+  color: var(--green-700);
 }
 
 /* ------------------------------------------------------------------ Chips and tags */
+/* Chips sit on the navy top bar: the semantic tokens resolve to the guide's dark
+   status tints there (-300 text on -500/15), with -500 icons beside the label. */
 .chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   height: 30px;
   padding: 0 11px;
-  border: 1px solid;
+  border: 0;
   border-radius: 999px;
   background: var(--surface);
+  font-family: inherit;
   font-size: 12.5px;
   font-weight: 650;
   white-space: nowrap;
   cursor: pointer;
-  transition:
-    box-shadow 0.15s var(--ease),
-    transform 0.15s var(--ease);
+  transition: transform var(--gt-duration) var(--gt-ease);
 }
 
 .chip:hover {
-  box-shadow: var(--shadow-sm);
   transform: translateY(-1px);
 }
 
 .chip-error {
-  border-color: var(--red-100);
-  background: var(--red-50);
-  color: var(--red-700);
+  background: var(--gt-danger-tint);
+  color: var(--gt-danger-text-on-tint);
 }
 
 .chip-error svg {
-  color: var(--red-600);
+  color: var(--red-500);
 }
 
 .chip-warning {
-  border-color: var(--amber-100);
-  background: var(--amber-50);
-  color: var(--amber-700);
+  background: var(--gt-warning-tint);
+  color: var(--gt-warning-text);
 }
 
 .chip-warning svg {
-  color: var(--amber-600);
+  color: var(--amber-500);
 }
 
 .chip-ok {
-  border-color: var(--green-100);
-  background: var(--green-50);
-  color: var(--green-600);
+  background: var(--gt-success-tint);
+  color: var(--gt-success-text);
 }
 
+.chip-ok svg {
+  color: var(--green-500);
+}
+
+/* Tags: the theme badge shape with status tints */
 .tag {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 2px 8px;
-  border-radius: 6px;
+  padding: 2px 10px;
+  border-radius: 9999px;
   font-size: 12px;
   font-weight: 600;
+  line-height: 16px;
   white-space: nowrap;
 }
 
 .tag-neutral {
-  background: var(--surface-muted);
-  color: var(--muted);
-  box-shadow: inset 0 0 0 1px var(--hairline);
+  background: var(--gray-100);
+  color: var(--gray-700);
 }
 
 .tag-warning {
   background: var(--amber-50);
   color: var(--amber-700);
-  box-shadow: inset 0 0 0 1px var(--amber-100);
-}
-
-.tag-warning svg {
-  color: var(--amber-600);
 }
 
 .tag-error {
   background: var(--red-50);
   color: var(--red-700);
-  box-shadow: inset 0 0 0 1px var(--red-100);
 }
 
 .count-pill {
@@ -555,41 +455,45 @@ a {
   place-items: center;
   min-width: 24px;
   height: 22px;
-  padding: 0 7px;
-  border-radius: 999px;
+  padding: 0 8px;
+  border-radius: 9999px;
+  background: var(--gray-100);
+  color: var(--gray-700);
   font-size: 12px;
   font-weight: 700;
-  background: var(--surface-muted);
-  color: var(--muted);
-  box-shadow: inset 0 0 0 1px var(--hairline);
 }
 
 .count-pill-error {
   background: var(--red-50);
   color: var(--red-700);
-  box-shadow: inset 0 0 0 1px var(--red-100);
 }
 
 .count-pill-warning {
   background: var(--amber-50);
   color: var(--amber-700);
-  box-shadow: inset 0 0 0 1px var(--amber-100);
 }
 
+/* "For information" count: the theme badge */
+.count-pill-info {
+  background: var(--gt-badge-bg);
+  color: var(--gt-badge-text);
+}
+
+/* Location chips (sheet / row / column / cell) */
 .loc {
   display: inline-flex;
   align-items: baseline;
   gap: 5px;
+  max-width: 100%;
+  overflow: hidden;
   padding: 1px 8px;
-  border-radius: 6px;
-  background: var(--surface-muted);
+  border-radius: 8px;
+  background: var(--gray-50);
   box-shadow: inset 0 0 0 1px var(--hairline);
   font-size: 12px;
   color: var(--ink);
-  white-space: nowrap;
-  max-width: 100%;
-  overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .loc-label {
@@ -597,14 +501,15 @@ a {
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--faint);
+  color: var(--muted);
 }
 
+/* UOIR location: a .gt-badge; this modifier only keeps long IDs on one line. */
 .loc-uoir {
-  background: var(--blue-50);
-  box-shadow: inset 0 0 0 1px var(--blue-100);
-  color: var(--blue-700);
-  font-weight: 650;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .swatch {
@@ -613,76 +518,6 @@ a {
   width: 11px;
   height: 11px;
   border-radius: 3px;
-}
-
-/* ------------------------------------------------------------------ Tabs */
-.tabs {
-  display: inline-flex;
-  gap: 4px;
-  padding: 4px;
-  border: 1px solid var(--hairline);
-  border-radius: 11px;
-  background: var(--surface-muted);
-}
-
-.tab {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 36px;
-  padding: 0 14px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--muted);
-  font-size: 14px;
-  font-weight: 600;
-  white-space: nowrap;
-  cursor: pointer;
-  transition:
-    background-color 0.15s var(--ease),
-    color 0.15s var(--ease),
-    box-shadow 0.15s var(--ease);
-}
-
-.tab:hover {
-  color: var(--ink-strong);
-}
-
-.tab.is-selected {
-  background: var(--surface);
-  color: var(--blue-700);
-  box-shadow: 0 1px 2px rgba(10, 35, 64, 0.1), inset 0 0 0 1px var(--hairline);
-}
-
-.tab.is-selected::after {
-  content: '';
-  position: absolute;
-  left: 14px;
-  right: 14px;
-  bottom: -1px;
-  height: 2px;
-  border-radius: 2px;
-  background: linear-gradient(90deg, var(--blue-600), var(--cyan-400));
-}
-
-.tab-count {
-  display: inline-grid;
-  place-items: center;
-  min-width: 22px;
-  height: 20px;
-  padding: 0 6px;
-  border-radius: 999px;
-  background: var(--hairline);
-  color: var(--ink);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.tab.is-selected .tab-count {
-  background: var(--blue-50);
-  color: var(--blue-700);
 }
 
 /* ------------------------------------------------------------------ Empty states */
@@ -698,13 +533,14 @@ a {
   padding: 28px 16px;
 }
 
-.empty-state .icon-tile {
+.empty-state .gt-icon-tile {
   margin-bottom: 6px;
 }
 
 .empty-title {
   font-size: 16px;
   font-weight: 700;
+  letter-spacing: -0.025em;
   color: var(--ink-strong);
 }
 
@@ -743,7 +579,7 @@ a {
 .data-table th {
   padding: 10px 14px;
   background: var(--table-head);
-  color: #fff;
+  color: var(--white);
   font-weight: 700;
   text-align: left;
   vertical-align: bottom;
@@ -762,7 +598,7 @@ a {
 }
 
 .data-table tbody tr:hover td {
-  background: #e9f2fb;
+  background: var(--row-hover);
 }
 
 .data-table .num {
@@ -789,6 +625,11 @@ a {
   margin-bottom: 22px;
 }
 
+/* Home header: the app icon tile beside the heading */
+.page-header-icon {
+  align-self: center;
+}
+
 .page-header-text {
   flex: 1 1 420px;
   min-width: 0;
@@ -801,14 +642,14 @@ a {
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--blue-600);
+  color: var(--electric-600);
 }
 
 .page-title {
-  font-size: 26px;
-  font-weight: 750;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.025em;
   color: var(--ink-strong);
 }
 
@@ -830,70 +671,71 @@ a {
   gap: 8px;
 }
 
+/* Windows High Contrast: keep an edge on the app's borderless buttons and chips. */
+@media (forced-colors: active) {
+  .btn-ghost,
+  .chip {
+    border: 1px solid ButtonText;
+  }
+}
+
 /* ------------------------------------------------------------------ Splash */
+/* Loading, "service not responding" and page-error screens: the sign-in page's
+   navy with the animated background, so they read as part of the sign-in flow. */
 .splash {
+  position: relative;
   display: grid;
   place-content: center;
   justify-items: center;
   gap: 12px;
   min-height: 100vh;
+  overflow: hidden;
   padding: 24px;
-  background:
-    radial-gradient(1200px 600px at 80% -10%, rgba(34, 184, 230, 0.16), transparent 60%),
-    linear-gradient(180deg, var(--navy-900), var(--navy-950));
-  color: #fff;
+  background: var(--navy-900);
+  color: var(--white);
+}
+
+/* Content paints above the animated background. */
+.splash > :not(.gt-bg) {
+  position: relative;
 }
 
 .splash-title {
   font-size: 20px;
   font-weight: 700;
+  letter-spacing: -0.025em;
 }
 
 .splash-sub {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--gt-ink-muted-on-frame);
 }
 
+/* White card in the sign-in card style */
 .splash-card {
   display: grid;
   justify-items: center;
   gap: 12px;
-  max-width: 440px;
-  padding: 36px 32px;
+  max-width: 448px;
+  padding: 32px;
+  border: 1px solid rgb(255 255 255 / 0.1);
   border-radius: 16px;
   background: var(--surface);
   color: var(--ink);
   text-align: center;
-  box-shadow: var(--shadow-pop);
+  box-shadow: var(--gt-shadow-login-card);
 }
 
 .splash-card h1 {
-  font-size: 19px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
   color: var(--ink-strong);
 }
 
 .splash-card p {
   color: var(--muted);
   margin-bottom: 8px;
-}
-
-/* ------------------------------------------------------------------ Pulse mark */
-.pulse-mark {
-  display: inline-grid;
-  flex: none;
-  place-items: center;
-}
-
-.pulse-mark-dark {
-  background: linear-gradient(145deg, var(--navy-800), var(--navy-900));
-  color: var(--cyan-400);
-  box-shadow: inset 0 0 0 1px rgba(111, 211, 242, 0.25), 0 6px 16px -6px rgba(10, 35, 64, 0.6);
-}
-
-.pulse-mark-glass {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
 }

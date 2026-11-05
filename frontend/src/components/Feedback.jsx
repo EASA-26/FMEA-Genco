@@ -35,7 +35,7 @@ export function EmptyState({ icon: Icon, title, children, actions, compact = fal
   return (
     <div className={`empty-state ${compact ? 'empty-state-compact' : ''}`}>
       {Icon && (
-        <span className="icon-tile icon-tile-muted" aria-hidden="true">
+        <span className="gt-icon-tile" aria-hidden="true">
           <Icon size={compact ? 18 : 22} />
         </span>
       )}

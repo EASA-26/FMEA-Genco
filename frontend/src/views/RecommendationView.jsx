@@ -33,7 +33,7 @@ function NotSetTag({ row, task }) {
 function RecommendationGroup({ group, tab, tasksByRow }) {
   const showStatus = tab === 'notset';
   return (
-    <section className="card rec-group" aria-label={group.heading}>
+    <section className="gt-card rec-group" aria-label={group.heading}>
       <header className="rec-group-head">
         <h3 className="rec-group-title">{group.heading}</h3>
         <span className="card-meta">{plural(group.rows.length, 'row')}</span>

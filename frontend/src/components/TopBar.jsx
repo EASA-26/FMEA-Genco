@@ -13,8 +13,8 @@ export default function TopBar({ report, counts, uploadBusy, onMenu, onShowCheck
     : '';
 
   return (
-    <header className="topbar">
-      <button type="button" className="icon-btn topbar-menu" onClick={onMenu} aria-label="Open menu">
+    <header className="topbar gt-topbar">
+      <button type="button" className="gt-icon-btn topbar-menu" onClick={onMenu} aria-label="Open menu">
         <Menu size={20} />
       </button>
 
@@ -64,8 +64,8 @@ export default function TopBar({ report, counts, uploadBusy, onMenu, onShowCheck
 
       <div className="topbar-actions">
         {report && (
-          <button type="button" className="btn btn-secondary" onClick={onUploadAnother} disabled={uploadBusy}>
-            <Upload size={16} aria-hidden="true" />
+          <button type="button" className="gt-btn-secondary" onClick={onUploadAnother} disabled={uploadBusy}>
+            <Upload size={18} aria-hidden="true" />
             Upload another
           </button>
         )}
@@ -77,12 +77,12 @@ export default function TopBar({ report, counts, uploadBusy, onMenu, onShowCheck
           )}
           <button
             type="button"
-            className="btn btn-primary btn-export"
+            className="gt-btn-primary btn-export"
             onClick={onExport}
             disabled={exportDisabled}
             aria-describedby={exportDisabled ? 'export-reason' : undefined}
           >
-            {exportDisabled ? <Lock size={16} aria-hidden="true" /> : <Download size={16} aria-hidden="true" />}
+            {exportDisabled ? <Lock size={18} aria-hidden="true" /> : <Download size={18} aria-hidden="true" />}
             Export PDF
           </button>
         </div>

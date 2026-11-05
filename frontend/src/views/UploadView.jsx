@@ -12,6 +12,7 @@ import {
   X,
 } from 'lucide-react';
 import PageHeader from '../components/PageHeader.jsx';
+import AppIcon from '../components/AppIcon';
 import Spinner from '../components/Spinner.jsx';
 import { Alert } from '../components/Feedback.jsx';
 import { ACCEPTED_EXTENSIONS, MAX_UPLOAD_MB } from '../api/client.js';
@@ -81,7 +82,11 @@ export default function UploadView({
 
   return (
     <div className="view-upload">
-      <PageHeader eyebrow="Step 1 · Upload Excel" title={report ? 'Upload another workbook' : 'Upload the FMEA workbook'}>
+      <PageHeader
+        eyebrow="Step 1 · Upload Excel"
+        title={report ? 'Upload another workbook' : 'Upload the FMEA workbook'}
+        icon={<AppIcon app="fmea" className="gt-app-icon" />}
+      >
         The workbook is read and checked straight away. Nothing is changed in your file, and macros are never run.
       </PageHeader>
 
@@ -99,7 +104,7 @@ export default function UploadView({
           label="Workbook closed"
           actions={
             onDismissNotice && (
-              <button type="button" className="btn btn-secondary btn-sm" onClick={onDismissNotice}>
+              <button type="button" className="gt-btn-secondary btn-sm" onClick={onDismissNotice}>
                 Dismiss
               </button>
             )
@@ -110,8 +115,8 @@ export default function UploadView({
       )}
 
       {report && !busy && (
-        <section className="card current-file" aria-label="Current workbook">
-          <span className="icon-tile icon-tile-blue" aria-hidden="true">
+        <section className="gt-card current-file" aria-label="Current workbook">
+          <span className="gt-icon-tile" aria-hidden="true">
             <FileSpreadsheet size={22} />
           </span>
           <div className="current-file-text">
@@ -124,11 +129,11 @@ export default function UploadView({
             </div>
           </div>
           <div className="current-file-actions">
-            <button type="button" className="btn btn-ghost" onClick={handleRemove} disabled={removing}>
+            <button type="button" className="btn-ghost" onClick={handleRemove} disabled={removing}>
               {removing ? <Spinner size={16} /> : <Trash2 size={16} aria-hidden="true" />}
               Remove
             </button>
-            <button type="button" className="btn btn-primary" onClick={onContinue}>
+            <button type="button" className="gt-btn-primary" onClick={onContinue}>
               Continue reviewing <ArrowRight size={16} aria-hidden="true" />
             </button>
           </div>
@@ -146,7 +151,7 @@ export default function UploadView({
           label="Upload failed"
           title={upload.fileName ? `“${upload.fileName}” was not uploaded` : undefined}
           actions={
-            <button type="button" className="btn btn-secondary btn-sm" onClick={onDismissError}>
+            <button type="button" className="gt-btn-secondary btn-sm" onClick={onDismissError}>
               Dismiss
             </button>
           }
@@ -197,7 +202,7 @@ export default function UploadView({
                 ? `${Math.round(upload.progress * 100)}% sent`
                 : 'Large workbooks can take a little while.'}
             </div>
-            <button type="button" className="btn btn-ghost" onClick={onCancel}>
+            <button type="button" className="btn-ghost" onClick={onCancel}>
               <X size={16} aria-hidden="true" /> Cancel
             </button>
           </div>
@@ -211,7 +216,7 @@ export default function UploadView({
             <button
               ref={browseRef}
               type="button"
-              className="btn btn-primary btn-lg"
+              className="gt-btn-primary btn-lg"
               onClick={() => inputRef.current && inputRef.current.click()}
             >
               <FolderOpen size={18} aria-hidden="true" /> Browse files
@@ -234,7 +239,7 @@ export default function UploadView({
         )}
       </section>
 
-      <section className="card requirements" aria-labelledby="requirements-title">
+      <section className="gt-card requirements" aria-labelledby="requirements-title">
         <h2 id="requirements-title" className="card-title">
           What the workbook needs
         </h2>

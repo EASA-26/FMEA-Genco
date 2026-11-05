@@ -3,7 +3,8 @@ import { RefreshCw, WifiOff } from 'lucide-react';
 import * as api from './api/client.js';
 import SignIn from './screens/SignIn.jsx';
 import Workspace from './screens/Workspace.jsx';
-import PulseMark from './components/PulseMark.jsx';
+import AppIcon from './components/AppIcon';
+import AnimatedBackground from './components/AnimatedBackground.jsx';
 import Spinner from './components/Spinner.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 
@@ -58,7 +59,10 @@ export default function App() {
   if (auth.status === 'checking') {
     return (
       <div className="splash" role="status" aria-live="polite">
-        <PulseMark size={44} />
+        <AnimatedBackground variant="login" />
+        <span className="gt-login-badge-tile" aria-hidden="true">
+          <AppIcon app="fmea" className="gt-app-icon" />
+        </span>
         <div className="splash-title">FMEA Report</div>
         <div className="splash-sub">
           <Spinner size={16} /> Opening your workspace…
@@ -70,13 +74,14 @@ export default function App() {
   if (auth.status === 'unavailable') {
     return (
       <div className="splash">
+        <AnimatedBackground variant="login" />
         <div className="splash-card">
-          <span className="icon-tile icon-tile-muted" aria-hidden="true">
+          <span className="gt-icon-tile" aria-hidden="true">
             <WifiOff size={22} />
           </span>
           <h1>The FMEA service is not responding</h1>
           <p>{auth.message}</p>
-          <button type="button" className="btn btn-primary" onClick={() => checkSession()}>
+          <button type="button" className="gt-btn-primary" onClick={() => checkSession()}>
             <RefreshCw size={16} aria-hidden="true" /> Try again
           </button>
         </div>

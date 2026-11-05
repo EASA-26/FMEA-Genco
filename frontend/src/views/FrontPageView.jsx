@@ -41,7 +41,7 @@ export default function FrontPageView({ report }) {
       <div className="front-layout">
         <CoverPage station={report.station} analysisDate={report.analysis_date_text} />
 
-        <aside className="card front-facts" aria-label="Where the front page values come from">
+        <aside className="gt-card front-facts" aria-label="Where the front page values come from">
           <h2 className="card-title">On this page</h2>
           <ul className="source-list">
             {rows.map((row) => {

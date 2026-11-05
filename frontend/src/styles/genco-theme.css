@@ -1,0 +1,1471 @@
+/* =============================================================================
+   IZ's Genco Project Theme: plain-CSS edition (no Tailwind needed)
+   -----------------------------------------------------------------------------
+   A navy frame (deep electric blue in dark mode) with electric blue as the one
+   accent. This file rebuilds the theme guide's Tailwind recipes (THEME-GUIDE.md
+   sections 1-4 and 9) as CSS custom properties and `gt-` classes, so any React,
+   Vue or plain-HTML app can use the same look without Tailwind.
+
+   HOW TO USE IT IN ANOTHER APP
+   1. Import this file FIRST, before the app's own CSS, so the app's rules win
+      any tie of equal specificity.
+   2. Use the classes below in your markup (e.g. <button class="gt-btn-primary">).
+   3. Dark mode: add the class `dark` to <html>. Every semantic token below
+      switches; the login screen (`gt-login`) always stays light.
+   4. Icons: lucide (lucide-react or lucide static SVGs), 18-20px in nav and
+      buttons. App icons: AppIcon.tsx from the kit, sized with `gt-app-icon`.
+
+   NAME COLLISIONS
+   The raw colour tokens use the guide's names (--navy-900, --electric-600,
+   --gray-500, --red-600 ...). If your app already defines a variable with one
+   of these names but a different value, whichever stylesheet loads last wins.
+   Delete or rename the app's copy, then point the app's own semantic
+   variables at these tokens (see the FMEA app's tokens.css for an example).
+   Everything else here is prefixed `--gt-` / `.gt-` and cannot collide.
+
+   CLASS INDEX
+   Layout     gt-frame, gt-frame-body, gt-canvas, gt-main
+   Sidebar    gt-sidebar, gt-sidebar-logo, gt-brandmark, gt-product,
+              gt-product-eyebrow, gt-product-name, gt-product-desc, gt-nav,
+              gt-nav-item (+ .is-active), gt-sidebar-foot, gt-theme-toggle,
+              gt-toggle-track (+ .is-on), gt-toggle-knob
+   Top bar    gt-topbar, gt-topbar-title, gt-topbar-subtitle, gt-icon-btn,
+              gt-avatar, gt-dropdown
+   Content    gt-card, gt-btn-primary, gt-btn-secondary, gt-btn-hero,
+              gt-link, gt-link-inline, gt-label, gt-input, gt-tabs, gt-tab
+              (+ .is-active), gt-badge, gt-icon-tile, gt-app-icon, gt-modal,
+              gt-text-success|danger|warning, gt-tint-success|danger|warning
+   Motion     gt-animate-fade-in, gt-animate-pop-in, gt-animate-slide-in
+   Background gt-bg (+ gt-bg-login | gt-bg-app), gt-bg-orb-a, gt-bg-orb-b,
+              gt-bg-grid, gt-bg-pulse
+   Login      gt-login, gt-login-story, gt-login-badge, gt-login-badge-tile,
+              gt-login-badge-name, gt-login-badge-desc, gt-login-story-body,
+              gt-login-headline, gt-login-accent, gt-login-summary,
+              gt-login-features, gt-login-feature, gt-login-feature-icon,
+              gt-login-dev-label, gt-login-brandmark, gt-login-panel,
+              gt-login-card-wrap, gt-login-brandmark-top, gt-login-card,
+              gt-login-card-head, gt-login-card-name, gt-login-card-desc,
+              gt-login-title, gt-login-error, gt-login-under
+
+   RULES THAT KEEP IT ON-BRAND (guide section 1)
+   - Electric blue is the only accent. Emerald-400 is only the 4px bar on the
+     current sidebar page; amber-300 only the sun icon on the theme toggle.
+   - Light mode: links, fills, active tabs use electric-600. Dark mode: text
+     and links switch to electric-400 (handled by the semantic tokens).
+   - Glow marks attention only: focused field, current nav item, hovered
+     primary button. Never on cards or static content.
+   - Status -500 shades are for dots, bars and icons next to a text label.
+   ========================================================================== */
+
+/* ------------------------------------------------------------------ 1. Raw tokens */
+:root {
+  /* Brand navy: the light-mode frame and the dark-mode layers */
+  --navy-900: #041225;
+  --navy-800: #071a33;
+  --navy-700: #0b213d;
+  --navy-600: #13294a;
+  --navy-500: #1c3559;
+
+  /* Dark-mode frame: deep electric blue */
+  --frame-dark: #0b2b6b;
+  --frame-dark-end: #071c47;
+  --frame-dark-panel: #123a82;
+
+  /* Electric blue: the accent */
+  --electric-50: #ebf3ff;
+  --electric-100: #d6e7ff;
+  --electric-200: #adcfff;
+  --electric-300: #7ab3ff;
+  --electric-400: #3d8fff;
+  --electric-500: #1a75ff;
+  --electric-600: #0066ff;
+  --electric-700: #0052cc;
+  --electric-800: #0a43a3;
+  --electric-900: #0c367d;
+  --electric-950: #09234f;
+
+  /* Active nav marker */
+  --emerald-400: #34d399;
+
+  /* Light surfaces and text (Tailwind gray / slate) */
+  --white: #ffffff;
+  --gray-50: #f9fafb;
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-300: #d1d5db;
+  --gray-400: #9ca3af;
+  --gray-500: #6b7280;
+  --gray-600: #4b5563;
+  --gray-700: #374151;
+  --gray-800: #1f2937;
+  --gray-900: #111827;
+  --slate-400: #94a3b8;
+  --slate-500: #64748b;
+  --slate-900: #0f172a;
+
+  /* Status */
+  --green-50: #f0fdf4;
+  --green-300: #86efac;
+  --green-500: #22c55e;
+  --green-700: #15803d;
+  --red-50: #fef2f2;
+  --red-300: #fca5a5;
+  --red-400: #f87171;
+  --red-500: #ef4444;
+  --red-600: #dc2626;
+  --red-700: #b91c1c;
+  --amber-50: #fffbeb;
+  --amber-300: #fcd34d;
+  --amber-500: #f59e0b;
+  --amber-700: #b45309;
+
+  /* Shadows (guide boxShadow tokens) */
+  --shadow-glow: 0 0 0 1px rgb(61 143 255 / 0.35), 0 0 20px -4px rgb(61 143 255 / 0.55);
+  --shadow-glow-sm: 0 0 12px -2px rgb(61 143 255 / 0.45);
+  --shadow-raised: inset 0 1px 0 0 rgb(255 255 255 / 0.05), 0 8px 24px -12px rgb(0 0 0 / 0.5);
+
+  /* Tailwind shadow scale used by the recipes */
+  --gt-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --gt-shadow-md-slate: 0 4px 6px -1px rgb(15 23 42 / 0.2), 0 2px 4px -2px rgb(15 23 42 / 0.2);
+  --gt-shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  --gt-shadow-hero: 0 10px 15px -3px rgb(0 82 204 / 0.3), 0 4px 6px -4px rgb(0 82 204 / 0.3);
+  --gt-shadow-login-card: 0 25px 50px -12px rgb(0 0 0 / 0.4);
+  --gt-shadow-inner-product: inset 0 2px 4px 0 rgb(9 35 79 / 0.2);
+
+  /* Backgrounds (guide backgroundImage tokens) */
+  --gt-glow-bg: radial-gradient(circle, rgb(0 102 255) 0%, transparent 65%);
+  --gt-grid-lines:
+    linear-gradient(to right, rgb(122 179 255 / 0.07) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(122 179 255 / 0.07) 1px, transparent 1px);
+
+  /* Ink and hairlines on navy (guide "Ink and hairlines on navy") */
+  --gt-ink-on-frame: var(--electric-50);
+  --gt-ink-muted-on-frame: rgb(214 231 255 / 0.8); /* electric-100/80 */
+  --gt-hairline-on-frame: rgb(173 207 255 / 0.14); /* electric-200/[0.14] */
+  --gt-divider-on-frame: rgb(214 231 255 / 0.1); /* electric-100/10 */
+  --gt-fill-hover-on-frame: rgb(61 143 255 / 0.1); /* electric-400/10 */
+  --gt-fill-row-hover-on-frame: rgb(61 143 255 / 0.05); /* electric-400/5 */
+
+  --gt-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --gt-duration: 150ms;
+}
+
+/* ------------------------------------------------------------------ 2. Semantic tokens */
+/* Light mode (default) */
+:root {
+  --gt-frame: var(--navy-900);
+  --gt-canvas: var(--gray-50);
+  --gt-card: var(--white);
+  --gt-card-border: var(--gray-100);
+  --gt-card-shadow: var(--gt-shadow-sm);
+  --gt-control: var(--white);
+  --gt-text-strong: var(--gray-900);
+  --gt-text: var(--gray-700);
+  --gt-text-muted: var(--gray-500);
+  --gt-label: var(--gray-700);
+  --gt-border: var(--gray-200);
+  --gt-link: var(--electric-600);
+  --gt-link-hover: var(--electric-700);
+  --gt-ring: var(--electric-500);
+  --gt-ring-offset: var(--white);
+  --gt-input-bg: var(--white);
+  --gt-input-border: var(--gray-500);
+  --gt-input-text: var(--gray-900);
+  --gt-input-placeholder: var(--gray-500);
+  --gt-input-focus-border: var(--electric-500);
+  --gt-tab-active: var(--electric-600);
+  --gt-tab-idle: var(--gray-500);
+  --gt-tab-hover: var(--gray-900);
+  --gt-badge-bg: var(--electric-50);
+  --gt-badge-text: var(--electric-700);
+  --gt-secondary-bg: var(--white);
+  --gt-secondary-border: var(--gray-200);
+  --gt-secondary-text: var(--gray-700);
+  --gt-secondary-hover-border: var(--electric-300);
+  --gt-secondary-hover-text: var(--electric-700);
+  --gt-icon-tile-bg: var(--navy-900);
+  --gt-success-text: var(--green-700);
+  --gt-success-tint: var(--green-50);
+  --gt-danger-text: var(--red-600);
+  --gt-danger-text-on-tint: var(--red-700);
+  --gt-danger-tint: var(--red-50);
+  --gt-warning-text: var(--amber-700);
+  --gt-warning-tint: var(--amber-50);
+  --gt-sidebar-bg: var(--navy-900);
+  --gt-sidebar-logo-bg: var(--navy-800);
+  --gt-product-bg: var(--navy-700);
+  --gt-dropdown-bg: var(--navy-700);
+  --gt-canvas-edge: transparent;
+}
+
+/* Dark mode: add class "dark" to <html> */
+.dark {
+  --gt-frame: var(--frame-dark);
+  --gt-canvas: var(--navy-700);
+  --gt-card: var(--navy-600);
+  --gt-card-border: rgb(173 207 255 / 0.14);
+  --gt-card-shadow: var(--shadow-raised);
+  --gt-control: var(--navy-500);
+  --gt-text-strong: var(--white);
+  --gt-text: var(--gray-100);
+  --gt-text-muted: var(--gray-400);
+  --gt-label: var(--gray-300);
+  --gt-border: rgb(173 207 255 / 0.14);
+  --gt-link: var(--electric-400);
+  --gt-link-hover: var(--electric-300);
+  --gt-ring: var(--electric-400);
+  --gt-ring-offset: var(--navy-600);
+  --gt-input-bg: var(--navy-500);
+  --gt-input-border: rgb(173 207 255 / 0.5);
+  --gt-input-text: var(--white);
+  --gt-input-placeholder: rgb(214 231 255 / 0.6);
+  --gt-input-focus-border: var(--electric-400);
+  --gt-tab-active: var(--electric-400);
+  --gt-tab-idle: var(--gray-400);
+  --gt-tab-hover: var(--white);
+  --gt-badge-bg: rgb(61 143 255 / 0.15);
+  --gt-badge-text: var(--electric-200);
+  --gt-secondary-bg: var(--navy-500);
+  --gt-secondary-border: rgb(173 207 255 / 0.14);
+  --gt-secondary-text: var(--electric-50);
+  --gt-secondary-hover-border: rgb(61 143 255 / 0.6);
+  --gt-secondary-hover-text: var(--white);
+  --gt-icon-tile-bg: var(--navy-500);
+  --gt-success-text: var(--green-300);
+  --gt-success-tint: rgb(34 197 94 / 0.15);
+  --gt-danger-text: var(--red-400);
+  --gt-danger-text-on-tint: var(--red-300);
+  --gt-danger-tint: rgb(239 68 68 / 0.15);
+  --gt-warning-text: var(--amber-300);
+  --gt-warning-tint: rgb(245 158 11 / 0.15);
+  --gt-sidebar-bg: linear-gradient(to bottom, var(--frame-dark), var(--frame-dark-end));
+  --gt-sidebar-logo-bg: transparent;
+  --gt-product-bg: var(--frame-dark-panel);
+  --gt-dropdown-bg: var(--frame-dark-panel);
+  --gt-canvas-edge: rgb(61 143 255 / 0.4);
+}
+
+/* On the frame (sidebar, top bar and the dropdowns that hang off it are always dark,
+   in both modes): the guide's dark values apply there even without the `dark` class. */
+.gt-sidebar,
+.gt-topbar,
+.gt-dropdown,
+.gt-on-frame {
+  --gt-text-strong: var(--white);
+  --gt-text: var(--electric-50);
+  --gt-text-muted: var(--gt-ink-muted-on-frame);
+  --gt-link: var(--electric-400);
+  --gt-link-hover: var(--electric-300);
+  --gt-tab-active: var(--electric-400);
+  --gt-tab-idle: var(--gray-400);
+  --gt-tab-hover: var(--white);
+  --gt-ring: var(--electric-400);
+  --gt-ring-offset: var(--navy-900);
+  --gt-secondary-bg: var(--navy-500);
+  --gt-secondary-border: rgb(173 207 255 / 0.14);
+  --gt-secondary-text: var(--electric-50);
+  --gt-secondary-hover-border: rgb(61 143 255 / 0.6);
+  --gt-secondary-hover-text: var(--white);
+  --gt-badge-bg: rgb(61 143 255 / 0.15);
+  --gt-badge-text: var(--electric-200);
+  --gt-success-text: var(--green-300);
+  --gt-success-tint: rgb(34 197 94 / 0.15);
+  --gt-danger-text: var(--red-400);
+  --gt-danger-text-on-tint: var(--red-300);
+  --gt-danger-tint: rgb(239 68 68 / 0.15);
+  --gt-warning-text: var(--amber-300);
+  --gt-warning-tint: rgb(245 158 11 / 0.15);
+}
+
+.dark .gt-sidebar,
+.dark .gt-topbar,
+.dark .gt-on-frame {
+  --gt-ring-offset: var(--frame-dark);
+}
+
+/* ------------------------------------------------------------------ 3. Base */
+body {
+  background: var(--gt-canvas);
+  color: var(--gt-text-strong);
+}
+
+.dark body {
+  background: var(--navy-900);
+  color: var(--gray-100);
+}
+
+::selection {
+  background: rgb(26 117 255 / 0.25);
+}
+
+/* Scrollbars: 6px thumbs at least 3:1 against what they scroll over
+   (gray-500 on gray-50 4.63:1; slate-400 on navy-700 6.30:1 and on frame-dark 5.21:1).
+   Chromium and Safari use the ::-webkit-scrollbar rules below. The standard properties
+   are given only to browsers without them (Firefox): in Chromium 121+ any
+   scrollbar-color or scrollbar-width switches the webkit rules off. */
+@supports not selector(::-webkit-scrollbar) {
+  :root,
+  :root * {
+    scrollbar-width: thin;
+  }
+
+  :root {
+    scrollbar-color: var(--gray-500) transparent;
+  }
+
+  .dark,
+  .gt-sidebar,
+  .gt-topbar,
+  .gt-on-frame {
+    scrollbar-color: var(--slate-400) transparent;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--gray-500);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gray-600);
+}
+
+/* On navy (dark mode and the always-dark frame): slate-400 thumbs. The sidebar's own
+   scrollbar needs the no-space selector; its descendants need the spaced one. */
+.dark ::-webkit-scrollbar-thumb,
+.gt-sidebar::-webkit-scrollbar-thumb,
+.gt-sidebar ::-webkit-scrollbar-thumb,
+.gt-topbar ::-webkit-scrollbar-thumb,
+.gt-on-frame::-webkit-scrollbar-thumb,
+.gt-on-frame ::-webkit-scrollbar-thumb {
+  background: var(--slate-400);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover,
+.gt-sidebar::-webkit-scrollbar-thumb:hover,
+.gt-sidebar ::-webkit-scrollbar-thumb:hover,
+.gt-topbar ::-webkit-scrollbar-thumb:hover,
+.gt-on-frame::-webkit-scrollbar-thumb:hover,
+.gt-on-frame ::-webkit-scrollbar-thumb:hover {
+  background: #cbd5e1;
+}
+
+/* Entrances: one short move, 0.2-0.35s, then still. */
+@keyframes gt-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes gt-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes gt-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes gt-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Ambient background motion: long, slow loops on transform and opacity only. */
+@keyframes gt-drift-a {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  33% {
+    transform: translate3d(6%, 4%, 0) scale(1.06);
+  }
+  66% {
+    transform: translate3d(-3%, 7%, 0) scale(0.97);
+  }
+}
+
+@keyframes gt-drift-b {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1.04);
+  }
+  50% {
+    transform: translate3d(-8%, -5%, 0) scale(0.96);
+  }
+}
+
+@keyframes gt-current {
+  0% {
+    transform: translateX(-12rem);
+    opacity: 0;
+  }
+  10%,
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(100vw);
+    opacity: 0;
+  }
+}
+
+.gt-animate-fade-in {
+  animation: gt-fade-in 0.3s ease-out;
+}
+
+.gt-animate-slide-in {
+  animation: gt-slide-in 0.35s ease-out;
+}
+
+.gt-animate-pop-in {
+  animation: gt-pop-in 0.2s ease-out;
+}
+
+/* ------------------------------------------------------------------ 4. Layout skeleton (guide section 3) */
+/* <div class="gt-frame"> <aside class="gt-sidebar">…</aside>
+     <div class="gt-frame-body"> <header class="gt-topbar">…</header>
+       <div class="gt-canvas"> <AnimatedBackground variant="app" />
+         <main class="gt-main">…</main> </div> </div> </div> */
+.gt-frame {
+  display: flex;
+  height: 100vh;
+  background: var(--gt-frame);
+}
+
+.gt-frame-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  height: 100vh;
+  margin-left: 256px;
+}
+
+.gt-canvas {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  border-top-left-radius: 24px;
+  background: var(--gt-canvas);
+  border-left: 1px solid var(--gt-canvas-edge);
+  border-top: 1px solid var(--gt-canvas-edge);
+}
+
+.gt-main {
+  position: relative;
+  height: 100%;
+  overflow-y: auto;
+  padding: 32px;
+}
+
+/* ------------------------------------------------------------------ 5. Sidebar */
+.gt-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  width: 256px;
+  height: 100vh;
+  overflow-y: auto;
+  background: var(--gt-sidebar-bg);
+  color: var(--electric-50);
+}
+
+.gt-sidebar-logo {
+  padding: 16px;
+  border-bottom: 1px solid var(--gt-divider-on-frame);
+  background: var(--gt-sidebar-logo-bg);
+}
+
+.gt-brandmark {
+  display: block;
+  width: auto;
+  height: 36px;
+  margin: 4px auto 20px;
+}
+
+.gt-product {
+  padding: 20px;
+  border: 1px solid var(--gt-hairline-on-frame);
+  border-radius: 8px;
+  background: var(--gt-product-bg);
+  box-shadow: var(--gt-shadow-inner-product);
+}
+
+.gt-product-eyebrow {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  color: var(--electric-300);
+}
+
+.gt-product-name {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 32px;
+  letter-spacing: -0.025em;
+  color: var(--white);
+}
+
+.gt-product-desc {
+  margin: 8px 0 0;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  color: var(--gt-ink-muted-on-frame);
+}
+
+.gt-nav {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+}
+
+.gt-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 16px;
+  margin: 0;
+  border: 0;
+  border-left: 4px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--gt-ink-muted-on-frame);
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    color var(--gt-duration) var(--gt-ease),
+    background-color var(--gt-duration) var(--gt-ease),
+    border-color var(--gt-duration) var(--gt-ease);
+}
+
+.gt-nav-item:hover:not(.is-active) {
+  background: var(--gt-fill-row-hover-on-frame);
+  color: var(--white);
+}
+
+.gt-nav-item.is-active {
+  border-left-color: var(--emerald-400);
+  background: var(--gt-fill-hover-on-frame);
+  color: var(--white);
+  box-shadow: var(--shadow-glow-sm);
+}
+
+.gt-nav-item.is-active svg {
+  color: var(--electric-300);
+}
+
+.gt-sidebar-foot {
+  padding: 12px;
+  border-top: 1px solid var(--gt-divider-on-frame);
+}
+
+/* Theme toggle row (bottom of the sidebar) */
+.gt-theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--gt-ink-muted-on-frame);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  cursor: pointer;
+  transition:
+    color var(--gt-duration) var(--gt-ease),
+    background-color var(--gt-duration) var(--gt-ease);
+}
+
+.gt-theme-toggle:hover {
+  background: var(--gt-fill-row-hover-on-frame);
+  color: var(--white);
+}
+
+.gt-toggle-track {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  width: 36px;
+  height: 20px;
+  border-radius: 9999px;
+  background: var(--slate-500);
+  transition: background-color var(--gt-duration) var(--gt-ease);
+}
+
+.gt-toggle-track.is-on {
+  background: var(--electric-500);
+}
+
+.gt-toggle-knob {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  background: var(--white);
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  transform: translateX(2px);
+  transition: transform var(--gt-duration) var(--gt-ease);
+}
+
+.gt-toggle-track.is-on .gt-toggle-knob {
+  transform: translateX(18px);
+}
+
+/* Toggle icon: Sun in amber-300 (light mode), Moon in electric-300 (dark mode), 18px. */
+.gt-theme-toggle svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  color: var(--amber-300);
+}
+
+.dark .gt-theme-toggle svg {
+  color: var(--electric-300);
+}
+
+/* ------------------------------------------------------------------ 6. Top bar */
+.gt-topbar {
+  position: relative;
+  z-index: 30;
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  height: 80px;
+  padding: 0 32px;
+  background: var(--gt-frame);
+  color: var(--electric-50);
+}
+
+.gt-topbar-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 32px;
+  letter-spacing: -0.025em;
+  color: var(--white);
+}
+
+.gt-topbar-subtitle {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--gt-ink-muted-on-frame);
+}
+
+.gt-icon-btn {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--gt-ink-muted-on-frame);
+  cursor: pointer;
+  transition:
+    color var(--gt-duration) var(--gt-ease),
+    background-color var(--gt-duration) var(--gt-ease);
+}
+
+.gt-icon-btn:hover {
+  background: var(--gt-fill-hover-on-frame);
+  color: var(--white);
+}
+
+.gt-avatar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 9999px;
+  background: var(--electric-600);
+  color: var(--white);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+/* Dropdowns that open from the top bar hang off the frame: always dark. */
+.gt-dropdown {
+  border: 1px solid var(--gt-hairline-on-frame);
+  border-radius: 16px;
+  background: var(--gt-dropdown-bg);
+  color: var(--electric-50);
+  box-shadow: var(--gt-shadow-xl);
+}
+
+/* ------------------------------------------------------------------ 7. Content components (guide section 4) */
+.gt-card {
+  padding: 24px;
+  border: 1px solid var(--gt-card-border);
+  border-radius: 16px;
+  background: var(--gt-card);
+  box-shadow: var(--gt-card-shadow);
+}
+
+/* Buttons: one focus ring, drawn as offset + ring + the button's own shadow, so a
+   hovered and focused button keeps both. Outline stays (transparent) for Windows
+   High Contrast, which drops box-shadows. */
+.gt-btn-primary,
+.gt-btn-secondary,
+.gt-btn-hero {
+  font-family: inherit;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.gt-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--electric-600);
+  color: var(--white);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  box-shadow: var(--gt-shadow-sm);
+  transition: all var(--gt-duration) var(--gt-ease);
+}
+
+.gt-btn-primary:hover:not(:disabled) {
+  background: var(--electric-700);
+  box-shadow: var(--shadow-glow);
+}
+
+.gt-btn-primary:focus {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+
+.gt-btn-primary:focus-visible {
+  box-shadow: 0 0 0 2px var(--gt-ring-offset), 0 0 0 4px var(--gt-ring), var(--gt-shadow-sm);
+}
+
+.gt-btn-primary:hover:focus-visible:not(:disabled) {
+  box-shadow: 0 0 0 2px var(--gt-ring-offset), 0 0 0 4px var(--gt-ring), var(--shadow-glow);
+}
+
+.gt-btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.gt-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 1px solid var(--gt-secondary-border);
+  border-radius: 12px;
+  background: var(--gt-secondary-bg);
+  color: var(--gt-secondary-text);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  transition:
+    color var(--gt-duration) var(--gt-ease),
+    background-color var(--gt-duration) var(--gt-ease),
+    border-color var(--gt-duration) var(--gt-ease);
+}
+
+.gt-btn-secondary:hover:not(:disabled) {
+  border-color: var(--gt-secondary-hover-border);
+  color: var(--gt-secondary-hover-text);
+}
+
+.gt-btn-secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.gt-btn-hero {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 48px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 8px;
+  background-image: linear-gradient(to bottom, var(--electric-500), var(--electric-700));
+  color: var(--white);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+  box-shadow: var(--gt-shadow-hero);
+  transition:
+    color var(--gt-duration) var(--gt-ease),
+    background-color var(--gt-duration) var(--gt-ease);
+}
+
+.gt-btn-hero:hover:not(:disabled) {
+  background-image: linear-gradient(to bottom, var(--electric-600), var(--electric-800));
+}
+
+.gt-btn-hero:focus {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+
+.gt-btn-hero:focus-visible {
+  box-shadow: 0 0 0 2px var(--gt-ring-offset), 0 0 0 4px var(--electric-500), var(--gt-shadow-hero);
+}
+
+.gt-btn-hero:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Keyboard focus for controls whose recipe has no ring of its own. */
+.gt-btn-secondary:focus-visible,
+.gt-icon-btn:focus-visible,
+.gt-nav-item:focus-visible,
+.gt-tab:focus-visible,
+.gt-link:focus-visible,
+.gt-link-inline:focus-visible,
+.gt-theme-toggle:focus-visible {
+  outline: 2px solid var(--gt-ring);
+  outline-offset: 2px;
+}
+
+/* Links: standalone ("View all") and inline (inside a sentence, underlined at rest) */
+.gt-link {
+  font-weight: 500;
+  color: var(--gt-link);
+  text-decoration: none;
+}
+
+.gt-link:hover {
+  color: var(--gt-link-hover);
+  text-decoration: underline;
+}
+
+.gt-link-inline {
+  font-weight: 500;
+  color: var(--gt-link);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.gt-link-inline:hover {
+  color: var(--gt-link-hover);
+}
+
+/* Form fields: always a visible label above the input. */
+.gt-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  color: var(--gt-label);
+}
+
+.gt-input {
+  display: block;
+  width: 100%;
+  padding: 10px 16px;
+  border: 1px solid var(--gt-input-border);
+  border-radius: 12px;
+  background: var(--gt-input-bg);
+  color: var(--gt-input-text);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 20px;
+  transition: box-shadow var(--gt-duration) var(--gt-ease);
+}
+
+.gt-input::placeholder {
+  color: var(--gt-input-placeholder);
+  opacity: 1;
+}
+
+.gt-input:focus {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  border-color: var(--gt-input-focus-border);
+  box-shadow: var(--shadow-glow);
+}
+
+/* Tabs: an underline rail with active / inactive tabs */
+.gt-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  border-bottom: 1px solid var(--gt-border);
+}
+
+.gt-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 4px 12px;
+  margin: 0 0 -1px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--gt-tab-idle);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  cursor: pointer;
+  transition:
+    color var(--gt-duration) var(--gt-ease),
+    border-color var(--gt-duration) var(--gt-ease);
+}
+
+.gt-tab:hover:not(.is-active) {
+  color: var(--gt-tab-hover);
+}
+
+.gt-tab.is-active {
+  border-bottom-color: var(--gt-tab-active);
+  color: var(--gt-tab-active);
+}
+
+.gt-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 9999px;
+  background: var(--gt-badge-bg);
+  color: var(--gt-badge-text);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+}
+
+/* Icon tile, next to a heading */
+.gt-icon-tile {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: var(--gt-icon-tile-bg);
+  color: var(--electric-300);
+  box-shadow: var(--gt-shadow-md-slate);
+}
+
+/* App icon (AppIcon.tsx) size */
+.gt-app-icon {
+  display: block;
+  flex: none;
+  width: 24px;
+  height: 24px;
+}
+
+/* Modal / dropdown panel on content */
+.gt-modal {
+  border: 1px solid var(--gt-card-border);
+  border-radius: 16px;
+  background: var(--gt-card);
+  box-shadow: var(--gt-shadow-xl);
+  animation: gt-pop-in 0.2s ease-out;
+}
+
+/* Status text and tints: -700 text on -50 tints in light mode, -300 on -500/15 in dark. */
+.gt-text-success {
+  color: var(--gt-success-text);
+}
+
+.gt-text-danger {
+  color: var(--gt-danger-text);
+}
+
+.gt-text-warning {
+  color: var(--gt-warning-text);
+}
+
+.gt-tint-success {
+  background: var(--gt-success-tint);
+  color: var(--gt-success-text);
+}
+
+.gt-tint-danger {
+  background: var(--gt-danger-tint);
+  color: var(--gt-danger-text-on-tint);
+}
+
+.gt-tint-warning {
+  background: var(--gt-warning-tint);
+  color: var(--gt-warning-text);
+}
+
+/* ------------------------------------------------------------------ 8. Animated background */
+/* Place first inside a `position: relative; overflow: hidden` container and give the
+   content after it `position: relative`. Decorative: aria-hidden, no pointer events. */
+.gt-bg {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* App variant: dark mode only. Light mode stays still, because any tint on gray-50
+   pulls gray-500 muted text below 4.5:1. */
+.gt-bg-app {
+  display: none;
+}
+
+.dark .gt-bg-app {
+  display: block;
+}
+
+.gt-bg-orb-a,
+.gt-bg-orb-b {
+  position: absolute;
+  border-radius: 9999px;
+  background-image: var(--gt-glow-bg);
+  will-change: transform;
+}
+
+.gt-bg-login .gt-bg-orb-a {
+  left: -20%;
+  top: -30%;
+  width: 70vmax;
+  height: 70vmax;
+  opacity: 0.4;
+  animation: gt-drift-a 28s ease-in-out infinite;
+}
+
+.gt-bg-login .gt-bg-orb-b {
+  right: -20%;
+  bottom: -35%;
+  width: 60vmax;
+  height: 60vmax;
+  opacity: 0.25;
+  animation: gt-drift-b 34s ease-in-out infinite;
+}
+
+.gt-bg-app .gt-bg-orb-a {
+  right: -15%;
+  top: -25%;
+  width: 60vmax;
+  height: 60vmax;
+  opacity: 0.2;
+  animation: gt-drift-a 28s ease-in-out infinite;
+}
+
+.gt-bg-app .gt-bg-orb-b {
+  left: -10%;
+  bottom: -30%;
+  width: 50vmax;
+  height: 50vmax;
+  opacity: 0.1;
+  animation: gt-drift-b 34s ease-in-out infinite;
+}
+
+/* 48px grid that fades towards the edges; pulses ride its lines (top = row * 48px). */
+.gt-bg-grid {
+  position: absolute;
+  inset: 0;
+  background-image: var(--gt-grid-lines);
+  background-size: 48px 48px;
+  -webkit-mask-image: radial-gradient(ellipse at center, #000 30%, transparent 75%);
+  mask-image: radial-gradient(ellipse at center, #000 30%, transparent 75%);
+}
+
+.gt-bg-pulse {
+  position: absolute;
+  left: 0;
+  width: 192px;
+  height: 1px;
+  background-image: linear-gradient(to right, transparent, rgb(61 143 255 / 0.7), transparent);
+  animation: gt-current 10s linear infinite both;
+}
+
+/* ------------------------------------------------------------------ 9. Login (split on navy, always light) */
+.gt-login {
+  /* Always light: every semantic token is pinned to its light value here, whatever
+     the app's theme (same values as the light :root block). */
+  --gt-canvas: var(--gray-50);
+  --gt-card: var(--white);
+  --gt-card-border: var(--gray-100);
+  --gt-card-shadow: var(--gt-shadow-sm);
+  --gt-control: var(--white);
+  --gt-text-strong: var(--gray-900);
+  --gt-text: var(--gray-700);
+  --gt-text-muted: var(--gray-500);
+  --gt-label: var(--gray-700);
+  --gt-border: var(--gray-200);
+  --gt-ring: var(--electric-500);
+  --gt-ring-offset: var(--white);
+  --gt-input-bg: var(--white);
+  --gt-input-border: var(--gray-500);
+  --gt-input-text: var(--gray-900);
+  --gt-input-placeholder: var(--gray-500);
+  --gt-input-focus-border: var(--electric-500);
+  --gt-link: var(--electric-600);
+  --gt-link-hover: var(--electric-700);
+  --gt-tab-active: var(--electric-600);
+  --gt-tab-idle: var(--gray-500);
+  --gt-tab-hover: var(--gray-900);
+  --gt-badge-bg: var(--electric-50);
+  --gt-badge-text: var(--electric-700);
+  --gt-secondary-bg: var(--white);
+  --gt-secondary-border: var(--gray-200);
+  --gt-secondary-text: var(--gray-700);
+  --gt-secondary-hover-border: var(--electric-300);
+  --gt-secondary-hover-text: var(--electric-700);
+  --gt-icon-tile-bg: var(--navy-900);
+  --gt-success-text: var(--green-700);
+  --gt-success-tint: var(--green-50);
+  --gt-danger-text: var(--red-600);
+  --gt-danger-text-on-tint: var(--red-700);
+  --gt-danger-tint: var(--red-50);
+  --gt-warning-text: var(--amber-700);
+  --gt-warning-tint: var(--amber-50);
+  position: relative;
+  display: flex;
+  min-height: 100vh;
+  overflow: hidden;
+  background: var(--navy-900);
+}
+
+/* Left: the story (lg screens and up) */
+.gt-login-story {
+  position: relative;
+  display: none;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 54%;
+  padding: 56px;
+  animation: gt-fade-in 0.3s ease-out;
+}
+
+.gt-login-badge {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.gt-login-badge-tile {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: rgb(61 143 255 / 0.1);
+  color: var(--electric-300);
+  box-shadow: inset 0 0 0 1px rgb(173 207 255 / 0.14);
+}
+
+.gt-login-badge-name {
+  display: block;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 24px;
+  letter-spacing: -0.025em;
+  color: var(--white);
+}
+
+.gt-login-badge-desc {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  color: var(--gt-ink-muted-on-frame);
+}
+
+.gt-login-story-body {
+  max-width: 576px;
+}
+
+/* A tagline, not a heading: "Sign in" in the card is the page's h1. */
+.gt-login-headline {
+  margin: 0;
+  font-size: 48px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  color: var(--white);
+}
+
+.gt-login-accent {
+  color: var(--electric-300);
+}
+
+.gt-login-summary {
+  margin: 24px 0 0;
+  font-size: 18px;
+  line-height: 32px;
+  color: var(--gt-ink-muted-on-frame);
+}
+
+.gt-login-features {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 32px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gt-login-feature {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: fit-content;
+  padding: 8px 20px 8px 8px;
+  border: 1px solid rgb(173 207 255 / 0.14);
+  border-radius: 9999px;
+  background: rgb(61 143 255 / 0.05);
+  color: var(--electric-50);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.gt-login-feature-icon {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9999px;
+  background: rgb(61 143 255 / 0.15);
+  color: var(--electric-300);
+}
+
+.gt-login-dev-label {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--gt-ink-muted-on-frame);
+}
+
+.gt-login-brandmark {
+  display: block;
+  width: auto;
+  height: 36px;
+  margin-top: 12px;
+}
+
+/* Right: the sign-in card */
+.gt-login-panel {
+  position: relative;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.gt-login-card-wrap {
+  width: 100%;
+  max-width: 448px;
+  animation: gt-fade-in 0.3s ease-out;
+}
+
+.gt-login-brandmark-top {
+  display: block;
+  width: auto;
+  height: 40px;
+  margin: 0 auto 32px;
+}
+
+.gt-login-card {
+  padding: 32px;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: 16px;
+  background: var(--white);
+  color: var(--gray-700);
+  box-shadow: var(--gt-shadow-login-card);
+}
+
+.gt-login-card-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.gt-login-card-name {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 28px;
+  letter-spacing: -0.025em;
+  color: var(--gray-900);
+}
+
+.gt-login-card-desc {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  color: var(--gray-500);
+}
+
+.gt-login-title {
+  margin: 28px 0 0;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 32px;
+  letter-spacing: -0.025em;
+  color: var(--gray-900);
+}
+
+.gt-login-error {
+  margin: 16px 0 0;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--red-50);
+  color: var(--red-700);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.gt-login-under {
+  margin: 24px 0 0;
+  font-size: 12px;
+  line-height: 16px;
+  text-align: center;
+  color: var(--gt-ink-muted-on-frame);
+}
+
+@media (min-width: 1024px) {
+  .gt-login-story {
+    display: flex;
+  }
+
+  .gt-login-panel {
+    padding: 48px;
+  }
+
+  .gt-login-brandmark-top {
+    display: none;
+  }
+}
+
+/* ------------------------------------------------------------------ 10. Reduced motion */
+/* Everything moving switches off for users who ask for reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  .gt-animate-fade-in,
+  .gt-animate-slide-in,
+  .gt-animate-pop-in,
+  .gt-modal,
+  .gt-login-story,
+  .gt-login-card-wrap {
+    animation: none;
+  }
+
+  .gt-bg-orb-a,
+  .gt-bg-orb-b {
+    animation: none;
+  }
+
+  .gt-bg-pulse {
+    display: none;
+  }
+
+  .gt-nav-item,
+  .gt-btn-primary,
+  .gt-btn-secondary,
+  .gt-btn-hero,
+  .gt-tab,
+  .gt-input,
+  .gt-icon-btn,
+  .gt-toggle-track,
+  .gt-toggle-knob {
+    transition: none;
+  }
+}
+
+/* ------------------------------------------------------------------ 11. Forced colours */
+/* Windows High Contrast drops box-shadows, gradients and fills, so borderless buttons
+   would read as plain text and every transparent marker border would look "on".
+   Changes nothing in normal colours. */
+@media (forced-colors: active) {
+  .gt-btn-primary,
+  .gt-btn-hero,
+  .gt-icon-btn {
+    border: 1px solid ButtonText;
+  }
+
+  .gt-nav-item {
+    border-left-color: Canvas;
+  }
+
+  .gt-nav-item.is-active {
+    border-left-color: Highlight;
+  }
+
+  .gt-tab {
+    border-bottom-color: Canvas;
+  }
+
+  .gt-tab.is-active {
+    border-bottom-color: Highlight;
+  }
+}

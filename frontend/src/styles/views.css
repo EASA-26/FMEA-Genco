@@ -1,195 +1,23 @@
 /* Screens and report sections. */
 
 /* ================================================================== Sign in */
-.signin {
-  display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(420px, 1fr);
-  min-height: 100vh;
-}
-
-.signin-brand {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 40px;
-  overflow: hidden;
-  padding: 44px 56px 56px;
-  background:
-    radial-gradient(700px 420px at 10% 0%, rgba(34, 184, 230, 0.2), transparent 65%),
-    linear-gradient(160deg, #0c2b50 0%, var(--navy-900) 45%, var(--navy-950) 100%);
-  color: #fff;
-}
-
-.signin-grid {
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(111, 211, 242, 0.07) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(111, 211, 242, 0.07) 1px, transparent 1px);
-  background-size: 32px 32px;
-  mask-image: radial-gradient(900px 700px at 20% 30%, #000 20%, transparent 75%);
-  pointer-events: none;
-}
-
-.signin-motif {
-  position: absolute;
-  right: -120px;
-  bottom: -150px;
-  width: 640px;
-  height: 640px;
-  pointer-events: none;
-}
-
-.signin-brand-top,
-.signin-brand-body {
-  position: relative;
-}
-
-.signin-brand-top {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.signin-brand-line {
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-}
-
-.signin-hero {
-  max-width: 620px;
-  font-size: clamp(32px, 3.4vw, 46px);
-  font-weight: 750;
-  line-height: 1.1;
-  letter-spacing: -0.025em;
-}
-
-.signin-hero-lead {
-  max-width: 480px;
-  margin-top: 16px;
-  font-size: 16px;
-  color: rgba(220, 232, 245, 0.78);
-}
-
-.signin-flow {
-  display: grid;
-  gap: 10px;
-  margin: 36px 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.signin-flow li {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: fit-content;
-  padding: 9px 16px 9px 10px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
-  box-shadow: inset 0 0 0 1px rgba(111, 211, 242, 0.18);
-  font-size: 14px;
-  color: #e6eef7;
-  backdrop-filter: blur(4px);
-}
-
-.signin-flow svg {
-  padding: 5px;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: rgba(34, 184, 230, 0.18);
-  color: var(--cyan-300);
-}
-
-.signin-panel {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 18px;
-  padding: 40px 32px;
-  background:
-    radial-gradient(600px 300px at 100% 0%, rgba(34, 184, 230, 0.08), transparent 70%),
-    var(--page);
-}
-
-.signin-card {
-  width: 100%;
-  max-width: 400px;
-  padding: 32px;
-  border: 1px solid var(--hairline);
-  border-radius: 16px;
-  background: var(--surface);
-  box-shadow: var(--shadow-pop);
-  animation: rise 0.35s var(--ease);
-}
-
-.signin-card-head {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 26px;
-}
-
-.signin-app {
-  font-size: 17px;
-  font-weight: 750;
-  color: var(--ink-strong);
-}
-
-.signin-app-sub {
-  font-size: 12.5px;
-  color: var(--blue-600);
-  font-weight: 600;
-}
-
-.signin-title {
-  font-size: 22px;
-  font-weight: 750;
-  letter-spacing: -0.015em;
-  color: var(--ink-strong);
-}
-
+/* The theme's split login (gt-login-*, genco-theme.css), always light. These are the
+   app's own pieces inside the card: the lead line, notices and fields. */
 .signin-lead {
-  margin: 4px 0 20px;
+  margin-top: 4px;
   color: var(--muted);
 }
 
 .signin-alert {
-  margin-bottom: 16px;
+  margin-top: 16px;
 }
 
-.signin-card .btn-block {
-  margin-top: 8px;
+.gt-login-card .field {
+  margin: 16px 0 0;
 }
 
-.signin-foot {
-  max-width: 400px;
-  font-size: 12.5px;
-  color: var(--faint);
-  text-align: center;
-}
-
-@media (max-width: 960px) {
-  .signin {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .signin-brand {
-    padding: 28px 24px 32px;
-  }
-
-  .signin-flow,
-  .signin-motif {
-    display: none;
-  }
-
-  .signin-hero {
-    font-size: 28px;
-  }
+.signin-submit {
+  margin-top: 24px;
 }
 
 /* ================================================================== Upload */
@@ -216,14 +44,13 @@
 .memory-note svg {
   flex: none;
   margin-top: 2px;
-  color: var(--blue-600);
+  color: var(--electric-600);
 }
 
 .current-file {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 16px 18px;
 }
 
 .current-file-text {
@@ -236,7 +63,7 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--blue-600);
+  color: var(--electric-600);
 }
 
 .current-file-name {
@@ -266,11 +93,9 @@
   min-height: 330px;
   overflow: hidden;
   padding: 40px 24px;
-  border: 1.5px dashed #a9c3de;
+  border: 1.5px dashed var(--hairline-strong);
   border-radius: 16px;
-  background:
-    radial-gradient(520px 240px at 50% 0%, rgba(34, 184, 230, 0.1), transparent 70%),
-    var(--surface);
+  background: var(--surface);
   transition:
     border-color 0.2s var(--ease),
     background-color 0.2s var(--ease),
@@ -281,22 +106,28 @@
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(30, 111, 191, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(30, 111, 191, 0.05) 1px, transparent 1px);
+    linear-gradient(rgb(0 102 255 / 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(0 102 255 / 0.05) 1px, transparent 1px);
   background-size: 22px 22px;
   mask-image: radial-gradient(closest-side, #000 30%, transparent 100%);
   pointer-events: none;
 }
 
 .dropzone.is-dragging {
-  border-color: var(--cyan-400);
-  background-color: var(--cyan-50);
-  box-shadow: 0 0 0 4px rgba(34, 184, 230, 0.16), inset 0 0 40px rgba(34, 184, 230, 0.12);
+  border-color: var(--electric-400);
+  background-color: var(--electric-50);
+  box-shadow: var(--shadow-glow);
+}
+
+/* Muted text on the electric-50 drag tint needs gray-600 to stay at 4.5:1. */
+.dropzone.is-dragging .dropzone-or,
+.dropzone.is-dragging .dropzone-hint {
+  color: var(--gray-600);
 }
 
 .dropzone.is-busy {
   border-style: solid;
-  border-color: var(--blue-100);
+  border-color: var(--electric-100);
 }
 
 .dropzone-body,
@@ -356,15 +187,15 @@
   overflow: hidden;
   margin-top: 6px;
   border-radius: 999px;
-  background: var(--blue-50);
-  box-shadow: inset 0 0 0 1px var(--blue-100);
+  background: var(--electric-50);
+  box-shadow: inset 0 0 0 1px var(--electric-100);
 }
 
 .progress span {
   position: absolute;
   inset: 0 auto 0 0;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--blue-600), var(--cyan-400));
+  background: var(--electric-600);
   transition: width 0.2s var(--ease);
 }
 
@@ -380,10 +211,6 @@
   to {
     left: 100%;
   }
-}
-
-.requirements {
-  padding: 20px 22px;
 }
 
 .requirement-list {
@@ -471,6 +298,7 @@
 
 .issue-group {
   overflow: hidden;
+  padding: 0;
 }
 
 .issue-group-head {
@@ -511,6 +339,12 @@
 
 .issue-group-toggle:hover {
   background: var(--surface-muted);
+}
+
+/* The card clips anything outside it (overflow: hidden), so draw the ring inside. */
+.issue-group-toggle:focus-visible {
+  outline-offset: -3px;
+  border-radius: 14px;
 }
 
 .issue-group-title {
@@ -568,7 +402,7 @@
 
 .issue-action {
   flex: none;
-  color: var(--blue-700);
+  color: var(--electric-700);
 }
 
 .issue-group-info .issue-list {
@@ -602,7 +436,6 @@
 .front-facts {
   position: sticky;
   top: calc(var(--topbar-h) + 20px);
-  padding: 20px;
 }
 
 .source-list {
@@ -819,6 +652,7 @@
 
 .table-card {
   overflow: hidden;
+  padding: 0;
 }
 
 .table-card-head,
@@ -891,7 +725,6 @@
   gap: 12px;
   overflow-x: auto;
   padding: 2px 2px 8px;
-  scrollbar-width: thin;
 }
 
 .uoir-card {
@@ -922,18 +755,18 @@
 }
 
 .uoir-card:hover {
-  border-color: #b5c9df;
+  border-color: var(--electric-300);
   box-shadow: var(--shadow-card);
   transform: translateY(-1px);
 }
 
 .uoir-card.is-selected {
-  border-color: var(--blue-600);
-  box-shadow: 0 0 0 3px rgba(30, 111, 191, 0.14), var(--shadow-card);
+  border-color: var(--electric-600);
+  box-shadow: 0 0 0 1px var(--electric-600), var(--shadow-card);
 }
 
 .uoir-card.is-selected::before {
-  background: linear-gradient(90deg, var(--blue-600), var(--cyan-400));
+  background: var(--electric-600);
 }
 
 .uoir-card-top {
@@ -947,7 +780,7 @@
   font-family: var(--font-mono);
   font-size: 12.5px;
   font-weight: 700;
-  color: var(--blue-700);
+  color: var(--electric-700);
 }
 
 .mini-flag {
@@ -976,7 +809,7 @@
 }
 
 .mini-flag-warning svg {
-  color: var(--amber-600);
+  color: var(--amber-700);
 }
 
 .uoir-card-title {
@@ -1023,9 +856,7 @@
   padding: 18px 20px;
   border: 1px solid var(--hairline);
   border-radius: var(--radius-lg);
-  background:
-    radial-gradient(420px 120px at 100% 0%, rgba(34, 184, 230, 0.1), transparent 70%),
-    var(--surface);
+  background: var(--surface);
   box-shadow: var(--shadow-card);
 }
 
@@ -1034,7 +865,7 @@
   font-size: 12.5px;
   font-weight: 700;
   letter-spacing: 0.02em;
-  color: var(--blue-600);
+  color: var(--electric-600);
 }
 
 .uoir-heading-title {
@@ -1081,24 +912,44 @@
 }
 
 .meta-warning svg {
-  color: var(--amber-600);
+  color: var(--amber-700);
 }
 
 .tab-panel {
   min-width: 0;
-  animation: rise 0.22s var(--ease);
+  animation: gt-fade-in 0.3s ease-out;
 }
 
 .tabs-row {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  flex-wrap: nowrap;
+  align-items: flex-end;
   gap: 8px 16px;
+  border-bottom: 1px solid var(--gt-border);
+}
+
+.tabs-row .gt-tabs {
+  border-bottom: 0;
 }
 
 .tabs-note {
+  flex: 1 1 160px;
+  min-width: 0;
+  padding-bottom: 12px;
   font-size: 12.5px;
   color: var(--faint);
+}
+
+@media (max-width: 760px) {
+  .tabs-row {
+    flex-wrap: wrap;
+  }
+
+  .tabs-note {
+    order: -1;
+    flex-basis: 100%;
+    padding-bottom: 0;
+  }
 }
 
 /* ================================================================== FMEA Analysis */
@@ -1121,8 +972,8 @@
   align-items: flex-start;
   gap: 8px;
   padding: 10px 14px;
-  border: 1px solid var(--blue-100);
-  border-left: 3px solid var(--cyan-400);
+  border: 1px solid var(--electric-100);
+  border-left: 3px solid var(--electric-400);
   border-radius: var(--radius);
   background: var(--surface);
 }
@@ -1130,7 +981,7 @@
 .note > svg {
   flex: none;
   margin-top: 2px;
-  color: var(--blue-600);
+  color: var(--electric-600);
 }
 
 .note-label {
@@ -1164,7 +1015,6 @@
   border-radius: var(--radius-lg);
   background: var(--surface);
   box-shadow: var(--shadow-card);
-  scrollbar-color: #b9c8d8 transparent;
 }
 
 .analysis-scroll:focus-visible {
@@ -1207,7 +1057,7 @@
   font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.62);
+  color: var(--white);
 }
 
 .grid-table td {
@@ -1230,14 +1080,14 @@
 
 .grid-table tbody tr:hover td,
 .grid-table tbody tr:hover .gutter {
-  background: #e9f2fb;
+  background: var(--row-hover);
 }
 
 /* Same specificity as the zebra rule and later, so a merge spanning striped rows keeps one colour. */
 .grid-table tbody tr td.is-merged {
-  background: #fbfdff;
+  background: var(--surface);
   vertical-align: middle;
-  box-shadow: inset 0 0 0 1px rgba(34, 184, 230, 0.35);
+  box-shadow: inset 0 0 0 1px rgb(61 143 255 / 0.35);
 }
 
 .grid-table .kind-flag,
@@ -1295,11 +1145,11 @@
 }
 
 .row-flag:hover {
-  background: rgba(10, 35, 64, 0.06);
+  background: rgb(17 24 39 / 0.06);
 }
 
 .row-flag:focus-visible {
-  outline: 2px solid var(--blue-600);
+  outline: 2px solid var(--electric-600);
   outline-offset: 1px;
 }
 
@@ -1356,7 +1206,7 @@
 }
 
 .gutter-warning {
-  box-shadow: inset 3px 0 0 var(--amber-400);
+  box-shadow: inset 3px 0 0 var(--amber-700);
 }
 
 .grid-table tr.is-flash td,
@@ -1364,15 +1214,19 @@
   animation: flash-row 3.2s var(--ease);
 }
 
+.grid-table tr.is-flash .gutter {
+  color: var(--gray-600);
+}
+
 .grid-table td.is-flash-cell {
-  outline: 2px solid var(--blue-600);
+  outline: 2px solid var(--electric-600);
   outline-offset: -2px;
 }
 
 @keyframes flash-row {
   0%,
   60% {
-    background: #d9f1fb;
+    background: var(--electric-100);
   }
   100% {
     background: inherit;
@@ -1395,17 +1249,6 @@
   position: relative;
   overflow: hidden;
   padding: 16px 18px 18px;
-}
-
-.stat-card::after {
-  content: '';
-  position: absolute;
-  right: -30px;
-  top: -30px;
-  width: 110px;
-  height: 110px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(34, 184, 230, 0.14), transparent 70%);
 }
 
 .stat-head {
@@ -1439,6 +1282,7 @@
 
 .summary-card {
   overflow: hidden;
+  padding: 0;
 }
 
 .evr-grid {
@@ -1578,7 +1422,7 @@
   padding: 12px 14px;
   border-radius: var(--radius);
   background: var(--amber-50);
-  box-shadow: inset 0 0 0 1px var(--amber-100);
+  box-shadow: inset 0 0 0 1px var(--amber-50);
   list-style: none;
   font-size: 13px;
 }
@@ -1646,6 +1490,7 @@
 
 .rec-group {
   overflow: hidden;
+  padding: 0;
 }
 
 .rec-group-title {
@@ -1677,7 +1522,7 @@
 }
 
 .rec-table .th-sub {
-  background: #2a7bc9;
+  background: var(--electric-700);
   font-weight: 650;
   border-left: 1px solid rgba(255, 255, 255, 0.25);
 }
@@ -1739,17 +1584,13 @@
   inset: 0;
   display: grid;
   place-items: center;
-  background:
-    radial-gradient(500px 260px at 50% 30%, rgba(34, 184, 230, 0.1), transparent 70%),
-    var(--surface);
+  background: var(--surface);
 }
 
 .blocked {
   display: flex;
   gap: 18px;
   max-width: 860px;
-  padding: 24px;
-  border-color: var(--red-100);
 }
 
 .blocked-body {
@@ -1825,10 +1666,6 @@
 .export-card {
   display: grid;
   gap: 16px;
-  padding: 24px;
-  background:
-    radial-gradient(520px 200px at 0% 0%, rgba(34, 184, 230, 0.1), transparent 70%),
-    var(--surface);
 }
 
 .export-file {
@@ -1844,12 +1681,12 @@
   width: 56px;
   height: 68px;
   border-radius: 8px 16px 8px 8px;
-  background: linear-gradient(160deg, var(--blue-600), var(--navy-900));
+  background: var(--navy-900);
   color: #fff;
   font-size: 13px;
   font-weight: 800;
   letter-spacing: 0.08em;
-  box-shadow: 0 10px 24px -10px rgba(10, 35, 64, 0.6);
+  box-shadow: var(--gt-shadow-md-slate);
 }
 
 .export-file-text {
@@ -1882,7 +1719,6 @@
 .export-email {
   display: grid;
   gap: 16px;
-  padding: 20px 22px;
 }
 
 .export-email-head {
@@ -1915,10 +1751,6 @@
 /* The status area stays in place for screen readers; it takes no room while empty. */
 .export-email-form > .export-email-status:empty {
   margin-top: 0;
-}
-
-.export-contents {
-  padding: 20px 22px;
 }
 
 .contents-list {
@@ -1957,7 +1789,7 @@
 
 .contents-check {
   flex: none;
-  color: var(--blue-600);
+  color: var(--electric-600);
 }
 
 @media (max-width: 1100px) {

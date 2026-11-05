@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { BookOpen, CircleCheck, Download, Eye, FileText, Mail, RefreshCw, Table2, Wrench } from 'lucide-react';
+import { Activity, CircleCheck, ClipboardList, Download, Eye, Factory, Mail, RefreshCw, Wrench } from 'lucide-react';
 import * as api from '../api/client.js';
 import PageHeader from '../components/PageHeader.jsx';
 import Spinner from '../components/Spinner.jsx';
@@ -115,7 +115,7 @@ function EmailCard({ report, outlookDraft, onWorkbookClosed }) {
   const workingText = outlookDraft ? 'Opening Outlook…' : 'Downloading PDF…';
 
   return (
-    <section className="card export-email" aria-labelledby="email-title">
+    <section className="gt-card export-email" aria-labelledby="email-title">
       <div className="export-email-head">
         <span className="icon-tile icon-tile-soft" aria-hidden="true">
           <Mail size={18} />
@@ -134,14 +134,14 @@ function EmailCard({ report, outlookDraft, onWorkbookClosed }) {
 
       <form className="export-email-form" onSubmit={handleSubmit} noValidate>
         <div className="field">
-          <label className="field-label" htmlFor="email-to">
+          <label className="gt-label" htmlFor="email-to">
             Recipients (optional)
           </label>
           <input
             ref={inputRef}
             id="email-to"
             name="email-to"
-            className="input"
+            className="gt-input"
             type="text"
             inputMode="email"
             autoComplete="off"
@@ -162,7 +162,7 @@ function EmailCard({ report, outlookDraft, onWorkbookClosed }) {
         </div>
 
         <div className="export-actions">
-          <button type="submit" className="btn btn-secondary" disabled={working}>
+          <button type="submit" className="gt-btn-secondary" disabled={working}>
             {working ? (
               <>
                 <Spinner size={16} /> {workingText}
@@ -199,7 +199,7 @@ function EmailCard({ report, outlookDraft, onWorkbookClosed }) {
               label="Email not opened"
               actions={
                 state.offerMailApp ? (
-                  <button type="button" className="btn btn-secondary" onClick={handleMailAppInstead}>
+                  <button type="button" className="gt-btn-secondary" onClick={handleMailAppInstead}>
                     <Mail size={16} aria-hidden="true" /> Download PDF &amp; open email instead
                   </button>
                 ) : null
@@ -256,14 +256,14 @@ export default function ExportView({
   }, [autoStart, onAutoStartDone, report, download]);
 
   const contents = [
-    { icon: FileText, title: 'Front Page', text: `${report.station || 'Station'} · ${report.analysis_date_text || 'Date of Analysis'}` },
+    { icon: Factory, title: 'Front Page', text: `${report.station || 'Station'} · ${report.analysis_date_text || 'Date of Analysis'}` },
     {
-      icon: BookOpen,
+      icon: ClipboardList,
       title: 'Introduction',
       text: `Failure Details (${plural(report.failure_details.length, 'row')}) and Team Members (${report.team.length})`,
     },
     {
-      icon: Table2,
+      icon: Activity,
       title: 'Analysis',
       text: `${plural(report.uoirs.length, 'UOIR')}: FMEA Analysis on A3 landscape and FMEA Summary on A4`,
     },
@@ -281,7 +281,7 @@ export default function ExportView({
       ) : (
         <div className="export-layout">
           <div className="export-main">
-            <section className="card export-card" aria-labelledby="export-title">
+            <section className="gt-card export-card" aria-labelledby="export-title">
               <div className="export-file">
                 <span className="pdf-badge" aria-hidden="true">
                   PDF
@@ -311,7 +311,7 @@ export default function ExportView({
               )}
 
               <div className="export-actions">
-                <button type="button" className="btn btn-primary btn-lg" onClick={download} disabled={state.phase === 'working'}>
+                <button type="button" className="gt-btn-primary btn-lg" onClick={download} disabled={state.phase === 'working'}>
                   {state.phase === 'working' ? (
                     <>
                       <Spinner size={18} /> Preparing PDF…
@@ -326,7 +326,7 @@ export default function ExportView({
                     </>
                   )}
                 </button>
-                <button type="button" className="btn btn-secondary btn-lg" onClick={onPreview}>
+                <button type="button" className="gt-btn-secondary btn-lg" onClick={onPreview}>
                   <Eye size={18} aria-hidden="true" /> Preview first
                 </button>
               </div>
@@ -335,7 +335,7 @@ export default function ExportView({
             <EmailCard report={report} outlookDraft={outlookEmail} onWorkbookClosed={onWorkbookClosed} />
           </div>
 
-          <section className="card export-contents" aria-labelledby="contents-title">
+          <section className="gt-card export-contents" aria-labelledby="contents-title">
             <h2 id="contents-title" className="card-title">
               In this report
             </h2>

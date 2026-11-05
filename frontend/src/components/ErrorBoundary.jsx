@@ -1,5 +1,6 @@
 import { Component } from 'react';
 import { RefreshCw, TriangleAlert } from 'lucide-react';
+import AnimatedBackground from './AnimatedBackground.jsx';
 
 // Last line of defence: if a screen fails to draw (for example an unexpected value
 // in the report), show a plain message with a way out instead of a blank page.
@@ -63,8 +64,9 @@ export default class ErrorBoundary extends Component {
 
     return (
       <div className="splash">
+        <AnimatedBackground variant="login" />
         <div className="splash-card" role="alert">
-          <span className="icon-tile icon-tile-muted" aria-hidden="true">
+          <span className="gt-icon-tile" aria-hidden="true">
             <TriangleAlert size={22} />
           </span>
           <h1>This page could not be shown</h1>
@@ -72,7 +74,7 @@ export default class ErrorBoundary extends Component {
             Something in the workbook data could not be displayed. Reload the page and try again. If it keeps happening, upload
             the workbook again or contact support.
           </p>
-          <button type="button" className="btn btn-primary" onClick={() => window.location.reload()}>
+          <button type="button" className="gt-btn-primary" onClick={() => window.location.reload()}>
             <RefreshCw size={16} aria-hidden="true" /> Reload the page
           </button>
         </div>

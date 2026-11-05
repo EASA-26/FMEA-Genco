@@ -1,18 +1,20 @@
 import {
-  BookOpen,
+  Activity,
   Check,
-  ClipboardCheck,
-  FileText,
+  ClipboardList,
+  Factory,
   Lock,
   LogOut,
   OctagonAlert,
-  Table2,
+  ShieldCheck,
   TriangleAlert,
   Wrench,
   X,
 } from 'lucide-react';
-import PulseMark from './PulseMark.jsx';
 import { issuesForUoir, countIssues, plural } from '../lib/report.js';
+import brandmark1x from '../assets/tnb-genco-ted-white@1x.png';
+import brandmark2x from '../assets/tnb-genco-ted-white@2x.png';
+import brandmark3x from '../assets/tnb-genco-ted-white@3x.png';
 
 const STEPS = [
   { id: 'upload', label: 'Upload Excel' },
@@ -21,11 +23,13 @@ const STEPS = [
   { id: 'export', label: 'Export PDF' },
 ];
 
+// Report sections, with icons in the reliability, risk and engineering motif.
+// ExportView's "In this report" list uses the same icon for each section.
 const SECTIONS = [
-  { id: 'checks', label: 'Data Checks', icon: ClipboardCheck },
-  { id: 'front', label: 'Front Page', icon: FileText },
-  { id: 'intro', label: 'Introduction', icon: BookOpen },
-  { id: 'analysis', label: 'Analysis', icon: Table2 },
+  { id: 'checks', label: 'Data Checks', icon: ShieldCheck },
+  { id: 'front', label: 'Front Page', icon: Factory },
+  { id: 'intro', label: 'Introduction', icon: ClipboardList },
+  { id: 'analysis', label: 'Analysis', icon: Activity },
   { id: 'recommendation', label: 'Recommendation', icon: Wrench },
 ];
 
@@ -62,144 +66,148 @@ export default function Sidebar({
   const userName = (user && user.name) || 'Engineer';
 
   return (
-    <aside className="sidebar" aria-label="Workspace navigation">
-      <div className="sidebar-grid" aria-hidden="true" />
-      <div className="sidebar-inner">
-        <div className="brand">
-          <PulseMark size={38} tone="glass" />
-          <div className="brand-text">
-            <div className="brand-title">FMEA Report</div>
-            <div className="brand-sub">ALCM - Maintenance Strategy</div>
-          </div>
-          <button type="button" className="sidebar-close" onClick={onClose} aria-label="Close menu">
-            <X size={20} />
-          </button>
+    <aside className="sidebar gt-sidebar" aria-label="Workspace navigation">
+      {/* Logo block: TNB GENCO · TED brandmark and the product name block */}
+      <div className="sidebar-logo gt-sidebar-logo">
+        <button type="button" className="sidebar-close gt-icon-btn" onClick={onClose} aria-label="Close menu">
+          <X size={20} />
+        </button>
+        <img
+          src={brandmark1x}
+          srcSet={`${brandmark1x} 1x, ${brandmark2x} 2x, ${brandmark3x} 3x`}
+          alt="TNB GENCO · TED"
+          className="gt-brandmark"
+        />
+        <div className="gt-product">
+          <p className="gt-product-eyebrow">ALCM - Maintenance Strategy</p>
+          <p className="gt-product-name">FMEA Report</p>
+          <p className="gt-product-desc">Failure Mode &amp; Effects Analysis</p>
         </div>
+      </div>
 
-        <div className="sidebar-scroll">
-          <nav aria-label="Workflow">
-            <div className="side-label">Workflow</div>
-            <ol className="stepper">
-              {STEPS.map((step, index) => {
-                const detail = stepDetail(step.id, report, counts, uploadBusy);
-                const enabled = step.id === 'upload' || Boolean(report);
-                const isCurrent = step.id === nav.step;
-                const isDone = Boolean(report) && index < currentIndex;
-                const state = isCurrent ? 'current' : isDone ? 'done' : 'todo';
+      <div className="sidebar-nav gt-nav">
+        <nav aria-label="Workflow">
+          <div className="side-label">Workflow</div>
+          <ol className="stepper">
+            {STEPS.map((step, index) => {
+              const detail = stepDetail(step.id, report, counts, uploadBusy);
+              const enabled = step.id === 'upload' || Boolean(report);
+              const isCurrent = step.id === nav.step;
+              const isDone = Boolean(report) && index < currentIndex;
+              const state = isCurrent ? 'current' : isDone ? 'done' : 'todo';
+              return (
+                <li key={step.id} className={`step step-${state} ${detail.blocked ? 'step-blocked' : ''}`}>
+                  <button
+                    type="button"
+                    className="step-button"
+                    onClick={() => onStep(step.id)}
+                    disabled={!enabled}
+                    aria-current={isCurrent ? 'step' : undefined}
+                  >
+                    <span className="step-node" aria-hidden="true">
+                      {detail.blocked && !isCurrent ? (
+                        <Lock size={13} />
+                      ) : isDone ? (
+                        <Check size={14} strokeWidth={3} />
+                      ) : (
+                        index + 1
+                      )}
+                    </span>
+                    <span className="step-text">
+                      <span className="step-label">{step.label}</span>
+                      <span className="step-detail" title={detail.text}>
+                        {detail.text}
+                      </span>
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+        </nav>
+
+        {report && (
+          <nav aria-label="Report sections" className="section-nav-wrap">
+            <div className="side-label">Report sections</div>
+            <ul className="section-nav">
+              {SECTIONS.map((section) => {
+                const Icon = section.icon;
+                const active = nav.step === 'review' && nav.section === section.id;
                 return (
-                  <li key={step.id} className={`step step-${state} ${detail.blocked ? 'step-blocked' : ''}`}>
+                  <li key={section.id}>
                     <button
                       type="button"
-                      className="step-button"
-                      onClick={() => onStep(step.id)}
-                      disabled={!enabled}
-                      aria-current={isCurrent ? 'step' : undefined}
+                      className={`section-link gt-nav-item ${active ? 'is-active' : ''}`}
+                      onClick={() => onSection(section.id)}
+                      aria-current={active ? 'page' : undefined}
                     >
-                      <span className="step-node" aria-hidden="true">
-                        {detail.blocked && !isCurrent ? (
-                          <Lock size={13} />
-                        ) : isDone ? (
-                          <Check size={14} strokeWidth={3} />
-                        ) : (
-                          index + 1
-                        )}
-                      </span>
-                      <span className="step-text">
-                        <span className="step-label">{step.label}</span>
-                        <span className="step-detail" title={detail.text}>
-                          {detail.text}
+                      <Icon size={18} aria-hidden="true" />
+                      <span className="section-link-label">{section.label}</span>
+                      {section.id === 'checks' && (counts.error > 0 || counts.warning > 0) && (
+                        <span className={`side-badge ${counts.error ? 'side-badge-error' : 'side-badge-warning'}`}>
+                          {counts.error || counts.warning}
+                          <span className="visually-hidden">
+                            {counts.error
+                              ? (counts.error === 1 ? ' error' : ' errors')
+                              : (counts.warning === 1 ? ' warning' : ' warnings')}
+                          </span>
                         </span>
-                      </span>
+                      )}
                     </button>
+                    {section.id === 'analysis' && report.uoirs.length > 0 && (
+                      <ul className="uoir-subnav">
+                        {report.uoirs.map((u) => {
+                          const c = countIssues(issuesForUoir(report.issues, u.uoir_id));
+                          const selected =
+                            nav.step === 'review' &&
+                            (nav.section === 'analysis' || nav.section === 'recommendation') &&
+                            u.uoir_id === uoirId;
+                          return (
+                            <li key={u.uoir_id}>
+                              <button
+                                type="button"
+                                className={`uoir-link ${selected ? 'is-active' : ''}`}
+                                onClick={() => onSection('analysis', u.uoir_id)}
+                                title={`UOIR ID ${u.uoir_id}: ${u.title}`}
+                              >
+                                <span className="uoir-link-id">{u.uoir_id}</span>
+                                <span className="uoir-link-title">{u.title}</span>
+                                {c.error > 0 && (
+                                  <OctagonAlert size={13} className="uoir-link-flag is-error" role="img" aria-label="has errors" />
+                                )}
+                                {!c.error && c.warning > 0 && (
+                                  <TriangleAlert size={13} className="uoir-link-flag is-warning" role="img" aria-label="has warnings" />
+                                )}
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
                   </li>
                 );
               })}
-            </ol>
+            </ul>
           </nav>
+        )}
+      </div>
 
-          {report && (
-            <nav aria-label="Report sections" className="section-nav-wrap">
-              <div className="side-label">Report sections</div>
-              <ul className="section-nav">
-                {SECTIONS.map((section) => {
-                  const Icon = section.icon;
-                  const active = nav.step === 'review' && nav.section === section.id;
-                  return (
-                    <li key={section.id}>
-                      <button
-                        type="button"
-                        className={`section-link ${active ? 'is-active' : ''}`}
-                        onClick={() => onSection(section.id)}
-                        aria-current={active ? 'page' : undefined}
-                      >
-                        <Icon size={17} aria-hidden="true" />
-                        <span className="section-link-label">{section.label}</span>
-                        {section.id === 'checks' && (counts.error > 0 || counts.warning > 0) && (
-                          <span className={`side-badge ${counts.error ? 'side-badge-error' : 'side-badge-warning'}`}>
-                            {counts.error || counts.warning}
-                            <span className="visually-hidden">
-                              {counts.error
-                                ? (counts.error === 1 ? ' error' : ' errors')
-                                : (counts.warning === 1 ? ' warning' : ' warnings')}
-                            </span>
-                          </span>
-                        )}
-                      </button>
-                      {section.id === 'analysis' && report.uoirs.length > 0 && (
-                        <ul className="uoir-subnav">
-                          {report.uoirs.map((u) => {
-                            const c = countIssues(issuesForUoir(report.issues, u.uoir_id));
-                            const selected =
-                              nav.step === 'review' &&
-                              (nav.section === 'analysis' || nav.section === 'recommendation') &&
-                              u.uoir_id === uoirId;
-                            return (
-                              <li key={u.uoir_id}>
-                                <button
-                                  type="button"
-                                  className={`uoir-link ${selected ? 'is-active' : ''}`}
-                                  onClick={() => onSection('analysis', u.uoir_id)}
-                                  title={`UOIR ID ${u.uoir_id}: ${u.title}`}
-                                >
-                                  <span className="uoir-link-id">{u.uoir_id}</span>
-                                  <span className="uoir-link-title">{u.title}</span>
-                                  {c.error > 0 && (
-                                    <OctagonAlert size={13} className="uoir-link-flag is-error" role="img" aria-label="has errors" />
-                                  )}
-                                  {!c.error && c.warning > 0 && (
-                                    <TriangleAlert size={13} className="uoir-link-flag is-warning" role="img" aria-label="has warnings" />
-                                  )}
-                                </button>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            </nav>
-          )}
-        </div>
-
-        <div className="sidebar-foot">
-          <span className="avatar" aria-hidden="true">
-            {userName.slice(0, 1).toUpperCase()}
-          </span>
-          <div className="user-text">
-            <div className="user-name" title={userName}>
-              {userName}
-            </div>
-            <div className="user-meta">{authMode === 'databricks' ? 'Signed in with Databricks' : 'Signed in'}</div>
+      <div className="sidebar-foot gt-sidebar-foot">
+        <span className="gt-avatar" aria-hidden="true">
+          {userName.slice(0, 1).toUpperCase()}
+        </span>
+        <div className="user-text">
+          <div className="user-name" title={userName}>
+            {userName}
           </div>
-          {authMode !== 'databricks' && (
-            <button type="button" className="signout-btn" onClick={onSignOut}>
-              <LogOut size={15} aria-hidden="true" />
-              Sign out
-            </button>
-          )}
+          <div className="user-meta">{authMode === 'databricks' ? 'Signed in with Databricks' : 'Signed in'}</div>
         </div>
+        {authMode !== 'databricks' && (
+          <button type="button" className="signout-btn" onClick={onSignOut}>
+            <LogOut size={16} aria-hidden="true" />
+            Sign out
+          </button>
+        )}
       </div>
     </aside>
   );
