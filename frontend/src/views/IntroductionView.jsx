@@ -10,7 +10,7 @@ export default function IntroductionView({ report }) {
         Failure details from the UOIR sheet and the analysis team from the Team Member sheet, exactly as written in the workbook.
       </PageHeader>
 
-      <section className="card table-card" aria-labelledby="failure-details-title">
+      <section className="gt-card table-card" aria-labelledby="failure-details-title">
         <div className="table-card-head">
           <h2 id="failure-details-title" className="card-title">
             Failure Details
@@ -49,7 +49,7 @@ export default function IntroductionView({ report }) {
         )}
       </section>
 
-      <section className="card table-card" aria-labelledby="team-title">
+      <section className="gt-card table-card" aria-labelledby="team-title">
         <div className="table-card-head">
           <h2 id="team-title" className="card-title">
             Team Members

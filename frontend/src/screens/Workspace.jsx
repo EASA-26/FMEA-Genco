@@ -243,7 +243,7 @@ export default function Workspace({ user, authMode, features, onSignedOut }) {
             label="Not ready"
             title="The workspace could not be prepared"
             actions={
-              <button type="button" className="btn btn-secondary" onClick={startFresh}>
+              <button type="button" className="gt-btn-secondary" onClick={startFresh}>
                 <RefreshCw size={16} aria-hidden="true" /> Try again
               </button>
             }

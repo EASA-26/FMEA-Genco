@@ -180,6 +180,8 @@ backend/
   tests/                    Automated tests (pytest)
 frontend/
   src/                      React app (screens, views, components, styles, API client)
+  src/styles/genco-theme.css  IZ's Genco Project Theme in plain CSS (tokens + gt- classes), reusable
+  public/favicon.svg        FMEA app icon (gear + warning triangle)
   src/mocks/                SYNTHETIC report and fake API for mock mode
   dist/                     Built frontend served by the backend (created by npm run build)
 tools/

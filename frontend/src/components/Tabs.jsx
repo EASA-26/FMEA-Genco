@@ -14,7 +14,7 @@ export default function Tabs({ tabs, value, onChange, label, idPrefix }) {
   }
 
   return (
-    <div className="tabs" role="tablist" aria-label={label}>
+    <div className="gt-tabs" role="tablist" aria-label={label}>
       {tabs.map((tab, index) => {
         const selected = tab.id === value;
         const Icon = tab.icon;
@@ -30,13 +30,13 @@ export default function Tabs({ tabs, value, onChange, label, idPrefix }) {
             aria-selected={selected}
             aria-controls={`${idPrefix}-panel`}
             tabIndex={selected ? 0 : -1}
-            className={`tab ${selected ? 'is-selected' : ''}`}
+            className={`gt-tab ${selected ? 'is-active' : ''}`}
             onClick={() => onChange(tab.id)}
             onKeyDown={(event) => handleKey(event, index)}
           >
             {Icon && <Icon size={16} aria-hidden="true" />}
             <span>{tab.label}</span>
-            {tab.count !== undefined && <span className="tab-count">{tab.count}</span>}
+            {tab.count !== undefined && <span className="gt-badge">{tab.count}</span>}
           </button>
         );
       })}

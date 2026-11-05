@@ -9,7 +9,7 @@ import { plural } from '../lib/report.js';
 export function BlockedByErrors({ report, counts, onShowChecks, action }) {
   const errors = report.issues.filter((issue) => issue.severity === 'error');
   return (
-    <section className="card blocked" aria-labelledby="blocked-title">
+    <section className="gt-card blocked" aria-labelledby="blocked-title">
       <span className="icon-tile icon-tile-error" aria-hidden="true">
         <OctagonAlert size={24} />
       </span>
@@ -28,7 +28,7 @@ export function BlockedByErrors({ report, counts, onShowChecks, action }) {
           ))}
         </ul>
         {errors.length > 5 && <p className="blocked-more">and {plural(errors.length - 5, 'more error')}.</p>}
-        <button type="button" className="btn btn-primary" onClick={onShowChecks}>
+        <button type="button" className="gt-btn-primary" onClick={onShowChecks}>
           Open Data checks
         </button>
       </div>
@@ -80,15 +80,15 @@ export default function PreviewView({ report, counts, onShowChecks, onExport, on
       actions={
         report.can_export && (
           <>
-            <button type="button" className="btn btn-ghost" onClick={() => setAttempt((n) => n + 1)} disabled={state.phase === 'preparing'}>
+            <button type="button" className="btn-ghost" onClick={() => setAttempt((n) => n + 1)} disabled={state.phase === 'preparing'}>
               <RefreshCw size={16} aria-hidden="true" /> Reload
             </button>
             {state.src && (
-              <a className="btn btn-secondary" href={state.src} target="_blank" rel="noopener noreferrer">
+              <a className="gt-btn-secondary" href={state.src} target="_blank" rel="noopener noreferrer">
                 <ExternalLink size={16} aria-hidden="true" /> Open in new tab
               </a>
             )}
-            <button type="button" className="btn btn-primary" onClick={onExport}>
+            <button type="button" className="gt-btn-primary" onClick={onExport}>
               <Download size={16} aria-hidden="true" /> Export PDF
             </button>
           </>
@@ -117,7 +117,7 @@ export default function PreviewView({ report, counts, onShowChecks, onExport, on
           label="Preview failed"
           title="The preview could not be shown"
           actions={
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setAttempt((n) => n + 1)}>
+            <button type="button" className="gt-btn-secondary btn-sm" onClick={() => setAttempt((n) => n + 1)}>
               <RefreshCw size={15} aria-hidden="true" /> Try again
             </button>
           }

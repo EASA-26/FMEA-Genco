@@ -1,72 +1,49 @@
-/* Design tokens: engineering reliability workspace.
-   Navy structure, electric blue / cyan accents, light readable surfaces.
-   Amber and red are reserved for warnings and blocking errors. */
+/* FMEA app tokens: a mapping layer onto IZ's Genco Project Theme (genco-theme.css,
+   imported first). The theme owns every raw colour (--navy-*, --electric-*, --gray-*,
+   status shades); this file only points the app's own semantic names at them, so
+   the screens keep using the names they always used.
+
+   Deliberately NOT themed: the Front Page cover preview and the strategy/pie colours
+   mirror the generated PDF (see --font-cover and CoverPage.jsx), so they keep the
+   PDF's own palette. */
 :root {
-  /* Structure */
-  --navy-950: #06182d;
-  --navy-900: #0a2340;
-  --navy-850: #0d2a4c;
-  --navy-800: #11335a;
-  --navy-700: #1b4474;
-
-  /* Accents */
-  --blue-700: #1a5a9a;
-  --blue-600: #1e6fbf;
-  --blue-500: #2f86d6;
-  --blue-100: #d8e8f8;
-  --blue-50: #ecf4fc;
-  --cyan-400: #22b8e6;
-  --cyan-300: #6fd3f2;
-  --cyan-50: #e8f8fd;
-
   /* Surfaces and lines */
-  --page: #f4f7fb;
-  --surface: #ffffff;
-  --surface-muted: #f8fafd;
-  --zebra: #f4f8fc;
-  --hairline: #dce4ee;
-  --hairline-strong: #c8d4e2;
-  --table-head: #1e6fbf;
+  --page: var(--gray-50);
+  --surface: var(--white);
+  --surface-muted: var(--gray-50);
+  --zebra: var(--gray-50);
+  --hairline: var(--gray-200);
+  --hairline-strong: var(--gray-300);
+  --table-head: var(--electric-600);
+  /* Table row hover: electric-50 at 50% over white, opaque so sticky cells stay
+     solid. gray-500 muted text on it stays above 4.5:1. */
+  --row-hover: #f5f9ff;
 
-  /* Text */
-  --ink-strong: #0a2340;
-  --ink: #1f2933;
-  --muted: #5b6770;
-  /* Lightest text colour. Still at least 4.5:1 on white, the page and zebra rows,
-     because hints and location labels carry real information. */
-  --faint: #66727e;
+  /* Text. Muted and faint text stay at 4.5:1 or better on white, gray-50 and the
+     zebra rows (gray-500: 4.83 / 4.63:1). On tinted fills use gray-600 or darker. */
+  --ink-strong: var(--gray-900);
+  --ink: var(--gray-700);
+  --muted: var(--gray-500);
+  --faint: var(--gray-500);
 
-  /* Status (always with an icon and a label) */
-  --amber-600: #b7791f;
-  --amber-700: #8a5a12;
-  --amber-400: #fab219;
-  --amber-50: #fff7e6;
-  --amber-100: #fdebc4;
-  --red-600: #c53030;
-  --red-700: #9f2424;
-  --red-50: #fdf0f0;
-  --red-100: #f8d4d4;
-  --green-600: #1d7a55;
-  --green-50: #e9f6ef;
-  --green-100: #cbe9da;
+  /* Shape and depth (guide: rounded-lg 8px small items, rounded-xl 12px buttons,
+     tiles and inputs, rounded-2xl 16px cards and modals) */
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-lg: 16px;
+  --shadow-sm: var(--gt-shadow-sm);
+  --shadow-card: var(--gt-shadow-sm);
+  --shadow-pop: var(--gt-shadow-xl);
+  --ring: var(--shadow-glow);
 
-  /* Shape and depth */
-  --radius-sm: 6px;
-  --radius: 10px;
-  --radius-lg: 12px;
-  --shadow-sm: 0 1px 2px rgba(10, 35, 64, 0.06);
-  --shadow-card: 0 1px 2px rgba(10, 35, 64, 0.05), 0 6px 20px -8px rgba(10, 35, 64, 0.1);
-  --shadow-pop: 0 12px 32px -10px rgba(10, 35, 64, 0.28);
-  --ring: 0 0 0 3px rgba(34, 184, 230, 0.35);
-
-  /* Type */
+  /* Type (the theme uses the system font stack) */
   --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --font-mono: ui-monospace, 'Cascadia Mono', 'Segoe UI Mono', Consolas, 'Liberation Mono', monospace;
   --font-cover: 'Liberation Sans', Arial, Helvetica, sans-serif;
 
-  /* Layout */
-  --sidebar-w: 268px;
-  --topbar-h: 68px;
+  /* Layout (guide: sidebar w-64, top bar h-20, page gutters px-8) */
+  --sidebar-w: 256px;
+  --topbar-h: 80px;
   --content-pad: 32px;
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
 }

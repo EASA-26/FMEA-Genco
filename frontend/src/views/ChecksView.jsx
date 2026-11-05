@@ -20,7 +20,7 @@ function IssueItem({ issue, report, onShowInTable }) {
         <p className="issue-message">{issue.message}</p>
         {(location.length > 0 || issue.uoir_id) && (
           <div className="issue-meta">
-            {issue.uoir_id && <span className="loc loc-uoir">UOIR ID {issue.uoir_id}</span>}
+            {issue.uoir_id && <span className="gt-badge loc-uoir">UOIR ID {issue.uoir_id}</span>}
             {location.map((part) => (
               <span key={part.label} className="loc" title={`${part.label}: ${part.value}`}>
                 <span className="loc-label">{part.label}</span> {part.value}
@@ -30,7 +30,7 @@ function IssueItem({ issue, report, onShowInTable }) {
         )}
       </div>
       {target && (
-        <button type="button" className="btn btn-ghost btn-sm issue-action" onClick={() => onShowInTable(issue)}>
+        <button type="button" className="btn-ghost btn-sm issue-action" onClick={() => onShowInTable(issue)}>
           <LocateFixed size={15} aria-hidden="true" /> Show in table
         </button>
       )}
@@ -53,7 +53,7 @@ function IssueGroup({ group, issues, report, onShowInTable }) {
   );
 
   return (
-    <section className={`card issue-group issue-group-${group.severity}`} aria-labelledby={headingId}>
+    <section className={`gt-card issue-group issue-group-${group.severity}`} aria-labelledby={headingId}>
       {group.collapsible ? (
         <h2 className="issue-group-head" id={headingId}>
           <button type="button" className="issue-group-toggle" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
@@ -91,7 +91,7 @@ export default function ChecksView({ report, counts, onShowInTable, onOpenSectio
         eyebrow="Step 2 · Review Data"
         title="Data checks"
         actions={
-          <button type="button" className="btn btn-secondary" onClick={() => onOpenSection('front')}>
+          <button type="button" className="gt-btn-secondary" onClick={() => onOpenSection('front')}>
             Review the report <ArrowRight size={16} aria-hidden="true" />
           </button>
         }
@@ -103,7 +103,7 @@ export default function ChecksView({ report, counts, onShowInTable, onOpenSectio
         {facts.map((fact) => {
           const Icon = fact.icon;
           return (
-            <div key={fact.label} className="card fact">
+            <div key={fact.label} className="gt-card fact">
               <span className="icon-tile icon-tile-soft" aria-hidden="true">
                 <Icon size={18} />
               </span>
@@ -129,7 +129,7 @@ export default function ChecksView({ report, counts, onShowInTable, onOpenSectio
           label="Ready"
           title={counts.warning ? `Ready to export · ${plural(counts.warning, 'item')} worth checking` : 'Ready to export · no problems found'}
           actions={
-            <button type="button" className="btn btn-secondary btn-sm" onClick={onPreview}>
+            <button type="button" className="gt-btn-secondary btn-sm" onClick={onPreview}>
               <Eye size={15} aria-hidden="true" /> Preview report
             </button>
           }

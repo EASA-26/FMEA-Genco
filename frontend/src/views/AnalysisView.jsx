@@ -15,7 +15,7 @@ function AnalysisTab({ uoir, issues, focus, onShowChecks }) {
         icon={FileWarning}
         title="No analysis table for this UOIR"
         actions={
-          <button type="button" className="btn btn-secondary" onClick={onShowChecks}>
+          <button type="button" className="gt-btn-secondary" onClick={onShowChecks}>
             Open Data checks
           </button>
         }

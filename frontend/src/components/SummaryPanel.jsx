@@ -9,7 +9,7 @@ const StrategyPie = lazy(() => import('./StrategyPie.jsx'));
 
 function StatCard({ icon: Icon, label, value, hint }) {
   return (
-    <div className="card stat-card">
+    <div className="gt-card stat-card">
       <div className="stat-head">
         <span className="icon-tile icon-tile-soft" aria-hidden="true">
           <Icon size={18} />
@@ -32,7 +32,7 @@ export default function SummaryPanel({ uoir, onShowChecks }) {
         icon={ChartPie}
         title="No summary for this UOIR"
         actions={
-          <button type="button" className="btn btn-secondary" onClick={onShowChecks}>
+          <button type="button" className="gt-btn-secondary" onClick={onShowChecks}>
             Open Data checks
           </button>
         }
@@ -50,7 +50,7 @@ export default function SummaryPanel({ uoir, onShowChecks }) {
         <StatCard icon={CircleCheck} label="Task Executed" value={s.task_executed_count} hint="Rows with New Task = No" />
       </div>
 
-      <section className="card summary-card" aria-labelledby={`evr-${uoir.uoir_id}`}>
+      <section className="gt-card summary-card" aria-labelledby={`evr-${uoir.uoir_id}`}>
         <div className="summary-card-head">
           <h3 id={`evr-${uoir.uoir_id}`} className="card-title">
             Existing vs Revised
@@ -134,7 +134,7 @@ export default function SummaryPanel({ uoir, onShowChecks }) {
         </div>
       </section>
 
-      <section className="card summary-card" aria-labelledby={`wc-${uoir.uoir_id}`}>
+      <section className="gt-card summary-card" aria-labelledby={`wc-${uoir.uoir_id}`}>
         <div className="summary-card-head">
           <h3 id={`wc-${uoir.uoir_id}`} className="card-title">
             Work-Centre Execution
