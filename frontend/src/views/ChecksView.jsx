@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { ArrowRight, CalendarDays, ChevronDown, Factory, ListTree, LocateFixed, Users, Eye } from 'lucide-react';
-import PageHeader from '../components/PageHeader.jsx';
+import { CalendarDays, ChevronDown, Factory, ListTree, LocateFixed, Users } from 'lucide-react';
+import { ReviewStepNav } from '../components/StepNav.jsx';
+import WorkbookData from '../components/WorkbookData.jsx';
 import { Alert, SeverityIcon } from '../components/Feedback.jsx';
 import { issueLocation, issueTarget, plural } from '../lib/report.js';
 
@@ -77,27 +78,20 @@ function IssueGroup({ group, issues, report, onShowInTable }) {
   );
 }
 
-export default function ChecksView({ report, counts, onShowInTable, onOpenSection, onPreview }) {
+export default function ChecksView({ report, counts, onShowInTable, onBack, onNext }) {
   const facts = [
-    { icon: Factory, label: 'Station', value: report.station || 'Not found', source: 'Team Member · B2' },
-    { icon: CalendarDays, label: 'Date of Analysis', value: report.analysis_date_text || 'Not found', source: 'Team Member · B3' },
-    { icon: ListTree, label: 'UOIRs', value: String(report.uoirs.length), source: `${plural(report.failure_details.length, 'row')} on UOIR sheet` },
-    { icon: Users, label: 'Team members', value: String(report.team.length), source: 'Team Member sheet' },
+    { icon: Factory, label: 'Station', value: report.station || 'Not found' },
+    { icon: CalendarDays, label: 'Date of Analysis', value: report.analysis_date_text || 'Not found' },
+    { icon: ListTree, label: 'UOIRs', value: String(report.uoirs.length) },
+    { icon: Users, label: 'Team members', value: String(report.team.length) },
   ];
 
   return (
     <div className="view-checks">
-      <PageHeader
-        eyebrow="Step 2 · Review Data"
-        title="Data checks"
-        actions={
-          <button type="button" className="gt-btn-secondary" onClick={() => onOpenSection('front')}>
-            Review the report <ArrowRight size={16} aria-hidden="true" />
-          </button>
-        }
-      >
-        What was read from <strong>{report.source_filename}</strong>, and anything that needs your attention before the report is exported.
-      </PageHeader>
+      {/* The title and subtitle are in the top bar; this row holds the page's buttons only. */}
+      <div className="page-actions">
+        <ReviewStepNav counts={counts} onBack={onBack} onNext={onNext} />
+      </div>
 
       <div className="fact-grid">
         {facts.map((fact) => {
@@ -112,7 +106,6 @@ export default function ChecksView({ report, counts, onShowInTable, onOpenSectio
                 <div className="fact-value" title={fact.value}>
                   {fact.value}
                 </div>
-                <div className="fact-source">{fact.source}</div>
               </div>
             </div>
           );
@@ -128,11 +121,6 @@ export default function ChecksView({ report, counts, onShowInTable, onOpenSectio
           tone="success"
           label="Ready"
           title={counts.warning ? `Ready to export · ${plural(counts.warning, 'item')} worth checking` : 'Ready to export · no problems found'}
-          actions={
-            <button type="button" className="gt-btn-secondary btn-sm" onClick={onPreview}>
-              <Eye size={15} aria-hidden="true" /> Preview report
-            </button>
-          }
         >
           {counts.warning
             ? 'Warnings do not block the export, but please confirm the report reads correctly.'
@@ -149,6 +137,8 @@ export default function ChecksView({ report, counts, onShowInTable, onOpenSectio
           onShowInTable={onShowInTable}
         />
       ))}
+
+      <WorkbookData report={report} />
     </div>
   );
 }

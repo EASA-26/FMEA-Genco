@@ -1,10 +1,24 @@
 import { useEffect, useState } from 'react';
-import { Download, ExternalLink, FileSearch, OctagonAlert, RefreshCw } from 'lucide-react';
+import { Eye, ExternalLink, FileSearch, OctagonAlert, RefreshCw } from 'lucide-react';
 import * as api from '../api/client.js';
-import PageHeader from '../components/PageHeader.jsx';
+import StepNav from '../components/StepNav.jsx';
 import Spinner from '../components/Spinner.jsx';
 import { Alert, EmptyState } from '../components/Feedback.jsx';
 import { plural } from '../lib/report.js';
+
+// PDF open parameters: the browser's PDF viewer shows the pages without its toolbar
+// (no download or print button), so the PDF is only downloaded once, in Export PDF.
+const VIEW_ONLY = 'toolbar=0&navpanes=0';
+
+/** The preview URL with the view-only parameters added once, after any existing fragment. */
+function viewOnly(src) {
+  if (!src) return src;
+  const hashAt = src.indexOf('#');
+  if (hashAt === -1) return `${src}#${VIEW_ONLY}`;
+  const fragment = src.slice(hashAt + 1);
+  if (/(^|&)toolbar=/.test(fragment)) return src;
+  return `${src}${fragment ? '&' : ''}${VIEW_ONLY}`;
+}
 
 export function BlockedByErrors({ report, counts, onShowChecks, action }) {
   const errors = report.issues.filter((issue) => issue.severity === 'error');
@@ -36,7 +50,7 @@ export function BlockedByErrors({ report, counts, onShowChecks, action }) {
   );
 }
 
-export default function PreviewView({ report, counts, onShowChecks, onExport, onWorkbookClosed }) {
+export default function PreviewView({ report, counts, onShowChecks, onBack, onNext, onWorkbookClosed }) {
   const [state, setState] = useState({ phase: 'preparing', src: null, error: '' });
   const [attempt, setAttempt] = useState(0);
 
@@ -49,7 +63,7 @@ export default function PreviewView({ report, counts, onShowChecks, onExport, on
     (async () => {
       try {
         await api.preparePdf();
-        const src = await api.previewSource();
+        const src = viewOnly(await api.previewSource());
         if (!cancelled) setState({ phase: 'loading', src, error: '' });
       } catch (err) {
         if (cancelled || (err && err.name === 'AbortError')) return;
@@ -73,30 +87,19 @@ export default function PreviewView({ report, counts, onShowChecks, onExport, on
     return () => clearTimeout(timer);
   }, [state.phase]);
 
+  // The title and subtitle (with the PDF's file name) are in the top bar.
   const header = (
-    <PageHeader
-      eyebrow="Step 3 · Preview Report"
-      title="Preview report"
-      actions={
-        report.can_export && (
-          <>
-            <button type="button" className="btn-ghost" onClick={() => setAttempt((n) => n + 1)} disabled={state.phase === 'preparing'}>
-              <RefreshCw size={16} aria-hidden="true" /> Reload
-            </button>
-            {state.src && (
-              <a className="gt-btn-secondary" href={state.src} target="_blank" rel="noopener noreferrer">
-                <ExternalLink size={16} aria-hidden="true" /> Open in new tab
-              </a>
-            )}
-            <button type="button" className="gt-btn-primary" onClick={onExport}>
-              <Download size={16} aria-hidden="true" /> Export PDF
-            </button>
-          </>
-        )
-      }
-    >
-      The PDF exactly as it will be exported: {report.pdf_filename}
-    </PageHeader>
+    <div className="page-actions">
+      <StepNav
+        back={{ label: 'Review Data', onClick: onBack }}
+        next={{
+          label: 'Export PDF Report',
+          onClick: onNext,
+          disabled: !report.can_export,
+          reason: `Fix ${plural(counts.error, 'error')} to export`,
+        }}
+      />
+    </div>
   );
 
   if (!report.can_export) {
@@ -125,37 +128,60 @@ export default function PreviewView({ report, counts, onShowChecks, onExport, on
           {state.error}
         </Alert>
       ) : (
-        <div className="pdf-frame">
-          {state.src && (
-            <iframe
-              key={`${attempt}-${state.src}`}
-              title={`PDF preview of ${report.pdf_filename}`}
-              src={state.src}
-              onLoad={() => setState((s) => (s.phase === 'loading' ? { ...s, phase: 'ready' } : s))}
-            />
-          )}
-          {state.phase !== 'ready' && (
-            <div className="pdf-overlay" role="status" aria-live="polite">
-              {state.phase === 'preparing' ? (
-                <EmptyState icon={FileSearch} title="Preparing the PDF…">
-                  <span className="inline-spinner">
-                    <Spinner size={16} /> Building every page from your workbook. This can take a few seconds.
-                  </span>
-                </EmptyState>
-              ) : (
-                <EmptyState icon={FileSearch} title="Opening the preview…">
-                  <span className="inline-spinner">
-                    <Spinner size={16} /> Almost there.
-                  </span>
-                </EmptyState>
+        <section className="preview-panel" aria-label="PDF preview">
+          <div className="preview-toolbar">
+            <span className="preview-toolbar-note">
+              <Eye size={16} aria-hidden="true" />
+              Preview only. Download or email the PDF in the next step.
+            </span>
+            <div className="preview-toolbar-actions">
+              <button
+                type="button"
+                className="btn-ghost btn-sm"
+                onClick={() => setAttempt((n) => n + 1)}
+                disabled={state.phase === 'preparing'}
+              >
+                <RefreshCw size={16} aria-hidden="true" /> Reload
+              </button>
+              {state.src && (
+                <a className="gt-btn-secondary btn-sm" href={state.src} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink size={16} aria-hidden="true" /> Open in new tab
+                </a>
               )}
             </div>
-          )}
-        </div>
+          </div>
+          <div className="pdf-frame">
+            {state.src && (
+              <iframe
+                key={`${attempt}-${state.src}`}
+                title={`PDF preview of ${report.pdf_filename}`}
+                src={state.src}
+                onLoad={() => setState((s) => (s.phase === 'loading' ? { ...s, phase: 'ready' } : s))}
+              />
+            )}
+            {state.phase !== 'ready' && (
+              <div className="pdf-overlay" role="status" aria-live="polite">
+                {state.phase === 'preparing' ? (
+                  <EmptyState icon={FileSearch} title="Preparing the PDF…">
+                    <span className="inline-spinner">
+                      <Spinner size={16} /> Building every page from your workbook. This can take a few seconds.
+                    </span>
+                  </EmptyState>
+                ) : (
+                  <EmptyState icon={FileSearch} title="Opening the preview…">
+                    <span className="inline-spinner">
+                      <Spinner size={16} /> Almost there.
+                    </span>
+                  </EmptyState>
+                )}
+              </div>
+            )}
+          </div>
+        </section>
       )}
       {state.phase !== 'error' && (
         <p className="preview-hint">
-          If the preview stays blank, your browser may not show PDFs inside the page. Use “Open in new tab” or Export PDF instead.
+          If the preview stays blank, your browser may not show PDFs inside the page. Use “Open in new tab” instead.
         </p>
       )}
     </div>

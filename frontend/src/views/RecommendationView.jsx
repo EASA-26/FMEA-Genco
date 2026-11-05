@@ -1,5 +1,5 @@
 import { CircleCheck, CircleDashed, ListTree, OctagonAlert, Sparkles, TriangleAlert, Wrench } from 'lucide-react';
-import PageHeader from '../components/PageHeader.jsx';
+import { ReviewStepNav } from '../components/StepNav.jsx';
 import Tabs from '../components/Tabs.jsx';
 import UoirSelector from '../components/UoirSelector.jsx';
 import UoirHeading from '../components/UoirHeading.jsx';
@@ -94,11 +94,12 @@ function RecommendationGroup({ group, tab, tasksByRow }) {
   );
 }
 
-export default function RecommendationView({ report, uoir, onSelectUoir, tab, onTab }) {
+// `counts` are the data-check counts (they decide whether Next can open the preview).
+export default function RecommendationView({ report, counts, uoir, onSelectUoir, tab, onTab, onBack, onNext }) {
   const header = (
-    <PageHeader eyebrow="Review Data · Report section" title="Recommendation">
-      Maintenance tasks for each UOIR, grouped by Equipment and KKS.
-    </PageHeader>
+    <div className="page-actions">
+      <ReviewStepNav counts={counts} onBack={onBack} onNext={onNext} />
+    </div>
   );
 
   if (!uoir) {
@@ -106,19 +107,21 @@ export default function RecommendationView({ report, uoir, onSelectUoir, tab, on
       <div className="view-recommendation">
         {header}
         <EmptyState icon={ListTree} title="No UOIRs found">
-          The UOIR sheet did not list any UOIRs. See Data checks for what to fix.
+          The workbook does not list any UOIRs. See Data checks for what to fix.
         </EmptyState>
       </div>
     );
   }
 
-  const counts = newTaskCounts(uoir);
-  const activeTab = tab === 'notset' && counts.notSet === 0 ? 'yes' : tab;
+  const taskCounts = newTaskCounts(uoir);
+  const activeTab = tab === 'notset' && taskCounts.notSet === 0 ? 'yes' : tab;
   const tabs = [
-    { id: 'yes', label: 'New Task = Yes', count: counts.yes, icon: Sparkles },
-    { id: 'no', label: 'New Task = No', count: counts.no, icon: CircleCheck },
+    { id: 'yes', label: 'New Task = Yes', count: taskCounts.yes, icon: Sparkles },
+    { id: 'no', label: 'New Task = No', count: taskCounts.no, icon: CircleCheck },
   ];
-  if (counts.notSet > 0) tabs.push({ id: 'notset', label: 'New Task not set', count: counts.notSet, icon: CircleDashed });
+  if (taskCounts.notSet > 0) {
+    tabs.push({ id: 'notset', label: 'New Task not set', count: taskCounts.notSet, icon: CircleDashed });
+  }
 
   const groups = uoir.recommendations
     .map((group) => ({ ...group, rows: group.rows.filter((row) => matchesNewTaskTab(row, activeTab)) }))

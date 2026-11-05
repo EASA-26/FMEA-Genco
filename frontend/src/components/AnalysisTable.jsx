@@ -120,8 +120,11 @@ export default function AnalysisTable({ uoir, issues, focus }) {
   );
 
   // Bring a row (and cell) picked in Data checks into view and highlight it briefly.
+  // Keyboard focus moves to the table itself (its scroller), so arrow keys scroll it;
+  // this runs before the workspace's own focus move, which then leaves it here.
   useEffect(() => {
     if (!focus || !scrollRef.current) return undefined;
+    scrollRef.current.focus({ preventScroll: true });
     const letters = cellColumnLetters(focus.cell);
     const colIndex = letters ? table.column_letters.indexOf(letters) : -1;
     setFlash({ row: focus.row, col: colIndex });
@@ -158,6 +161,7 @@ export default function AnalysisTable({ uoir, issues, focus }) {
       className="table-scroll analysis-scroll"
       ref={scrollRef}
       tabIndex={0}
+      role="region"
       aria-label={`FMEA Analysis table for UOIR ID ${uoir.uoir_id}`}
       onScroll={hideTip}
     >

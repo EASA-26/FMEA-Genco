@@ -1,22 +1,22 @@
 import { CalendarDays, Factory, FileDown, PenLine } from 'lucide-react';
-import PageHeader from '../components/PageHeader.jsx';
 import CoverPage from '../components/CoverPage.jsx';
+import { ReviewStepNav } from '../components/StepNav.jsx';
 
-export default function FrontPageView({ report }) {
+// Station and Date of Analysis carry no "sheet, cell" caption: Review Data does not
+// name the cells values come from.
+export default function FrontPageView({ report, counts, onBack, onNext }) {
   const rows = [
     {
       icon: Factory,
       label: 'Station',
       value: report.station,
       missing: 'Not found in the workbook',
-      source: 'Team Member sheet, cell B2',
     },
     {
       icon: CalendarDays,
       label: 'Date of Analysis',
       value: report.analysis_date_text,
       missing: 'Not found in the workbook',
-      source: 'Team Member sheet, cell B3',
     },
     {
       icon: PenLine,
@@ -34,9 +34,9 @@ export default function FrontPageView({ report }) {
 
   return (
     <div className="view-front">
-      <PageHeader eyebrow="Review Data · Report section" title="Front Page">
-        The cover of the report, as it will appear on the first page of the PDF.
-      </PageHeader>
+      <div className="page-actions">
+        <ReviewStepNav counts={counts} onBack={onBack} onNext={onNext} />
+      </div>
 
       <div className="front-layout">
         <CoverPage station={report.station} analysisDate={report.analysis_date_text} />
@@ -54,7 +54,7 @@ export default function FrontPageView({ report }) {
                   <div>
                     <div className="source-label">{row.label}</div>
                     <div className={`source-value ${row.value ? '' : 'is-missing'}`}>{row.value || row.missing}</div>
-                    <div className="source-origin">{row.source}</div>
+                    {row.source && <div className="source-origin">{row.source}</div>}
                   </div>
                 </li>
               );

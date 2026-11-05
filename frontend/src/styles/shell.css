@@ -289,56 +289,48 @@
   color: var(--amber-300);
 }
 
-/* User block at the bottom (where the guide puts the theme toggle). */
+/* Team block at the bottom (where the guide puts the theme toggle): the team that
+   runs this process. The signed-in user is in the top bar. */
 .sidebar-foot {
   display: flex;
   align-items: center;
   gap: 10px;
+  padding: 14px 16px;
 }
 
-.user-text {
+/* Translucent tile on the frame, like the product block's app-icon tile */
+.sidebar-team-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgb(61 143 255 / 0.1);
+  color: var(--electric-300);
+  box-shadow: inset 0 0 0 1px var(--gt-hairline-on-frame);
+}
+
+.sidebar-team-text {
   flex: 1;
   min-width: 0;
 }
 
-.user-name {
-  overflow: hidden;
-  font-size: 14px;
+.sidebar-team-label {
+  font-size: 11px;
   font-weight: 600;
-  color: var(--white);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.user-meta {
-  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
   color: var(--gt-ink-muted-on-frame);
 }
 
-/* Sign out: the guide's sidebar toggle-row style. */
-.signout-btn {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 10px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--gt-ink-muted-on-frame);
-  font: inherit;
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 20px;
-  cursor: pointer;
-  transition:
-    background-color var(--gt-duration) var(--gt-ease),
-    color var(--gt-duration) var(--gt-ease);
-}
-
-.signout-btn:hover {
-  background: var(--gt-fill-row-hover-on-frame);
+.sidebar-team-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 18px;
   color: var(--white);
+  overflow-wrap: anywhere;
 }
 
 /* ------------------------------------------------------------------ Main column */
@@ -374,50 +366,25 @@
   display: none;
 }
 
-.topbar-file {
-  display: flex;
+/* The page's title and subtitle: the theme's .gt-topbar-title (24px bold white h1) and
+   .gt-topbar-subtitle (14px, electric-100 at 80%). Pages have no heading of their own,
+   so this h1 is the only one on the page. App additions: one line each, cut with "…". */
+.topbar-heading {
   flex: 1;
-  align-items: center;
-  gap: 12px;
   min-width: 0;
 }
 
-/* Translucent file tile on the frame (like the login story badge) */
-.file-icon {
-  display: grid;
-  flex: none;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  background: rgb(61 143 255 / 0.1);
-  color: var(--electric-300);
-  box-shadow: inset 0 0 0 1px var(--gt-hairline-on-frame);
-}
-
-.topbar-file-text {
-  min-width: 0;
-}
-
-/* Title style (white, bold, tight) at 18px: a file name, not a page title. */
-.topbar-file-name {
+.topbar-title,
+.topbar-subtitle {
   overflow: hidden;
-  font-size: 18px;
-  font-weight: 700;
-  line-height: 26px;
-  letter-spacing: -0.025em;
-  color: var(--white);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.topbar-file-meta {
-  overflow: hidden;
-  font-size: 14px;
-  line-height: 20px;
-  color: var(--gt-ink-muted-on-frame);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+/* Focused from script after a step change (tabIndex -1): no ring on a heading that
+   is not a control, so the move reads as a page change. */
+.topbar-title:focus {
+  outline: none;
 }
 
 .topbar-chips {
@@ -426,34 +393,43 @@
   gap: 6px;
 }
 
-.topbar-actions {
+/* Signed-in user, right of the top bar: avatar, name, "Signed in" and Sign out.
+   A hairline on the left sets it apart from the workbook status. */
+.topbar-user {
   display: flex;
   flex: none;
   align-items: center;
   gap: 10px;
+  padding-left: 16px;
+  border-left: 1px solid var(--gt-divider-on-frame);
 }
 
-.export-cta {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+/* Capped so a long name never squeezes out the page title (full name on hover). */
+.topbar-user-text {
+  min-width: 0;
+  max-width: 160px;
 }
 
-.btn-export {
-  min-width: 132px;
-}
-
-.export-reason {
-  max-width: 170px;
-  font-size: 12px;
+.topbar-user-name {
+  overflow: hidden;
+  font-size: 14px;
   font-weight: 600;
-  line-height: 1.3;
-  text-align: right;
-  color: var(--gt-ink-muted-on-frame);
+  line-height: 20px;
+  color: var(--white);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.export-reason.is-error {
-  color: var(--red-400);
+.topbar-user-meta {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--gt-ink-muted-on-frame);
+  white-space: nowrap;
+}
+
+/* The theme's secondary button on the frame (navy-500, hairline border). */
+.topbar-signout {
+  margin-left: 4px;
 }
 
 /* The canvas: gray-50 with a 24px top-left corner on the navy frame. */
@@ -486,12 +462,6 @@
 }
 
 /* ------------------------------------------------------------------ Narrow screens */
-@media (max-width: 1360px) {
-  .topbar-file-meta {
-    max-width: 260px;
-  }
-}
-
 @media (max-width: 1100px) {
   :root {
     --content-pad: 22px;
@@ -557,16 +527,98 @@
     padding-bottom: 22px;
   }
 
-  .topbar-file .file-icon {
-    display: none;
+  .topbar-title {
+    font-size: 20px;
+    line-height: 28px;
   }
 
+  /* Row 1: menu, page title, user. Row 2: the check status chips. */
   .topbar-chips {
     order: 3;
+    flex: 1 1 100%;
+    flex-wrap: wrap;
   }
 
-  .topbar-actions {
-    order: 4;
-    margin-left: auto;
+  .topbar-user {
+    padding-left: 10px;
+  }
+
+  /* Name and "Signed in" leave the view but stay for screen readers
+     (same rules as .visually-hidden). */
+  .topbar-user-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+}
+
+/* Phones: Sign out becomes an icon button; its hidden label stays its accessible name. */
+@media (max-width: 640px) {
+  .topbar-signout {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    margin-left: 0;
+  }
+
+  .topbar-signout-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+}
+
+/* ------------------------------------------------------------------ Report complete */
+/* views/CompleteView.jsx: shown after Finish, once the workbook has been cleared. */
+.complete {
+  display: flex;
+  justify-content: center;
+  padding-top: clamp(16px, 8vh, 72px);
+}
+
+.complete-card {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 480px;
+  padding: 40px 32px;
+  text-align: center;
+}
+
+/* Success tile: the theme's icon tile in the success tint (green on green-50). */
+.complete-icon {
+  margin-bottom: 4px;
+  background: var(--gt-success-tint);
+  color: var(--gt-success-text);
+  box-shadow: inset 0 0 0 1px rgb(34 197 94 / 0.25);
+}
+
+/* The title "Report complete" is in the top bar; the card says what happened. */
+.complete-text {
+  max-width: 360px;
+  font-size: 15px;
+  color: var(--ink);
+}
+
+.complete-action {
+  margin-top: 12px;
+}
+
+@media (max-width: 640px) {
+  .complete-card {
+    padding: 32px 20px;
   }
 }

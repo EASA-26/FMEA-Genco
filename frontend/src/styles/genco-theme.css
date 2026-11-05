@@ -26,7 +26,8 @@
    CLASS INDEX
    Layout     gt-frame, gt-frame-body, gt-canvas, gt-main
    Sidebar    gt-sidebar, gt-sidebar-logo, gt-brandmark, gt-product,
-              gt-product-eyebrow, gt-product-name, gt-product-desc, gt-nav,
+              gt-product-head, gt-product-icon, gt-product-name,
+              gt-product-desc, gt-nav,
               gt-nav-item (+ .is-active), gt-sidebar-foot, gt-theme-toggle,
               gt-toggle-track (+ .is-on), gt-toggle-knob
    Top bar    gt-topbar, gt-topbar-title, gt-topbar-subtitle, gt-icon-btn,
@@ -515,33 +516,54 @@ body {
   margin: 4px auto 20px;
 }
 
+/* Product block (guide section 6): the app icon next to the app name, then the
+   one-line description underneath. On every page, so the icon is always in view. */
 .gt-product {
-  padding: 20px;
+  padding: 16px;
   border: 1px solid var(--gt-hairline-on-frame);
   border-radius: 8px;
   background: var(--gt-product-bg);
   box-shadow: var(--gt-shadow-inner-product);
 }
 
-.gt-product-eyebrow {
-  margin: 0 0 4px;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 16px;
+.gt-product-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* 44px tile: electric-400 at 10%, a 1px inset ring of electric-200 at 14%, the icon
+   in electric-300 at 24px. */
+.gt-product-icon {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--gt-fill-hover-on-frame);
+  box-shadow: inset 0 0 0 1px var(--gt-hairline-on-frame);
   color: var(--electric-300);
 }
 
+.gt-product-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
 .gt-product-name {
+  min-width: 0;
   margin: 0;
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 700;
-  line-height: 32px;
+  line-height: 28px;
   letter-spacing: -0.025em;
   color: var(--white);
 }
 
 .gt-product-desc {
-  margin: 8px 0 0;
+  margin: 12px 0 0;
   font-size: 14px;
   font-weight: 500;
   line-height: 20px;

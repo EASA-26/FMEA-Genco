@@ -1,16 +1,13 @@
-import { CircleCheck, Download, FileSpreadsheet, Lock, Menu, OctagonAlert, TriangleAlert, Upload } from 'lucide-react';
+import { CircleCheck, LogOut, Menu, OctagonAlert, TriangleAlert } from 'lucide-react';
 import { plural } from '../lib/report.js';
 
-export default function TopBar({ report, counts, uploadBusy, onMenu, onShowChecks, onUploadAnother, onExport }) {
-  let exportReason = '';
-  if (!report) exportReason = 'Upload a workbook first';
-  else if (counts.error) exportReason = `Fix ${plural(counts.error, 'error')} to export`;
-  else if (uploadBusy) exportReason = 'Wait for the upload to finish';
-  const exportDisabled = Boolean(exportReason);
-  // Station and date can be long; the full text stays available on hover when it is cut off.
-  const fileMeta = report
-    ? [report.station, report.analysis_date_text].filter(Boolean).join(' · ') || 'Station and date not found'
-    : '';
+// The top bar carries the page's title and subtitle (pages have no heading of their
+// own, so this h1 is the page's only one), the data-check status and who is signed in.
+// Exporting is step 4 of the workflow (with Back / Next on every step), so there is no
+// Export button here. The workspace focuses the title (#page-title) when a step's own
+// button that moved on has disappeared, so it is focusable from script only.
+export default function TopBar({ heading, report, counts, user, authMode, onMenu, onShowChecks, onSignOut }) {
+  const userName = (user && user.name) || 'Engineer';
 
   return (
     <header className="topbar gt-topbar">
@@ -18,24 +15,15 @@ export default function TopBar({ report, counts, uploadBusy, onMenu, onShowCheck
         <Menu size={20} />
       </button>
 
-      <div className="topbar-file">
-        <span className="file-icon" aria-hidden="true">
-          <FileSpreadsheet size={18} />
-        </span>
-        {report ? (
-          <div className="topbar-file-text">
-            <div className="topbar-file-name" title={report.source_filename}>
-              {report.source_filename}
-            </div>
-            <div className="topbar-file-meta" title={fileMeta}>
-              {fileMeta}
-            </div>
-          </div>
-        ) : (
-          <div className="topbar-file-text">
-            <div className="topbar-file-name">No workbook uploaded</div>
-            <div className="topbar-file-meta">Upload a workbook to begin</div>
-          </div>
+      {/* Long titles and subtitles (file names) are cut with "…"; the full text shows on hover. */}
+      <div className="topbar-heading">
+        <h1 id="page-title" className="gt-topbar-title topbar-title" tabIndex={-1} title={heading.title}>
+          {heading.title}
+        </h1>
+        {heading.subtitle && (
+          <p className="gt-topbar-subtitle topbar-subtitle" title={heading.subtitle}>
+            {heading.subtitle}
+          </p>
         )}
       </div>
 
@@ -62,30 +50,25 @@ export default function TopBar({ report, counts, uploadBusy, onMenu, onShowCheck
         </div>
       )}
 
-      <div className="topbar-actions">
-        {report && (
-          <button type="button" className="gt-btn-secondary" onClick={onUploadAnother} disabled={uploadBusy}>
-            <Upload size={18} aria-hidden="true" />
-            Upload another
+      {/* Signed-in user. On narrow screens the name is hidden from view (screen readers
+          still hear it) and Sign out shrinks to its icon. */}
+      <div className="topbar-user">
+        <span className="gt-avatar" aria-hidden="true">
+          {userName.slice(0, 1).toUpperCase()}
+        </span>
+        <div className="topbar-user-text">
+          <div className="topbar-user-name" title={userName}>
+            {userName}
+          </div>
+          <div className="topbar-user-meta">{authMode === 'databricks' ? 'Signed in with Databricks' : 'Signed in'}</div>
+        </div>
+        {/* Databricks handles sign-in itself, so there is nothing to sign out of here. */}
+        {authMode !== 'databricks' && (
+          <button type="button" className="gt-btn-secondary topbar-signout" onClick={onSignOut}>
+            <LogOut size={16} aria-hidden="true" />
+            <span className="topbar-signout-label">Sign out</span>
           </button>
         )}
-        <div className="export-cta">
-          {exportDisabled && (
-            <span id="export-reason" className={`export-reason ${counts.error ? 'is-error' : ''}`}>
-              {exportReason}
-            </span>
-          )}
-          <button
-            type="button"
-            className="gt-btn-primary btn-export"
-            onClick={onExport}
-            disabled={exportDisabled}
-            aria-describedby={exportDisabled ? 'export-reason' : undefined}
-          >
-            {exportDisabled ? <Lock size={18} aria-hidden="true" /> : <Download size={18} aria-hidden="true" />}
-            Export PDF
-          </button>
-        </div>
       </div>
     </header>
   );

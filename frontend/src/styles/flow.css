@@ -1,0 +1,48 @@
+/* ------------------------------------------------------------------ Page actions */
+/* Pages have no heading of their own: the title and subtitle are in the top bar.
+   A page's buttons sit in this right-aligned row at the top, with no heading. */
+.page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* ------------------------------------------------------------------ Step navigation */
+/* Back / Next buttons between the workflow steps (components/StepNav.jsx). */
+/* 12px between buttons: the guide's gap-3 for action rows. */
+.step-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.step-nav-next-wrap {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.step-nav-reason {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--red-700);
+}
+
+/* Disabled Next: the theme's 60% fade, and no pointer. */
+.step-nav-next:disabled {
+  cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  .step-nav {
+    width: 100%;
+    justify-content: space-between;
+  }
+}

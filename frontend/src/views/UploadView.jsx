@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import {
   ArrowRight,
   CloudUpload,
@@ -11,12 +11,12 @@ import {
   ShieldCheck,
   X,
 } from 'lucide-react';
-import PageHeader from '../components/PageHeader.jsx';
-import AppIcon from '../components/AppIcon';
 import Spinner from '../components/Spinner.jsx';
 import { Alert } from '../components/Feedback.jsx';
 import { ACCEPTED_EXTENSIONS, MAX_UPLOAD_MB } from '../api/client.js';
-import { countIssues, formatDateTime, formatFileSize, plural } from '../lib/report.js';
+import { countIssues, formatFileSize, plural } from '../lib/report.js';
+
+const REMOVE_FIRST_NOTE = 'Remove the current workbook first to upload a different one.';
 
 export default function UploadView({
   report,
@@ -35,19 +35,39 @@ export default function UploadView({
   const [removing, setRemoving] = useState(false);
   const [removeError, setRemoveError] = useState('');
   const busy = upload.status === 'uploading' || upload.status === 'processing';
+  const loaded = Boolean(report) && !busy;
   const browseRef = useRef(null);
+  const proceedRef = useRef(null);
+  const removeRef = useRef(null);
   const wasBusy = useRef(busy);
+  const focusAfterRemove = useRef(null); // 'browse' after a removal, 'remove' after a failed one
+  const fileNameId = useId();
+  const fileMetaId = useId();
 
-  // The progress panel (with its Cancel button) replaces the Browse button while
-  // uploading. When it goes away after a cancel or a failed upload, put keyboard
-  // focus back on Browse instead of losing it to the page.
+  // The progress panel (with its Cancel button) replaces the card's contents while
+  // uploading. When it goes away, put keyboard focus on the next thing to do instead
+  // of losing it to the page: Proceed after a successful upload, Browse after a
+  // cancel or a failed one.
   useEffect(() => {
-    if (wasBusy.current && !busy && browseRef.current) {
+    if (wasBusy.current && !busy) {
       const active = document.activeElement;
-      if (!active || active === document.body) browseRef.current.focus();
+      const target = report ? proceedRef.current : browseRef.current;
+      if (target && (!active || active === document.body)) target.focus();
     }
     wasBusy.current = busy;
-  }, [busy]);
+  }, [busy, report]);
+
+  // Remove swaps the file panel for the drop area (or re-enables Remove after a
+  // failure); focus follows once the new buttons are on screen.
+  useEffect(() => {
+    if (focusAfterRemove.current === 'browse' && !report && browseRef.current) {
+      focusAfterRemove.current = null;
+      browseRef.current.focus();
+    } else if (focusAfterRemove.current === 'remove' && !removing && removeRef.current) {
+      focusAfterRemove.current = null;
+      removeRef.current.focus();
+    }
+  }, [report, removing]);
 
   function pick(files) {
     if (!files || files.length === 0) return;
@@ -55,25 +75,36 @@ export default function UploadView({
     onFile(files[0]);
   }
 
+  // preventDefault on every drag over the card, even when it will not upload:
+  // otherwise the browser opens the dropped file, leaving the page and discarding
+  // the workbook that is open.
   function handleDrop(event) {
     event.preventDefault();
     setDragging(false);
     if (busy) return;
+    if (report) {
+      if (event.dataTransfer.files.length > 0) setNote(REMOVE_FIRST_NOTE);
+      return;
+    }
     pick(event.dataTransfer.files);
   }
 
   function handleDragOver(event) {
     event.preventDefault();
-    if (!busy) setDragging(true);
+    if (!busy && !report) setDragging(true);
   }
 
   async function handleRemove() {
     setRemoving(true);
     setRemoveError('');
+    focusAfterRemove.current = 'browse';
     try {
       await onRemove();
+      setNote('');
     } catch (err) {
+      focusAfterRemove.current = 'remove';
       setRemoveError(err.message);
+    } finally {
       setRemoving(false);
     }
   }
@@ -82,20 +113,10 @@ export default function UploadView({
 
   return (
     <div className="view-upload">
-      <PageHeader
-        eyebrow="Step 1 · Upload Excel"
-        title={report ? 'Upload another workbook' : 'Upload the FMEA workbook'}
-        icon={<AppIcon app="fmea" className="gt-app-icon" />}
-      >
-        The workbook is read and checked straight away. Nothing is changed in your file, and macros are never run.
-      </PageHeader>
-
+      {/* No heading here: the title is in the top bar and the app icon in the sidebar. */}
       <p className="memory-note">
         <ShieldCheck size={16} aria-hidden="true" />
-        <span>
-          Your workbook is read in memory only and never saved. It is discarded, with its report and PDF, when you sign out or
-          leave the page.
-        </span>
+        <span>Nothing is saved in this app. Your workbook and report are cleared when you sign out or close this page.</span>
       </p>
 
       {notice && !busy && (
@@ -111,37 +132,6 @@ export default function UploadView({
           }
         >
           {notice}
-        </Alert>
-      )}
-
-      {report && !busy && (
-        <section className="gt-card current-file" aria-label="Current workbook">
-          <span className="gt-icon-tile" aria-hidden="true">
-            <FileSpreadsheet size={22} />
-          </span>
-          <div className="current-file-text">
-            <div className="current-file-label">Current workbook</div>
-            <div className="current-file-name">{report.source_filename}</div>
-            <div className="current-file-meta">
-              {report.station || 'Station not found'} · {report.analysis_date_text || 'Date not found'} ·{' '}
-              {plural(report.uoirs.length, 'UOIR')} · read {formatDateTime(report.generated_at)}
-              {counts.error > 0 && <> · {plural(counts.error, 'error')}</>}
-            </div>
-          </div>
-          <div className="current-file-actions">
-            <button type="button" className="btn-ghost" onClick={handleRemove} disabled={removing}>
-              {removing ? <Spinner size={16} /> : <Trash2 size={16} aria-hidden="true" />}
-              Remove
-            </button>
-            <button type="button" className="gt-btn-primary" onClick={onContinue}>
-              Continue reviewing <ArrowRight size={16} aria-hidden="true" />
-            </button>
-          </div>
-        </section>
-      )}
-      {removeError && (
-        <Alert tone="error" label="Not removed">
-          {removeError}
         </Alert>
       )}
 
@@ -166,14 +156,14 @@ export default function UploadView({
       )}
 
       <section
-        className={`dropzone ${dragging ? 'is-dragging' : ''} ${busy ? 'is-busy' : ''}`}
+        className={`dropzone ${dragging ? 'is-dragging' : ''} ${busy ? 'is-busy' : ''} ${loaded ? 'has-file' : ''}`}
         onDragOver={handleDragOver}
         onDragEnter={handleDragOver}
         onDragLeave={(e) => {
           if (!e.currentTarget.contains(e.relatedTarget)) setDragging(false);
         }}
         onDrop={handleDrop}
-        aria-label="Workbook upload"
+        aria-label={loaded ? 'Uploaded workbook' : 'Workbook upload'}
       >
         <div className="dropzone-grid" aria-hidden="true" />
         {busy ? (
@@ -205,6 +195,53 @@ export default function UploadView({
             <button type="button" className="btn-ghost" onClick={onCancel}>
               <X size={16} aria-hidden="true" /> Cancel
             </button>
+          </div>
+        ) : loaded ? (
+          <div className="file-panel">
+            <span className="icon-tile icon-tile-glow" aria-hidden="true">
+              <FileSpreadsheet size={28} />
+            </span>
+            <div className="file-panel-label">Workbook uploaded</div>
+            <div className="file-panel-name" id={fileNameId}>
+              {report.source_filename}
+            </div>
+            <div className="file-panel-meta" id={fileMetaId}>
+              {report.station || 'Station not found'} · {report.analysis_date_text || 'Date not found'} ·{' '}
+              {plural(report.uoirs.length, 'UOIR')}
+              {counts.error > 0 && (
+                <>
+                  {' '}
+                  · <span className="file-panel-errors">{plural(counts.error, 'error')}</span>
+                </>
+              )}
+            </div>
+            <div className="file-panel-actions">
+              <button
+                ref={removeRef}
+                type="button"
+                className="gt-btn-secondary btn-lg"
+                onClick={handleRemove}
+                disabled={removing}
+              >
+                {removing ? <Spinner size={18} /> : <Trash2 size={18} aria-hidden="true" />}
+                {removing ? 'Removing…' : 'Remove'}
+              </button>
+              <button
+                ref={proceedRef}
+                type="button"
+                className="gt-btn-primary btn-lg"
+                onClick={onContinue}
+                disabled={removing}
+                aria-describedby={`${fileNameId} ${fileMetaId}`}
+              >
+                Proceed to Review Data <ArrowRight size={18} aria-hidden="true" />
+              </button>
+            </div>
+            {removeError && (
+              <Alert tone="error" label="Not removed" className="file-panel-alert">
+                {removeError}
+              </Alert>
+            )}
           </div>
         ) : (
           <div className="dropzone-body">

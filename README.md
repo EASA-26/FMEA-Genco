@@ -2,12 +2,15 @@
 
 A web app that turns an engineer's FMEA workbook (Excel) into the
 **Failure Mode Effect Analysis (FMEA) Report** PDF. You upload the workbook,
-check what the app read from it, preview the report and download the PDF. On
-your own Windows computer you can also open the PDF in a new Outlook email.
+review what the app read from it, preview the report and download the PDF.
+Emailing the PDF is optional: on your own Windows computer with classic
+Outlook, **Send via Outlook** opens a new email with the PDF already attached.
 
 The app is **one-time use**. There is no database: the workbook is read in
 memory and never saved, and the report, preview and PDF only last while you
-have the page open (see [One-time use](#one-time-use)).
+have the page open. As the Upload step puts it: "Nothing is saved in this app.
+Your workbook and report are cleared when you sign out or close this page."
+(see [One-time use](#one-time-use)).
 
 Accurate reading and counting is the main goal. The app never makes up data or
 drops it without telling you, and it never counts a row twice. When something
@@ -43,51 +46,154 @@ real station, person or plant record.
 ## What the app does
 
 ```
-Sign in  ->  Upload Excel  ->  Review Data  ->  Preview Report  ->  Export PDF
+Sign in  ->  1 Upload Excel  ->  2 Review Data  ->  3 Preview Report  ->  4 Export PDF  ->  Finish
 ```
 
-1. **Upload Excel.** Drop an `.xlsx` or `.xlsm` workbook on the page, or browse
-   for one.
-2. **Review Data.** The app reads the workbook and shows:
+1. **Upload Excel.** Drop an `.xlsx` or `.xlsm` workbook on the upload card, or
+   browse for one. The workbook is read and checked straight away. Once it is
+   read, the same card shows the file instead of the drop area: its name, the
+   station, date and number of UOIRs (and any errors), a **Remove** button
+   (trash-can icon) that discards it so you can pick another file, and
+   **Proceed to Review Data**. The app stays on this step until you choose.
+2. **Review Data.** What the app read from the workbook:
+   - four fact cards: Station, Date of Analysis, number of UOIRs and number of
+     team members;
+   - a "Ready to export" or "Export blocked" banner;
    - the data checks (problems that must be fixed, things worth checking, and
      information);
-   - the front page;
-   - the Introduction tables;
-   - each UOIR's analysis table and summary;
-   - the recommendations.
-3. **Preview Report.** The finished PDF is shown inside the page.
-4. **Export PDF.** The same PDF is downloaded with a standard file name.
-   **Email the PDF** opens a new email for it: with classic Outlook on this PC
-   the PDF is already attached; otherwise the PDF is downloaded for you to
-   attach (see [Emailing the PDF](#emailing-the-pdf)).
+   - a **Workbook data** panel with the actual data, so you can see it before
+     the report preview: tabs **Team Members** (with Station and Date of
+     Analysis), **Failure Details** and **Analysis** (one UOIR at a time, with
+     its notes and full table). It is **read-only**: to change anything, edit
+     the workbook in Excel, remove it on the Upload step and upload it again.
+
+   The sidebar's **Report sections** (Data Checks, Front Page, Introduction,
+   Analysis, Recommendation) show each part of the report in more detail,
+   including each UOIR's summary and the recommendations. Review Data shows
+   the values only and does not say which sheet or cell they came from: the
+   fact cards, the Front Page, the Introduction and the Workbook data panel
+   have no "sheet, cell" captions. (A data-check message still names the
+   sheet, row and cell of the problem, so you can find it in Excel.)
+3. **Preview Report.** The finished PDF is shown inside the page, **view
+   only**. There is no download button on this step, and the browser's PDF
+   viewer is asked to hide its own toolbar, so the PDF is downloaded once, on
+   the next step.
+4. **Export PDF.** **Download PDF** saves it with a standard file name.
+   **Email the PDF (optional)** opens a new email for it: with classic Outlook
+   on this PC, **Send via Outlook** attaches the PDF for you; otherwise the PDF
+   is downloaded and you attach it by hand (see
+   [Emailing the PDF](#emailing-the-pdf)). At the bottom right, **Upload
+   another** clears the report and goes back to an empty Upload step, and
+   **Finish** clears it and shows a short **Report complete** screen with a
+   **Start a new report** button. Finish is offered only when the report can
+   be exported. You stay signed in either way.
+
+### Moving between the steps
+
+Each step has its own **Back** and **Next** buttons, in a row at the top right
+of the page (pages have no heading of their own: the page title is in the top
+bar). Every Review Data page has them: Data Checks and each report section
+(Front Page, Introduction, Analysis, Recommendation).
+
+| Step | Back | Next |
+|---|---|---|
+| 1 Upload Excel | (none) | **Proceed to Review Data**, on the file card once the workbook is read |
+| 2 Review Data (Data Checks and every report section) | **Upload Workbook** | **Preview Report** (locked while errors remain: "Fix 2 errors to preview") |
+| 3 Preview Report | **Review Data** | **Export PDF Report** (locked while errors remain: "Fix 2 errors to export") |
+| 4 Export PDF | **Preview Report** | (none: **Upload another** and, when the report can be exported, **Finish** at the bottom right) |
+
+Going back keeps everything: Back from Review Data shows the Upload step with
+the file card, not an empty drop area. Once a workbook is read, you can also
+jump to any step from the **Workflow** list in the sidebar.
+
+When the button you pressed (Back, Next, Proceed, Finish and so on) goes away
+with its page, keyboard focus moves to the new page's title in the top bar, so
+a screen reader reads out where you are.
+
+If the PDF of this report has not been downloaded or emailed yet, **Upload
+another** and **Finish** first ask "The PDF hasn't been downloaded or emailed
+yet. When you continue, the report is cleared and can't be opened again."
+Choose **Finish anyway** (or **Upload another anyway**), or **Cancel**. The app
+remembers a download or email for as long as the report is open, so going Back
+to Preview and Next again does not bring the question back. When the report has
+blocking errors there is no finished report: only **Upload another** is
+offered, and it acts straight away. While the report is being cleared
+("Finishing…" / "Clearing the report…"), Download, the email form and Back are
+locked too.
+
+### Around every step
+
+- **Top bar:** the page's title and a one-line subtitle (below), the check
+  status (errors and warnings, or "Ready to export"; click to open Data
+  Checks), and at the right the signed-in user with **Sign out**. With
+  Databricks sign-in it says "Signed in with Databricks" and has no Sign out.
+  There is no Export button in the top bar: exporting is step 4. A title or
+  subtitle too long for the bar is cut with "…" and shown in full on hover. On
+  narrow screens the title gets smaller, the check status moves to a second
+  line, the user name is hidden and Sign out shrinks to its icon.
+- **Sidebar:** the TNB GENCO · TED brandmark, then the product block: the FMEA
+  app icon (a gear with a warning badge) in a small tile beside "FMEA Report",
+  with "Failure Mode & Effects Analysis" underneath. Then the four steps, the
+  report sections (once a workbook is read) and, at the bottom, the team that
+  runs this process: **ALCM - Maintenance Strategy**. Once you are signed in,
+  the app icon appears only here, never in the page itself.
+- **The page:** no heading of its own. Its buttons (Back / Next and the like)
+  sit in a row at the top right.
+- **Stray files:** a file dropped anywhere outside the upload card is ignored.
+  The browser does not open it, so you do not leave the page and lose the open
+  workbook.
+
+Each page's title and subtitle, as shown in the top bar:
+
+| Page | Title | Subtitle |
+|---|---|---|
+| Upload Excel (and whenever no workbook is open, except after Finish) | Upload the FMEA workbook | Step 1 of 4 · Upload Excel |
+| Review Data: Data Checks | Review data | Step 2 of 4 · What was read from *workbook file name* |
+| Review Data: Front Page | Front Page | Report section · The cover of the report, as it will appear on the first page of the PDF |
+| Review Data: Introduction | Introduction | Report section · Failure details and the analysis team, exactly as written in the workbook |
+| Review Data: Analysis | Analysis | Report section · The FMEA Analysis table and FMEA Summary counts for each UOIR |
+| Review Data: Recommendation | Recommendation | Report section · Maintenance tasks for each UOIR, grouped by Equipment and KKS |
+| Preview Report | Preview report | Step 3 of 4 · *PDF file name*, exactly as it will be exported |
+| Export PDF | Export PDF | Step 4 of 4 · Download the finished report, or email it |
+| After Finish | Report complete | The workbook and report have been cleared from the app |
+
+The workbook's file name is in the Step 2 subtitle, and the PDF's file name in
+the Step 3 subtitle.
 
 There is **no intermediate working file**. The upload is read in memory and
 turned straight into report data. The review screens, the preview and the PDF
 all come from that same data, so they always agree. Nothing is saved to disk
-(the one exception is the short-lived copy of the PDF that **Email the PDF**
-hands to Outlook and deletes straight after) and nothing is written back to
-your workbook. To change the report, fix the workbook in Excel and upload it
-again.
+(the one exception is the short-lived copy of the PDF that **Send via
+Outlook** hands to Outlook and deletes straight after) and nothing is written
+back to your workbook. To change the report, fix the workbook in Excel, remove
+it on the Upload step and upload it again.
 
 ### One-time use
 
 The app keeps nothing between visits. There is no database and no file store.
+In plain words, as the app says on the Upload step: "Nothing is saved in this
+app. Your workbook and report are cleared when you sign out or close this
+page." The sign-in page says the same: "Nothing is saved in this app.
+Workbooks and reports are cleared when you sign out or close the page."
 
 - The workbook you upload is read in memory only and **never saved**, on the
   server or anywhere else.
 - The report, the preview and the PDF exist only for the **current page visit**
-  while you are signed in. Moving between the app's own steps (Upload, Data
-  Checks, the review sections, Preview, Export) keeps them.
+  while you are signed in. Moving between the app's own steps (Upload, Review
+  Data and its sections, Preview, Export) keeps them.
 - They are **discarded**, on the server too, when you:
   - sign out;
   - refresh the page;
   - close the tab or the browser;
   - go to another site;
   - open the app in another tab of the same browser (the new tab starts
-    empty and closes the workbook of the first one).
+    empty and closes the workbook of the first one);
+  - press **Remove** on the Upload step, or **Upload another** or **Finish**
+    on the Export step.
 - Every visit starts on **Upload** with nothing open. To carry on later, upload
-  the workbook again. The **Remove** button on the Upload step discards it
-  straight away.
+  the workbook again.
+- If Remove, Upload another or Finish cannot reach the server, the report is
+  kept and the app says so ("Not removed" / "Not cleared"); try again.
 - If you press **Cancel** or leave the page while the workbook is still being
   read, nothing from that upload is kept.
 - Closing another tab of the app that has no workbook open does not close the
@@ -97,7 +203,8 @@ The app keeps nothing between visits. There is no database and no file store.
   workbook is no longer open. It is closed when you sign out, refresh or leave
   the page, or open the app in another tab. Upload it again to continue."
 - Download the PDF (or email it) before you leave the page. Once it is
-  downloaded, the copy in your Downloads folder is yours to keep.
+  downloaded, the copy in your Downloads folder is yours to keep. Upload
+  another and Finish remind you if you have not done either yet.
 
 ### Report structure
 
@@ -116,26 +223,34 @@ UOIR sheet.
 
 ## Features
 
+- A guided four-step flow (Upload Excel, Review Data, Preview Report, Export
+  PDF) with **Back** and **Next** buttons on every step (and on every Review
+  Data page), and **Upload another** / **Finish** at the end. Each page's title
+  and subtitle are in the top bar; the FMEA app icon sits in the sidebar.
 - Upload by drag and drop or file browser. The browser checks the file type and
   size before sending it (it rejects `.xls` files, empty files and `~$` Excel
-  lock files).
+  lock files). After reading, the upload card shows the file with **Remove**
+  and **Proceed to Review Data**.
 - Reads the Team Member, UOIR and analysis sheets. The analysis tabs are linked
   to the UOIR list by UOIR ID.
 - Every check has a plain-language message with the sheet, row, column and
   cell. Errors block the preview and export; warnings and information do not.
   A **Show in table** button jumps to the row in question.
+- A read-only **Workbook data** panel on Review Data (Team Members, Failure
+  Details, Analysis tabs) shows the data itself before the report preview.
 - Review screens for the Front Page, Introduction, Analysis and Recommendation:
   - the analysis table has a sticky header, horizontal scrolling, merged cells,
     and an extra "Row" column holding the Excel row number;
   - the summary uses the same colours as the PDF;
   - Recommendation has **New Task = Yes**, **New Task = No** and (only when
     needed) **New Task not set** filter tabs.
-- A PDF preview inside the page, and a one-click export with a standard file
-  name.
+- A view-only PDF preview inside the page (no download there), then a
+  one-click download on Export PDF with a standard file name.
 - Optional **Email the PDF**: opens a new email with the recipients you typed.
-  With classic Outlook on this PC the PDF is attached for you; with the new
-  Outlook (or any other mail app) the PDF is downloaded for you to attach. You
-  check it and press Send; the app never sends email itself.
+  With classic Outlook on this PC, **Send via Outlook** attaches the PDF for
+  you and checks that it is attached; with the new Outlook (or any other mail
+  app) the PDF is downloaded and you attach it by hand. You check the email and
+  press Send; the app never sends email itself.
 - Counts follow fixed, documented rules: exact duplicate rows are counted once,
   non-breaking spaces count as blank, and merged cells are handled safely.
 - The PDF has selectable text and embedded fonts, repeats table headers on
@@ -174,13 +289,15 @@ backend/
   auth/                     Password hashing, sign-in rules, session cookie
   sessions/store.py         In-memory session store (report and cached PDF per session)
   api/                      Web endpoints (/api/...) and the in-memory upload reader
-  mail/outlook.py           "Email the PDF": opens a new classic-Outlook email (Windows only)
+  mail/outlook.py           "Send via Outlook": opens a new classic-Outlook email with the PDF attached (Windows only)
   main.py                   Builds the FastAPI app, security headers, serves frontend/dist
   assets/                   Liberation Sans fonts and the logo used in the PDF
   tests/                    Automated tests (pytest)
 frontend/
   src/                      React app (screens, views, components, styles, API client)
   src/styles/genco-theme.css  IZ's Genco Project Theme in plain CSS (tokens + gt- classes), reusable
+  src/components/AppIcon.tsx  App icons; the FMEA one (gear + warning badge) is in the sidebar product block
+  src/lib/pageHeading.js    Each page's title and subtitle, shown in the top bar
   public/favicon.svg        FMEA app icon (gear + warning triangle)
   src/mocks/                SYNTHETIC report and fake API for mock mode
   dist/                     Built frontend served by the backend (created by npm run build)
@@ -329,7 +446,7 @@ Settings come from environment variables. Locally they can also come from
 | `HOST` | `127.0.0.1` | Network address. `127.0.0.1` = this computer only. |
 | `PORT` | `8000` | Port. `DATABRICKS_APP_PORT`, when set, takes priority. |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warning` or `error`. |
-| `OUTLOOK_EMAIL` | `auto` | **Open in Outlook** (PDF attached through classic Outlook). `auto` = offered only when the app runs on this computer (Windows, `AUTH_MODE=local` and `HOST` = `127.0.0.1`, `localhost` or `::1`) and classic Outlook is installed and in use (the "New Outlook" toggle off). `on` = always offered on Windows, without the Outlook check; Outlook opens on the computer running the server (a warning is logged when others can reach it). `off` = never offered. Whenever it is not offered, the page offers **Download PDF & open email** instead. Any other value stops the app at startup. |
+| `OUTLOOK_EMAIL` | `auto` | **Send via Outlook** (PDF attached through classic Outlook). `auto` = offered only when the app runs on this computer (Windows, `AUTH_MODE=local` and `HOST` = `127.0.0.1`, `localhost` or `::1`) and classic Outlook is installed and in use (the "New Outlook" toggle off). `on` = always offered on Windows, without the Outlook check; Outlook opens on the computer running the server (a warning is logged when others can reach it). `off` = never offered. Whenever it is not offered, the page offers **Download PDF & open email** instead. Any other value stops the app at startup. |
 | `FMEA_SAMPLE_WORKBOOK` | not set | Tests only: path to a workbook on your own machine for the opt-in smoke test (see [Running tests](#running-tests)). |
 
 ---
@@ -370,7 +487,9 @@ switches (all listed at the top of `frontend/src/mocks/mockServer.js`):
 - `?mock_auth=databricks`: no sign-in page.
 - `?mock_signed_in=1`: start signed in.
 - `?mock_reset=1`: forget the remembered mock session.
-- `?mock_outlook=0`: Email the PDF is not available (as on a hosted server).
+- `?mock_outlook=0`: Outlook drafts are not offered, so the Export step shows
+  **Download PDF & open email** instead of **Send via Outlook** (as on a
+  hosted server).
 - Sign in with any username. The password `wrong` gives the "incorrect" message
   and `locked` gives the "too many attempts" message.
 - An upload whose file name contains `error` gives blocking errors, `broken`
@@ -811,9 +930,12 @@ group, by sheet (tab order) and row.
 
 ### Problems with the file itself
 
-These messages appear on the upload screen, not in Data Checks, and the
-previous report (if any) is kept. The browser runs the type and size checks
-first, with similar wording; the server repeats them:
+These messages appear on the Upload step, not in Data Checks, and nothing from
+that file is kept. (While a workbook is open, the upload card shows that file
+instead of the drop area; dropping another file on it only says "Remove the
+current workbook first to upload a different one." A file dropped anywhere
+else on the page is ignored, so the browser never opens it.) The browser runs the type
+and size checks first, with similar wording; the server repeats them:
 
 - "Please upload an Excel workbook (.xlsx or .xlsm)."
 - "The file is larger than 20 MB. Please upload a smaller workbook." (the size
@@ -895,14 +1017,16 @@ signing on paper. The app never fills them.
 
 ## Emailing the PDF
 
-On the **Export PDF** step, under the download card, **Email the PDF** opens a
-new email for the report. **The app never sends anything.** You check the email
-and press **Send** yourself. It works in one of two ways, chosen automatically:
+On the **Export PDF** step, under the download card, the **Email the PDF
+(optional)** card opens a new email for the report. Emailing is optional: you
+can simply download the PDF. **The app never sends anything.** You check the
+email and press **Send** yourself. It works in one of two ways, chosen
+automatically:
 
 | This computer has | Button | What happens |
 |---|---|---|
-| **Classic Outlook** in use, and the app runs on this PC | **Open in Outlook** | A new Outlook email opens **with the PDF already attached** (below). |
-| **New Outlook** (the "New Outlook" toggle is on), no classic Outlook, or the app runs on a server | **Download PDF & open email** | A new email opens in your default mail app with the recipients, subject and text filled in, and the PDF is saved to your Downloads folder. **Drag the PDF into the email**, then press Send. |
+| **Classic Outlook** in use, and the app runs on this PC | **Send via Outlook** | A new Outlook email opens with the recipients, subject and introduction filled in and **the PDF already attached** (below). Nothing is sent until you press Send in Outlook. |
+| **New Outlook** (the "New Outlook" toggle is on), no classic Outlook, or the app runs on a server | **Download PDF & open email** | A new email opens in your default mail app with the recipients, subject and text filled in, and the PDF is saved to your Downloads folder. A mail link can never carry an attachment, so **the PDF is not attached: drag it into the email yourself**, then press Send. The card and the message after the click both say so. |
 
 The new Outlook for Windows cannot be controlled by other programs, so the app
 cannot attach the PDF there. The app checks which Outlook is in use each time
@@ -913,14 +1037,16 @@ refresh, without restarting the app.
 
 1. Fix any blocking errors first. The card only appears when the report can be
    exported.
-2. Optionally type the recipients in **Recipients (optional)**. Separate several
-   addresses with a semicolon (commas, spaces and new lines work too). Leave the
-   box empty to choose the recipients in your mail app.
+2. Type the recipients in **Recipients**. The button stays disabled until
+   something is typed; the hint under the box says "Enter at least one address
+   to send. Separate several with a semicolon." (commas, spaces and new lines
+   work too).
 3. Click the button. With **Download PDF & open email**, the email opens in your
-   mail app and the PDF is downloaded; the app then says where the PDF was
-   saved. Attach it and press Send. The rest of this section is about
-   **Open in Outlook**, which shows "Opening Outlook…" while Outlook starts
-   (a few seconds when Outlook was closed).
+   mail app and the PDF is downloaded; the app then says "A new email opened in
+   your mail app and <file name> was saved to your Downloads folder. The PDF is
+   not attached yet: attach it to the email, then press Send." The rest of this
+   section is about **Send via Outlook**, which shows "Opening Outlook…" while
+   Outlook starts (a few seconds when Outlook was closed).
 4. A new Outlook email opens with:
    - **To:** the addresses you typed;
    - **Subject:** `FMEA Report - <Station> - <Date of Analysis>`, for example
@@ -929,12 +1055,14 @@ refresh, without restarting the app.
      Please find attached the Failure Mode Effect Analysis (FMEA) report for
      **SYNTHETIC Station #1** (Date of Analysis: 15 June 2026).";
    - the PDF attached under the report's file name.
-5. The app shows "Outlook opened a new email with the PDF attached. Check it,
-   then press Send in Outlook." Check the email, change anything you like, and
-   press **Send** in Outlook.
+5. The app shows "Outlook opened a new email with <file name> attached. Check
+   it, then press Send in Outlook." Check the email, change anything you like,
+   and press **Send** in Outlook.
 
 The addresses are checked in your browser and again by the server:
 
+- at least one address (typing only separators such as `;` gives "Enter at
+  least one email address.");
 - at most 20 addresses (and 2000 characters in all); repeats are dropped,
   ignoring upper/lower case;
 - each one must look like `name@example.com`: one `@`, a dot in the part after
@@ -943,7 +1071,16 @@ The addresses are checked in your browser and again by the server:
   `o'name@example.com`, is fine);
 - the message names the first address that is not valid.
 
-### When "Open in Outlook" is offered
+### The PDF is always attached (Send via Outlook)
+
+The Outlook script checks that the email really has the PDF: once straight
+after attaching it, and again after the introduction has been put in. If the
+PDF is missing, or any step fails, the script closes that half-made email
+**without saving it** and the app shows "Outlook could not open a new
+email...", with a **Download PDF & open email instead** button. So you are
+never left with an Outlook email that is missing its PDF.
+
+### When "Send via Outlook" is offered
 
 - Only when the app runs on **your own Windows computer**, with the **classic
   Outlook** desktop app installed, signed in **and in use** (the "New Outlook"
@@ -962,14 +1099,15 @@ The addresses are checked in your browser and again by the server:
   server**, not on the user's computer. Use it only when those are the same PC.
   The server log shows a warning when `on` is used on a server others can reach.
 - Whenever it is not offered, the card shows **Download PDF & open email**
-  instead. If **Open in Outlook** fails, the error message has a **Download PDF
-  & open email instead** button.
+  instead. If **Send via Outlook** fails, the error message has a **Download
+  PDF & open email instead** button.
 
 ### Messages
 
 | Message | What happened |
 |---|---|
-| "Outlook could not open a new email. Make sure Outlook is installed and signed in, or download the PDF and attach it yourself." | Outlook is missing, not signed in, refused the request, or did not answer within 2 minutes. If Outlook asks whether to allow another program to use it, allow it; otherwise you get this message. Use **Download PDF & open email instead**. |
+| "Outlook could not open a new email. Make sure Outlook is installed and signed in, or download the PDF and attach it yourself." | Outlook is missing, not signed in, refused the request, did not answer within 2 minutes, or the PDF could not be attached (that email is closed without saving). If Outlook asks whether to allow another program to use it, allow it; otherwise you get this message. Use **Download PDF & open email instead**. |
+| "Enter at least one email address." | Only separators (such as `;`) were typed in Recipients. |
 | "Outlook is still opening the previous email. Please wait a moment." | Only one email is opened at a time. Wait, then try again. |
 | "Outlook can only open the email here when the app runs on your own computer with the classic Outlook app. Download the PDF and attach it to an email instead." | Outlook drafts are not available here (see above), for example after switching to the new Outlook while the page was open. Use **Download PDF & open email instead**. |
 | Nothing opens after **Download PDF & open email** | No default mail app is set in Windows (Settings > Apps > Default apps > Email). The PDF is still downloaded; attach it to an email yourself. |
@@ -984,7 +1122,8 @@ The addresses are checked in your browser and again by the server:
   writes anything to disk.
 - Once attached, the PDF is part of the Outlook email. If you send it, or close
   the email and keep it as a draft, Outlook keeps that copy like any other
-  attachment. Delete the draft if you decide not to send it.
+  attachment. Delete the draft if you decide not to send it. An email that
+  failed half-way is closed by the app without saving, so it leaves no draft.
 - The addresses you type are never written to the server log; only how many
   there were.
 
@@ -1133,21 +1272,25 @@ Check what gets uploaded:
 - **In memory only, one-time use.** There is no database. Uploads are streamed
   into memory and never written to a temporary file. Reports and PDFs live only
   in the session, for the current page visit: they are discarded when the app
-  is opened again, when the page is refreshed, closed or left, and on sign-out,
-  expiry, a new upload or a restart. The only exception is **Email the PDF**, which writes the PDF into a
-  new `fmea-mail-…` temporary folder just long enough for Outlook to attach it
-  and always deletes the folder afterwards.
-- **Email the PDF.** The app never sends email; it only asks classic Outlook on
-  the same computer to show a new email. It runs a fixed PowerShell script
-  (started by its full Windows path) and passes the addresses, subject,
-  introduction and file path only through environment variables, so nothing a
-  user types or a workbook contains can change what the script does. One email
-  is opened at a time, and recipient addresses are never logged. With the
-  default `OUTLOOK_EMAIL=auto`, Outlook drafts are off unless the app runs on
-  the user's own Windows computer with classic Outlook in use. The **Download
-  PDF & open email** fallback runs entirely in the browser: it opens a
-  `mailto:` link (recipients, subject and text only) and downloads the PDF
-  like the Download button; the server is not involved beyond serving the PDF.
+  is opened again, when the page is refreshed, closed or left, on **Remove**,
+  **Upload another** and **Finish**, and on sign-out, expiry, a new upload or a
+  restart. The only exception is **Send via Outlook**, which writes the PDF
+  into a new `fmea-mail-…` temporary folder just long enough for Outlook to
+  attach it and always deletes the folder afterwards.
+- **Email the PDF.** The app never sends email; **Send via Outlook** only asks
+  classic Outlook on the same computer to show a new email. It runs a fixed
+  PowerShell script (started by its full Windows path) and passes the
+  addresses, subject, introduction and file path only through environment
+  variables, so nothing a user types or a workbook contains can change what
+  the script does. The script checks that the PDF is attached and, if anything
+  fails, closes the half-made email without saving it. One email is opened at
+  a time, and recipient addresses are never logged. With the default
+  `OUTLOOK_EMAIL=auto`, Outlook drafts are off unless the app runs on the
+  user's own Windows computer with classic Outlook in use. The **Download PDF
+  & open email** fallback runs entirely in the browser: it opens a `mailto:`
+  link (recipients, subject and text only; a mail link cannot carry the PDF)
+  and downloads the PDF like the Download button; the server is not involved
+  beyond serving the PDF.
 - **No macros, no formulas, no links.** Workbooks are opened read-only with
   their saved values. Macros in `.xlsm` files are never run, formulas are never
   calculated, and external links are not followed.
@@ -1211,7 +1354,13 @@ Check what gets uploaded:
   waiting for a background `net use` lookup. You can press `Ctrl+C`, or use
   `start-app.bat`, which builds without that wait.
 - The in-page preview needs the browser's built-in PDF viewer. If it is turned
-  off, use Export.
+  off, use "Open in new tab", or go on to Export PDF and download it.
+- **Preview hides the PDF viewer's toolbar by request only.** The preview adds
+  the standard PDF open parameters `#toolbar=0&navpanes=0`, and "Open in new
+  tab" opens the same view-only address. A PDF viewer that ignores them still
+  shows its own download and print buttons, and the browser's own save
+  shortcut still works. The download meant to be used is the one on Export
+  PDF.
 - On narrow (tablet) screens, the side menu does not trap keyboard focus while
   it is open.
 - **Use one tab at a time.** All tabs of one browser share one sign-in and one
@@ -1223,12 +1372,15 @@ Check what gets uploaded:
   browser crashes or the network drops at that moment, the server forgets it
   the next time you open the app, when you sign out, or after
   `SESSION_IDLE_MINUTES` without activity.
-- **Open in Outlook** (PDF attached automatically) works only on Windows with
+- **Send via Outlook** (PDF attached automatically) works only on Windows with
   classic Outlook in use, and only when the app runs on that same computer. With
-  the new Outlook the app falls back to **Download PDF & open email**, where you
-  attach the downloaded PDF yourself. The Outlook draft has been checked with
-  automated tests and a PowerShell syntax check, but not yet with a real classic
-  Outlook: check the first email it opens. The introduction is placed above the
-  default signature that Outlook adds when it shows the email.
+  the new Outlook the app falls back to **Download PDF & open email**; a mail
+  link can never carry an attachment, so there you attach the downloaded PDF
+  yourself. Besides the automated tests and the PowerShell syntax check, the
+  Outlook email has been tried on a PC with classic Outlook (test emails opened
+  with the PDF attached). The introduction is placed above the default
+  signature that Outlook adds when it shows the email.
+- The **Workbook data** panel on Review Data is read-only. To correct the data,
+  edit the workbook in Excel and upload it again.
 - Signed-in users are trusted not to flood the server: several very large
   uploads at once from one session each use memory while they are read.
