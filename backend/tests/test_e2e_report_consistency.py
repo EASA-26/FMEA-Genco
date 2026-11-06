@@ -7,11 +7,12 @@ the right place of the PDF served by ``/api/report/pdf``:
 
 * cover: Station, Date of Analysis and the blank PREPARED BY / APPROVED BY boxes;
 * introduction: every Failure Details and Team Members field, row by row;
-* per UOIR, the A3 analysis page(s): UOIR ID, Title, every note and every table
-  cell in its own column and in workbook order;
-* per UOIR, the A4 summary page: the three cards, the pie legend, the Existing vs
-  Revised table, the Work-Centre table and the not-counted / duplicate notes;
-* recommendation: UOIR headings, group headings and rows in order, nothing
+* per analysis tab, the A3 analysis page(s): UOIR ID (every ID the tab covers),
+  Title, every note and every table cell in its own column and in workbook order;
+* per analysis tab, the A4 summary page: the same UOIR ID and Title, the three
+  cards, the pie legend, the Existing vs Revised table, the Work-Centre table and
+  the not-counted / duplicate notes;
+* recommendation: one heading per tab, group headings and rows in order, nothing
   missing or repeated (a row cut by a page break is joined back together);
 * page size of every section and "Page X of Y".
 
@@ -22,8 +23,9 @@ contains its centre. Text is compared ignoring whitespace, because the PDF wraps
 long values and adds break points inside long codes.
 
 Workbooks (all SYNTHETIC, from tools/make_synthetic_workbook.py): the clean
-workbook, an extension of it (warnings only: notes, a merged cell, a duplicate row,
-a blank New Task, "&" and "<", a row taller than a page, tables over several pages),
+workbook, an extension of it (warnings and info only: notes, a merged cell, a duplicate
+row, a blank New Task, "&" and "<", a row taller than a page, tables over several pages,
+a tab covering two UOIRs and a UOIR that no tab names),
 the edge-case workbook (blocking errors) and the sample-like workbook, which has the
 layout and quirks of a full engineer workbook with invented content. Sign-in uses a
 SYNTHETIC password hashed for the test app only.
@@ -365,7 +367,7 @@ class PdfView:
         return sections, titled
 
     def groups(self, section: str) -> list[list[int]]:
-        """Page indexes of a section, one list per start of that section (one per UOIR)."""
+        """Page indexes of a section, one list per start of that section (one per analysis tab)."""
         groups: list[list[int]] = []
         for index, (current, titled) in enumerate(zip(self.sections, self.titled)):
             if current != section:
@@ -607,6 +609,7 @@ def first_difference(shown: Sequence[str], wanted: Sequence[tuple[int, str]]) ->
 EXTENDED_ROWS = 48
 TALL_TASK_ROW = 20          # index of the generated row whose Task is taller than a page
 EXTENDED_STRATEGIES = ("OC", "SR", "SD", "FF", "R-Spare", "NSM")
+EXTENDED_TAB_602_603 = "UOIR ID 602 603 - Clean Valve"     # the 602 tab, now covering 602 and 603
 
 
 def build_extended_clean_workbook(tool) -> bytes:
@@ -626,6 +629,9 @@ def build_extended_clean_workbook(tool) -> bytes:
         uoir.cell(row=7, column=column, value=value)
     for ref in ("D7", "E7"):
         uoir[ref].number_format = "d-mmm-yy"
+    # UOIR 603 is covered by the renamed 602 tab; UOIR 604 is named by no tab (info only).
+    tool.add_uoir_row(wb, 603, "SYNTHETIC Clean Valve Fault During Shutdown", "Clean Valve Positioner")
+    tool.add_uoir_row(wb, 604, "SYNTHETIC Clean Fan Stop", "Clean Fan")
 
     t601 = wb[tool.CLEAN_TAB_601]
     extra_601 = [
@@ -644,6 +650,7 @@ def build_extended_clean_workbook(tool) -> bytes:
     t601["B12"] = "SYNTHETIC root cause - impeller wear"
 
     t602 = wb[tool.CLEAN_TAB_602]
+    t602.title = EXTENDED_TAB_602_603
     t602.merge_cells("B3:B4")       # Failure Mode merged over two rows: info, value carried down
     for i in range(EXTENDED_ROWS):
         strategy = EXTENDED_STRATEGIES[i % len(EXTENDED_STRATEGIES)]
@@ -759,18 +766,49 @@ def exported(request) -> Exported:
 # --------------------------------------------------------------------------- #
 # Scenarios 1 and 3: exportable workbooks, screens == PDF
 # --------------------------------------------------------------------------- #
-def test_extended_synthetic_workbook_is_exportable_with_warnings(extended_export):
+def ids_text(section: dict) -> str:
+    """The UOIR IDs of an analysis section as the PDF prints them: "602, 603"."""
+    return ", ".join(section["uoir_ids"])
+
+
+def test_extended_synthetic_workbook_is_exportable_with_warnings(extended_export, synthetic_tool):
     report = extended_export.report
     assert report["can_export"] is True
     codes = {issue["code"] for issue in report["issues"]}
     assert {"DUPLICATE_ROW", "NEW_TASK_BLANK", "MERGED_CELLS_CARRIED"} <= codes
-    uoir_601, uoir_602 = report["uoirs"]
-    assert uoir_601["summary"]["duplicate_rows"] == [7]
-    assert [row["source_row"] for row in uoir_601["summary"]["not_counted"]] == [8]
-    assert [note["cell"] for note in uoir_601["notes"]] == ["D1", "B12"]
-    assert uoir_602["equipment"] == ["Clean Valve", "Clean Valve Actuator"]
-    assert len(uoir_602["analysis"]["rows"]) == 2 + EXTENDED_ROWS
-    assert uoir_602["analysis"]["merged"], "the merged Failure Mode must reach the report"
+
+    # Failure Details keeps one row per UOIR sheet row; the analyses are one per tab.
+    assert [d["uoir_id"] for d in report["failure_details"]] == ["601", "602", "602", "603", "604"]
+    assert report["uoir_ids"] == ["601", "602", "603", "604"]
+    assert len(report["analyses"]) == 2
+    tab_601, tab_602_603 = report["analyses"]
+    assert (tab_601["sheet_name"], tab_601["uoir_ids"]) == (synthetic_tool.CLEAN_TAB_601, ["601"])
+    assert (tab_602_603["sheet_name"], tab_602_603["uoir_ids"]) == (EXTENDED_TAB_602_603, ["602", "603"])
+    missing = [issue for issue in report["issues"] if issue["code"] == "ANALYSIS_SHEET_MISSING"]
+    assert [(issue["severity"], issue["uoir_id"]) for issue in missing] == [("info", "604")]
+
+    assert tab_601["summary"]["duplicate_rows"] == [7]
+    assert [row["source_row"] for row in tab_601["summary"]["not_counted"]] == [8]
+    assert [note["cell"] for note in tab_601["notes"]] == ["D1", "B12"]
+    assert tab_602_603["equipment"] == ["Clean Valve", "Clean Valve Actuator", "Clean Valve Positioner"]
+    assert len(tab_602_603["analysis"]["rows"]) == 2 + EXTENDED_ROWS
+    assert tab_602_603["analysis"]["merged"], "the merged Failure Mode must reach the report"
+
+
+def test_extended_two_id_tab_is_headed_with_both_ids_on_its_pages(extended_export):
+    view, report = extended_export.view, extended_export.report
+    index = next(i for i, section in enumerate(report["analyses"]) if section["uoir_ids"] == ["602", "603"])
+    title = report["analyses"][index]["title"]
+
+    analysis_first = view.groups("analysis")[index][0]
+    kv_bottom = min((part.top for part in view.parts[analysis_first]), default=view.body_bottom(analysis_first))
+    shown = key_value_pairs(view.body_words(analysis_first), BODY_TOP, kv_bottom)
+    assert [(norm(label), norm(value)) for label, value in shown[:2]] == [("UOIR ID", "602, 603"), ("Title", title)]
+
+    summary_first = view.groups("summary")[index][0]
+    kv_bottom = min(label.y0 for label, _ in stat_cards(view.body_lines(summary_first)))
+    shown = key_value_pairs(view.body_words(summary_first), BODY_TOP, kv_bottom)
+    assert [(norm(label), norm(value)) for label, value in shown] == [("UOIR ID", "602, 603"), ("Title", title)]
 
 
 def test_report_json_and_pdf_download_round_trip(exported):
@@ -801,7 +839,7 @@ def test_report_json_and_pdf_download_round_trip(exported):
 def test_page_sizes_sections_and_page_numbers(exported):
     view, report = exported.view, exported.report
     starts = ["cover"] + [section for section, titled in zip(view.sections, view.titled) if titled]
-    assert starts == ["cover", "intro"] + ["analysis", "summary"] * len(report["uoirs"]) + ["recommendation"]
+    assert starts == ["cover", "intro"] + ["analysis", "summary"] * len(report["analyses"]) + ["recommendation"]
     assert view.titled[1], "the introduction starts on page 2"
 
     total = len(view.pages)
@@ -870,10 +908,10 @@ def test_introduction_shows_every_failure_detail_and_team_member(exported):
 def test_analysis_pages_show_every_note_and_cell_in_its_column(exported):
     view, report = exported.view, exported.report
     groups = view.groups("analysis")
-    assert len(groups) == len(report["uoirs"])
-    for uoir, pages in zip(report["uoirs"], groups):
-        where = f"UOIR {uoir['uoir_id']} analysis (pages {pages[0] + 1}-{pages[-1] + 1})"
-        table = uoir["analysis"]
+    assert len(groups) == len(report["analyses"])
+    for section, pages in zip(report["analyses"], groups):
+        where = f"UOIR ID {ids_text(section)} analysis (pages {pages[0] + 1}-{pages[-1] + 1})"
+        table = section["analysis"]
         assert table is not None and table["rows"], f"precondition: {where} has a table"
 
         first = pages[0]
@@ -882,8 +920,8 @@ def test_analysis_pages_show_every_note_and_cell_in_its_column(exported):
         assert len(view.parts[first]) <= 1 and all(len(view.parts[i]) == 1 for i in pages[1:]), (
             f"{where}: one table part per page expected")
         kv_bottom = min((part.top for part in view.parts[first]), default=view.body_bottom(first))
-        wanted_pairs = [("UOIR ID", uoir["uoir_id"]), ("Title", uoir["title"])]
-        wanted_pairs += [("Note", note["text"]) for note in uoir["notes"]]
+        wanted_pairs = [("UOIR ID", ids_text(section)), ("Title", section["title"])]
+        wanted_pairs += [("Note", note["text"]) for note in section["notes"]]
         assert_pairs(key_value_pairs(view.body_words(first), BODY_TOP, kv_bottom), wanted_pairs, where)
 
         columns = table["columns"]
@@ -923,10 +961,10 @@ def test_analysis_pages_show_every_note_and_cell_in_its_column(exported):
 def test_summary_pages_show_cards_pie_tables_and_notes(exported):
     view, report = exported.view, exported.report
     groups = view.groups("summary")
-    assert len(groups) == len(report["uoirs"])
-    for uoir, pages in zip(report["uoirs"], groups):
-        where = f"UOIR {uoir['uoir_id']} summary (pages {pages[0] + 1}-{pages[-1] + 1})"
-        summary = uoir["summary"]
+    assert len(groups) == len(report["analyses"])
+    for section, pages in zip(report["analyses"], groups):
+        where = f"UOIR ID {ids_text(section)} summary (pages {pages[0] + 1}-{pages[-1] + 1})"
+        summary = section["summary"]
         assert summary is not None, f"precondition: {where} has a summary"
         first = pages[0]
         lines = view.body_lines(first)
@@ -938,7 +976,7 @@ def test_summary_pages_show_cards_pie_tables_and_notes(exported):
 
         kv_bottom = min(label.y0 for label, _ in cards)
         assert_pairs(key_value_pairs(view.body_words(first), BODY_TOP, kv_bottom),
-                     [("UOIR ID", uoir["uoir_id"]), ("Title", uoir["title"])], where)
+                     [("UOIR ID", ids_text(section)), ("Title", section["title"])], where)
 
         texts = [line.text for index in pages for line in view.body_lines(index)]
         for heading in ("Existing vs Revised", "Recommended Strategy", "Work-Centre Execution"):
@@ -989,10 +1027,10 @@ def test_recommendation_section_shows_every_group_and_row_once_in_order(exported
     assert len(groups) == 1
 
     wanted: list[Item] = []
-    for uoir in report["uoirs"]:
-        wanted.append(Item("h2", text=f"UOIR ID {uoir['uoir_id']}: {uoir['title']}"))
-        assert uoir["recommendations"], f"precondition: UOIR {uoir['uoir_id']} has recommendations"
-        for group in uoir["recommendations"]:
+    for section in report["analyses"]:
+        wanted.append(Item("h2", text=f"UOIR ID {ids_text(section)}: {section['title']}"))
+        assert section["recommendations"], f"precondition: UOIR ID {ids_text(section)} has recommendations"
+        for group in section["recommendations"]:
             assert group["heading"], "precondition: every group has a heading"
             wanted.append(Item("h3", text=group["heading"]))
             wanted += [Item("row", cells=(row["failure_mode"], row["task"], row["frequency"]),
@@ -1003,12 +1041,13 @@ def test_recommendation_section_shows_every_group_and_row_once_in_order(exported
 # --------------------------------------------------------------------------- #
 # Scenario 3: expected results of the SYNTHETIC sample-like workbook, through the API JSON
 # --------------------------------------------------------------------------- #
-def _uoir(report: dict, uoir_id: str) -> dict:
-    return next(u for u in report["uoirs"] if u["uoir_id"] == uoir_id)
+def _section(report: dict, uoir_id: str) -> dict:
+    """The analysis section of the one-UOIR tab for `uoir_id`."""
+    return next(s for s in report["analyses"] if s["uoir_ids"] == [uoir_id])
 
 
-def _strategies(uoir: dict) -> list[tuple[str, int, int, int]]:
-    return [(r["code"], r["existing"], r["new"], r["total"]) for r in uoir["summary"]["strategy_rows"]]
+def _strategies(section: dict) -> list[tuple[str, int, int, int]]:
+    return [(r["code"], r["existing"], r["new"], r["total"]) for r in section["summary"]["strategy_rows"]]
 
 
 def _full_strategy_table(listed: dict, extra: Sequence[str]) -> list[tuple[str, int, int, int]]:
@@ -1016,17 +1055,18 @@ def _full_strategy_table(listed: dict, extra: Sequence[str]) -> list[tuple[str, 
     return [(code, *listed.get(code, (0, 0, 0))) for code in codes]
 
 
-def _work_centres(uoir: dict) -> list[tuple[str, int, int, int]]:
-    return [(w["work_centre"], w["total"], w["executed"], w["pending"]) for w in uoir["summary"]["work_centre_rows"]]
+def _work_centres(section: dict) -> list[tuple[str, int, int, int]]:
+    return [(w["work_centre"], w["total"], w["executed"], w["pending"])
+            for w in section["summary"]["work_centre_rows"]]
 
 
-def _counts(uoir: dict) -> tuple[int, int, int, int]:
-    s = uoir["summary"]
+def _counts(section: dict) -> tuple[int, int, int, int]:
+    s = section["summary"]
     return s["failure_mode_count"], s["maintenance_task_count"], s["task_executed_count"], s["pie_total"]
 
 
-def _groups(uoir: dict) -> list[tuple[str, int]]:
-    return [(g["heading"], len(g["rows"])) for g in uoir["recommendations"]]
+def _groups(section: dict) -> list[tuple[str, int]]:
+    return [(g["heading"], len(g["rows"])) for g in section["recommendations"]]
 
 
 def test_sample_workbook_matches_expected_results_through_api(sample_export):
@@ -1048,9 +1088,10 @@ def test_sample_workbook_matches_expected_results_through_api(sample_export):
         ("712", 5), ("705", 6), ("748", 7)]
     assert report["failure_details"][0]["equipment"] == "SYNTHETIC Lube Oil Pressure Switch Rack"
     assert report["failure_details"][2]["faulty_date"] == "2026-04-27"
-    assert [u["uoir_id"] for u in report["uoirs"]] == ["712", "705", "748"]
+    assert report["uoir_ids"] == ["712", "705", "748"]
+    assert [s["uoir_ids"] for s in report["analyses"]] == [["712"], ["705"], ["748"]]
 
-    u712 = _uoir(report, "712")
+    u712 = _section(report, "712")
     assert u712["sheet_name"] == "UOIR ID 712 - Turbine ESD (Emer"
     assert u712["analysis"]["header_row"] == 2
     assert len(u712["analysis"]["columns"]) == 22
@@ -1069,7 +1110,7 @@ def test_sample_workbook_matches_expected_results_through_api(sample_export):
         ("B18", "Root Cause (SYNTHETIC) - lube oil pressure switch diaphragm fatigue")]
     assert u712["summary"]["not_counted"] == [] and u712["summary"]["duplicate_rows"] == []
 
-    u705 = _uoir(report, "705")
+    u705 = _section(report, "705")
     assert u705["sheet_name"] == "UOIR ID 705 - Deaerator Level T"
     assert [r["source_row"] for r in u705["analysis"]["rows"]] == list(range(3, 10))
     assert [r["cells"][0] for r in u705["analysis"]["rows"]] == [""] * 7, "No. column blank (non-breaking spaces)"
@@ -1084,7 +1125,7 @@ def test_sample_workbook_matches_expected_results_through_api(sample_export):
     assert u705["notes"] == []
     assert _groups(u705) == [("SYNTHETIC Deaerator Level Transmitter, SYN30/CP101-102", 7)]
 
-    u748 = _uoir(report, "748")
+    u748 = _section(report, "748")
     assert u748["sheet_name"] == "UOIR ID 748 - SYNTHETIC Condens"
     assert [r["source_row"] for r in u748["analysis"]["rows"]] == list(range(3, 12))
     assert _counts(u748) == (9, 9, 4, 9)
@@ -1096,8 +1137,8 @@ def test_sample_workbook_matches_expected_results_through_api(sample_export):
         ("C1", "RCA (SYNTHETIC) - recirculation valve hunting at low load. Actuator linkage worn")]
     assert _groups(u748) == [("SYNTHETIC Condensate Recirculation Valve, SYN40AA310/320", 9)]
 
-    for uoir in report["uoirs"]:
-        assert round(sum(s["percent"] for s in uoir["summary"]["pie"]), 1) == 100.0
+    for section in report["analyses"]:
+        assert round(sum(s["percent"] for s in section["summary"]["pie"]), 1) == 100.0
 
 
 # --------------------------------------------------------------------------- #

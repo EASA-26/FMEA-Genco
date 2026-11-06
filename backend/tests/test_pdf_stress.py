@@ -61,11 +61,11 @@ def _section_text(doc, sections, wanted) -> str:
 
 
 def test_fixture_is_as_large_as_intended(report):
-    assert len(report.uoirs[0].analysis.rows) == 400
-    assert max(m.last_row - m.first_row + 1 for m in report.uoirs[0].analysis.merged) == 70
-    assert sum(len(g.rows) for u in report.uoirs for g in u.recommendations) == 200
-    assert len(report.uoirs[0].summary.pie) == 12
-    assert report.uoirs[1].summary.pie == []
+    assert len(report.analyses[0].analysis.rows) == 400
+    assert max(m.last_row - m.first_row + 1 for m in report.analyses[0].analysis.merged) == 70
+    assert sum(len(g.rows) for s in report.analyses for g in s.recommendations) == 200
+    assert len(report.analyses[0].summary.pie) == 12
+    assert report.analyses[1].summary.pie == []
 
 
 def test_render_time(rendered):
@@ -75,7 +75,7 @@ def test_render_time(rendered):
 
 
 def test_section_order_and_page_sizes(doc, sections, report):
-    expected = ["cover", "intro"] + ["analysis", "summary"] * len(report.uoirs) + ["recommendation"]
+    expected = ["cover", "intro"] + ["analysis", "summary"] * len(report.analyses) + ["recommendation"]
     assert section_starts(doc) == expected
     expected_kind = {"cover": "A4P", "intro": "A4P", "analysis": "A3L", "summary": "A4P", "recommendation": "A4P"}
     for number, (page, section) in enumerate(zip(doc, sections), start=1):
@@ -131,8 +131,8 @@ def test_merged_groups_continue_with_marker(doc, sections, report):
     continued = [page for page in analysis_pages if "(cont.)" in page.get_text()]
     assert len(continued) >= 3, "the 70-row merged group and the tall merged text continue over pages"
     # the tall group's merged Failure Mode value is repeated where the group continues
-    tall_group = next(m for m in report.uoirs[0].analysis.merged if m.last_row - m.first_row == 69)
-    value = report.uoirs[0].analysis.rows[tall_group.first_row].cells[tall_group.first_col]
+    tall_group = next(m for m in report.analyses[0].analysis.merged if m.last_row - m.first_row == 69)
+    value = report.analyses[0].analysis.rows[tall_group.first_row].cells[tall_group.first_col]
     pages_with_value = [page for page in analysis_pages if compact(value) in compact(page.get_text())]
     assert len(pages_with_value) >= 2
 
@@ -175,9 +175,9 @@ def test_no_text_outside_the_body_frame(doc):
 def test_twelve_strategy_legend(doc, sections, report):
     summary_text = _section_text(doc, sections, "summary")
     lines = summary_text.splitlines()
-    for pie_slice in report.uoirs[0].summary.pie:
+    for pie_slice in report.analyses[0].summary.pie:
         assert pie_slice.label in lines
-    percents = [f"{s.percent:.1f}%" for s in report.uoirs[0].summary.pie]
+    percents = [f"{s.percent:.1f}%" for s in report.analyses[0].summary.pie]
     assert all(p in lines for p in percents)
 
 
@@ -190,8 +190,8 @@ def test_empty_pie_and_blank_code(doc, sections):
 
 def test_summary_that_does_not_fit_flows_with_repeated_header(doc, sections, report):
     summary_pages = [page for page, s in zip(doc, sections) if s == "summary"]
-    first_uoir_pages = summary_pages[:2]
-    assert "Analysis: FMEA Summary" in page_lines(first_uoir_pages[0])
-    second = page_lines(first_uoir_pages[1])
+    first_section_pages = summary_pages[:2]
+    assert "Analysis: FMEA Summary" in page_lines(first_section_pages[0])
+    second = page_lines(first_section_pages[1])
     if "Analysis: FMEA Summary" not in second:   # continuation page repeats the table header
         assert "Work Centre" in second

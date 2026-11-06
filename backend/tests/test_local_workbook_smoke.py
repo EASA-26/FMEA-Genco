@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pytest
 
+from backend.pdf.render import render_pdf
 from backend.report.builder import build_report
 
 ENV_VAR = "FMEA_SAMPLE_WORKBOOK"
@@ -49,8 +50,6 @@ def test_local_workbook_parses_into_a_report(local_report):
 
 
 def test_local_workbook_renders_a_pdf(local_report):
-    from backend.pdf.render import render_pdf      # imported here so a skipped module never loads the PDF code
-
     pdf = render_pdf(local_report)
     assert pdf.startswith(b"%PDF")
     assert len(pdf) > 1000
