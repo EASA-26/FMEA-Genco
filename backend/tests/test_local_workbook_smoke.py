@@ -15,7 +15,6 @@ from pathlib import Path
 
 import pytest
 
-from backend.pdf.render import render_pdf
 from backend.report.builder import build_report
 
 ENV_VAR = "FMEA_SAMPLE_WORKBOOK"
@@ -43,13 +42,15 @@ def local_report():
 
 def test_local_workbook_parses_into_a_report(local_report):
     assert local_report.station.strip(), "the report has a station"
-    assert len(local_report.uoirs) >= 1, "the report has at least one UOIR"
+    assert len(local_report.uoir_ids) >= 1, "the report has at least one UOIR"
     assert local_report.pdf_filename.startswith("FMEA_Report_") and local_report.pdf_filename.endswith(".pdf")
     errors = [issue for issue in local_report.issues if issue.severity == "error"]
     assert local_report.can_export is (not errors)
 
 
 def test_local_workbook_renders_a_pdf(local_report):
+    from backend.pdf.render import render_pdf      # imported here so a skipped module never loads the PDF code
+
     pdf = render_pdf(local_report)
     assert pdf.startswith(b"%PDF")
     assert len(pdf) > 1000

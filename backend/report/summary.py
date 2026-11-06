@@ -1,8 +1,8 @@
 """Counts for the FMEA Summary page and rows for the Recommendation section.
 
-Everything here works on `TaskRecord`s of one UOIR. A row that is an exact
-duplicate of an earlier row is never counted; every other row counts once,
-even when the same failure mode appears with several tasks.
+Everything here works on `TaskRecord`s of one analysis tab. A row that is an
+exact duplicate of an earlier row is never counted; every other row counts
+once, even when the same failure mode appears with several tasks.
 """
 from __future__ import annotations
 

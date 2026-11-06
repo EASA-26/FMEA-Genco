@@ -5,11 +5,14 @@
 a plain-language message and the exact sheet/row/cell, so engineers can fix
 the workbook; any issue with severity "error" blocks export.
 
-Reading order: Team Member -> UOIR list -> link analysis tabs -> each analysis
-tab (display table, notes, task records) -> counts and recommendations.
+Reading order: Team Member -> UOIR list -> the UOIR IDs in the analysis tab
+names and the tab checks -> each analysis tab (display table, notes, task
+records, counts and recommendations) -> sections in UOIR sheet order. Every
+analysis tab becomes one section, whichever UOIRs it covers.
 """
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, replace
 from datetime import date, datetime
 from typing import Callable
@@ -24,6 +27,7 @@ from backend.config.mapping import (
     ANALYSIS_REQUIRED_HEADERS,
     ANALYSIS_REQUIRED_VALUES,
     ANALYSIS_ROW_NUMBER_FIELD,
+    ANALYSIS_SHEET_PATTERN,
     ANALYSIS_TITLE_CELL,
     HEADER_SEARCH_ROWS,
     IGNORED_SHEETS,
@@ -45,12 +49,17 @@ from backend.config.mapping import (
     strategy_label,
 )
 from backend.excel.linking import (
-    AnalysisTab,
+    UNREADABLE_MESSAGE,
+    AnalysisTabRef,
     UoirRef,
     check_title_cell,
-    find_analysis_tabs,
-    link_analysis_tabs,
-    parse_analysis_tab_name,
+    coverage_issues,
+    display_ids,
+    fragment_mismatch,
+    is_single_uoir,
+    read_analysis_tabs,
+    tab_issues,
+    tab_label,
     uoir_id_key,
 )
 from backend.excel.reader import (
@@ -72,6 +81,7 @@ from backend.report.formatting import (
 )
 from backend.report.models import (
     AnalysisRow,
+    AnalysisSection,
     AnalysisTable,
     FailureDetail,
     Issue,
@@ -81,7 +91,6 @@ from backend.report.models import (
     Report,
     TaskRecord,
     TeamMember,
-    UoirSection,
 )
 from backend.report.summary import build_recommendations, summarise
 
@@ -119,10 +128,13 @@ def _s(count: int) -> str:
 
 
 @dataclass
-class _Section:
+class _Uoir:
+    """One distinct UOIR ID on the UOIR sheet."""
+
     ref: UoirRef
-    model: UoirSection
-    title_row: int          # UOIR sheet row the section's Title was taken from
+    title: str              # first non-blank Title given for the ID
+    equipment: list[str]    # distinct Equipment values, in row order
+    title_row: int          # UOIR sheet row the Title was taken from
 
 
 class _ReportBuilder:
@@ -134,22 +146,28 @@ class _ReportBuilder:
         self.analysis_date: date | None = None
         self.team: list[TeamMember] = []
         self.failure_details: list[FailureDetail] = []
-        self.sections: dict[str, _Section] = {}
+        self.uoirs: dict[str, _Uoir] = {}          # uoir_id_key -> record, first-appearance order
+        self.listed: dict[str, UoirRef] = {}       # the same, as linking needs it
+        self.uoir_list_read = False
 
     # ------------------------------------------------------------------ #
     def build(self) -> Report:
-        team_sheet, uoir_sheet, analysis_tabs = self._classify_sheets()
+        team_sheet, uoir_sheet, analysis_sheets, unreadable_sheets = self._classify_sheets()
         if team_sheet is not None:
             self._read_team(team_sheet)
         if uoir_sheet is not None:
             self._read_uoirs(uoir_sheet)
+        self.uoir_list_read = bool(self.uoirs)
+        self.listed = {key: uoir.ref for key, uoir in self.uoirs.items()}
 
-        outcome = link_analysis_tabs([s.ref for s in self.sections.values()], analysis_tabs)
-        self.issues.extend(outcome.issues)
-        for key, section in self.sections.items():
-            tab = outcome.tabs.get(key)
-            if tab is not None:
-                self._read_analysis(section, tab)
+        # The IDs in a tab name after the first one are read against the UOIR list.
+        tabs = read_analysis_tabs(analysis_sheets, frozenset(self.listed))
+        self.issues.extend(tab_issues(tabs, self.listed, self.uoir_list_read))
+        self.issues.extend(coverage_issues(
+            tabs, self.listed, [sheet.name for sheet in unreadable_sheets], self.uoir_list_read,
+        ))
+        sections = [(self._section_order(tab), self._read_analysis(tab)) for tab in tabs]
+        sections.sort(key=lambda pair: pair[0])
 
         issues = self._sorted_issues()
         return Report(
@@ -159,7 +177,8 @@ class _ReportBuilder:
             analysis_date_text=format_date(self.analysis_date),
             team=self.team,
             failure_details=self.failure_details,
-            uoirs=[s.model for s in self.sections.values()],
+            uoir_ids=[uoir.ref.uoir_id for uoir in self.uoirs.values()],
+            analyses=[section for _, section in sections],
             issues=issues,
             can_export=not any(i.severity == "error" for i in issues),
             pdf_filename=make_pdf_filename(self.station, self.analysis_date),
@@ -191,6 +210,14 @@ class _ReportBuilder:
             sheet=sheet, row=rows[0], uoir_id=uoir_id,
         )
 
+    def _section_order(self, tab: AnalysisTabRef) -> tuple[float, int]:
+        """Earliest UOIR sheet position of a listed ID the tab covers, then tab order.
+
+        Tabs with no listed ID come after all the others, in tab order.
+        """
+        positions = [self.listed[key].position for key in tab.keys if key in self.listed]
+        return (min(positions) if positions else math.inf), tab.sheet.index
+
     def _sorted_issues(self) -> list[Issue]:
         order = {sheet.name: sheet.index for sheet in self.source.sheets}
         return sorted(
@@ -213,7 +240,14 @@ class _ReportBuilder:
     # ------------------------------------------------------------------ #
     # Sheets
     # ------------------------------------------------------------------ #
-    def _classify_sheets(self) -> tuple[SheetInfo | None, SheetInfo | None, list[AnalysisTab]]:
+    def _classify_sheets(
+        self,
+    ) -> tuple[SheetInfo | None, SheetInfo | None, list[SheetInfo], list[SheetInfo]]:
+        """(Team Member, UOIR, analysis tabs, sheets named like an analysis tab that cannot be read).
+
+        An analysis tab is recognised by its name pattern only; the IDs in it are read later,
+        against the UOIR list.
+        """
         worksheets = [s for s in self.source.sheets if s.is_worksheet]
 
         def locate(wanted: str) -> SheetInfo | None:
@@ -230,20 +264,29 @@ class _ReportBuilder:
                 )
 
         ignored = {name.strip().lower() for name in IGNORED_SHEETS}
-        candidates: list[SheetInfo] = []
+        analysis_sheets: list[SheetInfo] = []
+        unreadable_sheets: list[SheetInfo] = []
         for sheet in self.source.sheets:
             if sheet is team_sheet or sheet is uoir_sheet:
                 continue
             if sheet.name.strip().lower() in ignored:
                 continue
-            if sheet.is_worksheet and parse_analysis_tab_name(sheet.name):
-                candidates.append(sheet)
+            if sheet.is_worksheet and ANALYSIS_SHEET_PATTERN.match(sheet.name):
+                analysis_sheets.append(sheet)
+                continue
+            if sheet.is_worksheet and sheet.name.strip().casefold().startswith("uoir"):
+                # Most likely a misnamed analysis tab ("UOIR 901 - Fan"): say so instead of "not used".
+                unreadable_sheets.append(sheet)
+                self._add(
+                    "warning", "ANALYSIS_SHEET_NAME_UNREADABLE", UNREADABLE_MESSAGE.format(name=sheet.name),
+                    sheet=sheet.name,
+                )
                 continue
             self._add(
                 "info", "SHEET_NOT_USED", f"Sheet '{sheet.name}' is not used in the report.",
                 sheet=sheet.name,
             )
-        return team_sheet, uoir_sheet, find_analysis_tabs(candidates)
+        return team_sheet, uoir_sheet, analysis_sheets, unreadable_sheets
 
     @staticmethod
     def _find_header_row(grid: SheetGrid, required: list[str]) -> tuple[int, dict[str, int]] | None:
@@ -440,7 +483,7 @@ class _ReportBuilder:
                 source_row=row,
             ))
             if uoir_id:
-                self._add_to_section(name, row, column_of, header_text, uoir_id, title, equipment)
+                self._add_uoir(name, row, column_of, header_text, uoir_id, title, equipment)
             row += 1
 
         if not self.failure_details:
@@ -450,15 +493,16 @@ class _ReportBuilder:
                 sheet=name, row=header_row,
             )
 
-        # The list stops at the first empty row; a UOIR typed below a gap would vanish silently
-        # (and its analysis tab would only be reported as "not in the UOIR list").
+        # The list stops at the first empty row; a UOIR typed below a gap would vanish silently from
+        # Failure Details (its analysis tab, if any, is still included, as a tab for an unlisted ID).
         id_col, title_col = column_of.get("uoir_id"), column_of.get("title")
         if id_col and title_col:
             for later in grid.rows_with_text([id_col], row + 1):
                 later_id = grid.text(later, id_col)
                 if grid.text(later, title_col):
                     self._add_rows_after_blank_row(
-                        name, [later], row, (f"UOIR ID {later_id}", ""), "not in the report", uoir_id=later_id,
+                        name, [later], row, (f"UOIR ID {later_id}", ""), "not in Failure Details",
+                        uoir_id=later_id,
                     )
 
     def _uoir_date(
@@ -487,60 +531,71 @@ class _ReportBuilder:
         )
         return None, text
 
-    def _add_to_section(
+    def _add_uoir(
         self, sheet_name: str, row: int, column_of: dict[str, int | None], header_text: Callable[[str], str],
         uoir_id: str, title: str, equipment: str,
     ) -> None:
-        """One section per distinct UOIR ID; later rows only add Equipment."""
+        """One record per distinct UOIR ID; later rows only add Equipment."""
         key = uoir_id_key(uoir_id)
-        section = self.sections.get(key)
-        if section is None:
+        uoir = self.uoirs.get(key)
+        if uoir is None:
             id_col = column_of["uoir_id"]
             ref = UoirRef(
                 uoir_id=uoir_id, title=title, sheet=sheet_name, row=row,
-                cell=cell_ref(row, id_col), column=header_text("uoir_id"),
+                cell=cell_ref(row, id_col), column=header_text("uoir_id"), position=len(self.uoirs),
             )
-            section = self.sections[key] = _Section(
-                ref, UoirSection(uoir_id=uoir_id, title=title, equipment=[]), title_row=row,
-            )
-        elif title and not section.model.title:
+            uoir = self.uoirs[key] = _Uoir(ref, title, [], title_row=row)
+        elif title and not uoir.title:
             # The first row's Title is empty (already an error); use the first Title given so the
-            # tab linking and title checks compare against real text rather than "".
-            section.model.title = title
-            section.ref = replace(section.ref, title=title)
-            section.title_row = row
-        elif title and text_key(title) != text_key(section.model.title):
+            # section titles and the title checks use real text rather than "".
+            uoir.title = title
+            uoir.ref = replace(uoir.ref, title=title)
+            uoir.title_row = row
+        elif title and text_key(title) != text_key(uoir.title):
             self._add(
                 "warning", "UOIR_DUPLICATE_ID_CONFLICT",
                 f"UOIR ID {uoir_id} is listed again on row {row} of '{sheet_name}' with a different Title "
-                f"('{shorten(title)}'). The Title from row {section.title_row} is used.",
+                f"('{shorten(title)}'). The Title from row {uoir.title_row} is used.",
                 sheet=sheet_name, row=row, column=header_text("title"),
                 cell=cell_ref(row, column_of["title"]), uoir_id=uoir_id,
             )
-        if equipment and text_key(equipment) not in {text_key(e) for e in section.model.equipment}:
-            section.model.equipment.append(equipment)
+        if equipment and text_key(equipment) not in {text_key(e) for e in uoir.equipment}:
+            uoir.equipment.append(equipment)
 
     # ------------------------------------------------------------------ #
     # Analysis tab
     # ------------------------------------------------------------------ #
-    def _read_analysis(self, section: _Section, tab: AnalysisTab) -> None:
+    def _read_analysis(self, tab: AnalysisTabRef) -> AnalysisSection:
+        """Read one analysis tab into its section; issues inside the tab carry all the tab's IDs."""
         sheet = tab.sheet
         name = sheet.name
-        uoir_id = section.ref.uoir_id
-        model = section.model
-        model.sheet_name = name
+        uoir_id = tab_label(tab, self.listed)       # issue location: "901" or "901, 902"
+        single = is_single_uoir(tab, self.listed)
+        covered = sorted((self.uoirs[k] for k in tab.keys if k in self.uoirs), key=lambda u: u.ref.position)
+        model = AnalysisSection(
+            sheet_name=name, uoir_ids=display_ids(tab, self.listed), title="",
+            equipment=self._section_equipment(covered),
+        )
         grid = self._grid(sheet, uoir_id)
         title_row, title_col = _row_col(ANALYSIS_TITLE_CELL)
 
-        def check_title() -> None:
-            title_issue = check_title_cell(grid.text(title_row, title_col), section.ref, name)
-            if title_issue is not None:
-                self.issues.append(title_issue)
+        def use_title(b1_counts: bool) -> None:
+            """Section title and title checks, once it is known whether B1 is a title (not a header)."""
+            b1_title = grid.text(title_row, title_col) if b1_counts else ""
+            model.title = self._section_title(tab, single, b1_title)
+            if self.uoir_list_read:
+                mismatch = fragment_mismatch(tab, self.listed, b1_title)
+                if mismatch is not None:
+                    self.issues.append(mismatch)
+            if single:
+                title_issue = check_title_cell(b1_title, self.listed[tab.keys[0]], name)
+                if title_issue is not None:
+                    self.issues.append(title_issue)
 
         markers = [normalise_header(ANALYSIS_COLUMNS[field]) for field in ANALYSIS_HEADER_MARKERS]
         found = self._find_header_row(grid, markers)
         if found is None:
-            check_title()
+            use_title(b1_counts=True)
             wanted = quote_list([ANALYSIS_COLUMNS[field] for field in ANALYSIS_HEADER_MARKERS])
             self._add(
                 "error", "ANALYSIS_HEADER_MISSING",
@@ -548,7 +603,7 @@ class _ReportBuilder:
                 f"within the first {HEADER_SEARCH_ROWS} rows.",
                 sheet=name, uoir_id=uoir_id,
             )
-            return
+            return model
         header_row, _ = found
 
         # Table extent: first..last filled header cell, rows until the first blank row.
@@ -566,8 +621,7 @@ class _ReportBuilder:
 
         # B1 holds the title, unless the header row is row 1 and B1 is a column header
         # (comparing "Failure Mode" with the UOIR title would be a false alarm).
-        if not (header_row <= title_row <= last_row and first_col <= title_col <= last_col):
-            check_title()
+        use_title(b1_counts=not (header_row <= title_row <= last_row and first_col <= title_col <= last_col))
 
         # A column with a blank header is kept only when it holds data.
         columns = [
@@ -600,10 +654,36 @@ class _ReportBuilder:
             grid, header_row, last_row, first_col, last_col, field_cols.get(ANALYSIS_ROW_NUMBER_FIELD)
         )
         if not headers_ok:
-            return
+            return model
         model.tasks = self._task_records(grid, name, uoir_id, header_row, columns, data_rows, field_cols)
         model.summary = summarise(model.tasks)
         model.recommendations = build_recommendations(model.tasks, model.equipment)
+        return model
+
+    def _section_title(self, tab: AnalysisTabRef, single: bool, b1_title: str) -> str:
+        """First non-blank of: a one-UOIR tab's UOIR Title, B1, the tab-name fragment.
+
+        Any other tab (several IDs, or an unlisted ID) prefers B1, then the first listed Title in
+        tab-name order. `b1_title` is "" when B1 lies inside the analysis table.
+        """
+        listed_titles = [self.uoirs[key].title for key in tab.keys if key in self.uoirs]
+        if single:
+            candidates = [listed_titles[0], b1_title, tab.fragment]
+        else:
+            candidates = [b1_title, *listed_titles, tab.fragment]
+        return next((text for text in candidates if text), "")
+
+    @staticmethod
+    def _section_equipment(covered: list[_Uoir]) -> list[str]:
+        """Equipment of every listed UOIR the tab covers, in UOIR sheet order, repeats removed."""
+        equipment: list[str] = []
+        seen: set[str] = set()
+        for uoir in covered:
+            for value in uoir.equipment:
+                if text_key(value) not in seen:
+                    seen.add(text_key(value))
+                    equipment.append(value)
+        return equipment
 
     def _map_analysis_columns(
         self, grid: SheetGrid, name: str, uoir_id: str, header_row: int, columns: list[int],

@@ -105,6 +105,22 @@ def to_bytes(wb: Workbook) -> bytes:
     return buffer.getvalue()
 
 
+def add_uoir_row(wb: Workbook, uoir_id: int | str, title: str, equipment: str) -> int:
+    """Write one more SYNTHETIC row under the last row of the UOIR sheet and return its row number."""
+    ws = wb["UOIR"]
+    header_row = next(r for r in range(1, ws.max_row + 1) if ws.cell(row=r, column=2).value == "UOIR ID")
+    row = header_row + 1
+    while ws.cell(row=row, column=2).value not in (None, ""):
+        row += 1
+    _write_rows(ws, row, [[
+        row - header_row, uoir_id, title, date(2026, 5, 1), date(2026, 5, 20),
+        "SYNTHETIC action.", "SYNTHETIC action.", equipment,
+    ]])
+    for col in ("D", "E"):
+        ws[f"{col}{row}"].number_format = "d-mmm-yy"
+    return row
+
+
 # --------------------------------------------------------------------------- #
 # Edge-case variant
 # --------------------------------------------------------------------------- #
@@ -280,9 +296,13 @@ SAMPLE_TITLE_705 = "SYNTHETIC Unit Trip on Deaerator Level Transmitter Drift"
 SAMPLE_TITLE_748 = "SYNTHETIC Condensate Recirculation Valve Hunting due to Worn Actuator Linkage"
 
 
-def analysis_tab_name(uoir_id: int | str, fragment: str) -> str:
-    """'UOIR ID <id> - <fragment>' cut to Excel's 31-character tab-name limit."""
-    return f"UOIR ID {uoir_id} - {fragment}"[:31].rstrip()
+def analysis_tab_name(uoir_id: int | str | list[int | str] | tuple[int | str, ...], fragment: str) -> str:
+    """'UOIR ID <id> - <fragment>' cut to Excel's 31-character tab-name limit.
+
+    Several IDs (a list or tuple) are joined with spaces: 'UOIR ID 901 902 - <fragment>'.
+    """
+    ids = " ".join(str(i) for i in uoir_id) if isinstance(uoir_id, (list, tuple)) else uoir_id
+    return f"UOIR ID {ids} - {fragment}"[:31].rstrip()
 
 
 SAMPLE_TAB_712 = analysis_tab_name(712, SAMPLE_TITLE_712)                       # "UOIR ID 712 - Turbine ESD (Emer"

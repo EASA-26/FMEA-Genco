@@ -29,7 +29,7 @@ def report(sample_workbook_bytes):
 
 
 def _uoir(report, uoir_id):
-    return next(u for u in report.uoirs if u.uoir_id == uoir_id)
+    return next(s for s in report.analyses if s.uoir_ids == [uoir_id])
 
 
 def _strategy_table(summary):
@@ -90,7 +90,8 @@ def test_failure_details(report):
     assert report.failure_details[1].preventive_action == "Monthly comparison with the gauge glass (SYNTHETIC)."
     assert report.failure_details[2].faulty_date == date(2026, 4, 27)
     assert report.failure_details[2].uoir_date_text == "8 May 2026"
-    assert [u.uoir_id for u in report.uoirs] == ["712", "705", "748"]     # workbook order, not sorted
+    assert report.uoir_ids == ["712", "705", "748"]                       # workbook order, not sorted
+    assert [s.uoir_ids for s in report.analyses] == [["712"], ["705"], ["748"]]
 
 
 def test_uoir_712(report):

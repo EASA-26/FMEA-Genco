@@ -40,7 +40,7 @@ def _copy_row(ws, source_row, target_row, **overrides):
 def test_header_on_row_one_does_not_compare_b1_with_the_title(clean_workbook_with):
     report = _build(clean_workbook_with, lambda wb: wb[TAB_601].delete_rows(1))
     assert report.issues == []          # previously: ANALYSIS_TITLE_CELL_MISMATCH ('Failure Mode')
-    section = report.uoirs[0]
+    section = report.analyses[0]
     assert section.analysis.header_row == 1
     assert [r.source_row for r in section.analysis.rows] == [2, 3, 4, 5]
     assert section.summary.failure_mode_count == 4
@@ -72,7 +72,7 @@ def test_header_merged_into_data_rows_is_not_copied_into_the_data(clean_workbook
         ("error", "REQUIRED_VALUE_BLANK", TAB_601, 3, "B3"),
         ("error", "REQUIRED_VALUE_BLANK", TAB_601, 4, "B4"),
     ]
-    section = report.uoirs[0]
+    section = report.analyses[0]
     assert section.analysis.header_row == 2
     assert [t.failure_mode for t in section.tasks[:2]] == ["", ""]
     assert section.analysis.merged == [MergedRange(first_row=0, first_col=1, last_row=1, last_col=1)]
@@ -87,8 +87,8 @@ def test_uoir_header_merged_down_is_not_used_as_equipment(clean_workbook_with):
     report = _build(clean_workbook_with, change)
     assert _issues(report) == [("warning", "UOIR_EQUIPMENT_BLANK", "UOIR", 5, "H5")]
     assert report.failure_details[0].equipment == ""          # previously "Equipment"
-    assert report.uoirs[0].equipment == []
-    assert report.uoirs[0].recommendations[0].heading == "KKS-CLEAN-1"
+    assert report.analyses[0].equipment == []
+    assert report.analyses[0].recommendations[0].heading == "KKS-CLEAN-1"
 
 
 def test_team_header_merged_down_is_not_used_as_a_value(clean_workbook_with):
@@ -119,7 +119,7 @@ def test_value_merged_sideways_is_not_copied_into_the_next_column(clean_workbook
     assert _issues(report) == [("error", "REQUIRED_VALUE_BLANK", TAB_601, 3, "R3")]
     trade = seen["trade"]
     assert trade
-    section = report.uoirs[0]
+    section = report.analyses[0]
     assert (section.tasks[0].trade, section.tasks[0].kks) == (trade, "")
     assert section.analysis.rows[0].cells[16:18] == [trade, ""]
     assert section.analysis.merged == [MergedRange(first_row=0, first_col=16, last_row=0, last_col=17)]
@@ -140,7 +140,7 @@ def test_block_merge_carries_down_its_own_column_only(clean_workbook_with):
     ]
     carried = next(i for i in report.issues if i.code == "MERGED_CELLS_CARRIED")
     assert "cover several rows in Failure Mode." in carried.message      # Failure Effect is not carried
-    tasks = report.uoirs[1].tasks
+    tasks = report.analyses[1].tasks
     assert seen["mode"]
     assert [(t.failure_mode, t.failure_effect) for t in tasks] == [
         (seen["mode"], ""), (seen["mode"], ""),
@@ -153,7 +153,7 @@ def test_merge_running_past_the_end_of_the_table_is_clipped(clean_workbook_with)
         ws.merge_cells("N5:N9")          # NSM strategy merged from row 5 down past the last data row (6)
 
     report = _build(clean_workbook_with, change)
-    section = report.uoirs[0]
+    section = report.analyses[0]
     assert [r.source_row for r in section.analysis.rows] == [3, 4, 5, 6]
     assert section.analysis.merged == [MergedRange(first_row=2, first_col=13, last_row=3, last_col=13)]
     assert [t.strategy_code for t in section.tasks] == ["OC", "SR", "NSM", "NSM"]
@@ -172,11 +172,12 @@ def test_tab_id_must_match_exactly_not_as_a_prefix(clean_workbook_with):
         wb[TAB_601].title = "UOIR ID 60 - Clean Pump Trip"
 
     report = _build(clean_workbook_with, rename)
+    # 60 is not 601: the tab is an unlisted tab (included, warning) and 601 has no tab (info).
     assert [(i.severity, i.code, i.sheet) for i in report.issues] == [
-        ("error", "ANALYSIS_SHEET_MISSING", "UOIR"),
         ("warning", "ANALYSIS_SHEET_UNLISTED", "UOIR ID 60 - Clean Pump Trip"),
+        ("info", "ANALYSIS_SHEET_MISSING", "UOIR"),
     ]
-    assert report.uoirs[0].analysis is None
+    assert [s.uoir_ids for s in report.analyses] == [["602"], ["60"]]
 
 
 def test_staff_numbers_stored_as_decimals_or_text_keep_their_digits(clean_workbook_with):
@@ -206,7 +207,7 @@ def test_analysis_rows_after_an_empty_row_are_reported(clean_workbook_with):
         f"Rows 6 and 7 of '{TAB_602}' have analysis values, but the table ends at the empty row 5, so they are "
         "not in the table or the counts. Remove the empty rows in between and upload again."
     )
-    section = report.uoirs[1]
+    section = report.analyses[1]
     assert [r.source_row for r in section.analysis.rows] == [3, 4]
     assert section.summary.failure_mode_count == 2
     assert report.can_export is True
@@ -234,7 +235,7 @@ def test_notes_and_numbers_below_the_table_are_not_reported_as_rows(clean_workbo
     report = _build(clean_workbook_with, change)
     assert report.issues == []
     # A pre-filled row number in the No. column is template numbering, not a note.
-    assert [n.cell for n in report.uoirs[0].notes] == ["B12", "C12"]
+    assert [n.cell for n in report.analyses[0].notes] == ["B12", "C12"]
 
 
 def test_text_in_the_no_column_below_the_table_is_still_a_note(clean_workbook_with):
@@ -242,7 +243,7 @@ def test_text_in_the_no_column_below_the_table_is_still_a_note(clean_workbook_wi
         wb[TAB_601]["A9"] = "SYNTHETIC reviewed 2026"
 
     report = _build(clean_workbook_with, change)
-    assert [(n.cell, n.text) for n in report.uoirs[0].notes] == [("A9", "SYNTHETIC reviewed 2026")]
+    assert [(n.cell, n.text) for n in report.analyses[0].notes] == [("A9", "SYNTHETIC reviewed 2026")]
 
 
 def test_team_member_after_an_empty_row_is_reported(clean_workbook_with):
@@ -272,10 +273,10 @@ def test_uoir_after_an_empty_row_is_reported(clean_workbook_with):
     issue = report.issues[0]
     assert issue.uoir_id == "603"
     assert issue.message == (
-        "Row 8 of 'UOIR' has UOIR ID 603, but the table ends at the empty row 7, so it is not in the report. "
-        "Remove the empty rows in between and upload again."
+        "Row 8 of 'UOIR' has UOIR ID 603, but the table ends at the empty row 7, so it is not in Failure "
+        "Details. Remove the empty rows in between and upload again."
     )
-    assert [u.uoir_id for u in report.uoirs] == ["601", "602"]
+    assert report.uoir_ids == ["601", "602"]
 
 
 # --------------------------------------------------------------------------- #
@@ -294,7 +295,7 @@ def test_blank_title_adds_no_title_mismatch_warnings(clean_workbook_with):
     report = _build(clean_workbook_with, change)
     # Previously also: ANALYSIS_SHEET_TITLE_MISMATCH and ANALYSIS_TITLE_CELL_MISMATCH against an empty title.
     assert _issues(report) == [("error", "UOIR_VALUE_BLANK", "UOIR", 5, "C5")]
-    assert report.uoirs[0].sheet_name == TAB_601
+    assert report.analyses[0].sheet_name == TAB_601
 
 
 def test_title_given_on_a_later_row_is_used_when_the_first_is_blank(clean_workbook_with):
@@ -309,7 +310,7 @@ def test_title_given_on_a_later_row_is_used_when_the_first_is_blank(clean_workbo
         ("error", "UOIR_VALUE_BLANK", "UOIR", 5, "C5"),
         ("warning", "UOIR_DUPLICATE_ID_CONFLICT", "UOIR", 8, "C8"),
     ]
-    assert report.uoirs[0].title == TITLE_601
+    assert report.analyses[0].title == TITLE_601
     assert report.issues[1].message.endswith("The Title from row 7 is used.")
 
 
@@ -355,4 +356,4 @@ def test_stray_value_far_below_the_table_is_a_note_only(clean_workbook_with):
 
     report = _build(clean_workbook_with, change)
     assert report.issues == []
-    assert [(n.cell, n.text) for n in report.uoirs[0].notes] == [("C5000", "SYNTHETIC stray value")]
+    assert [(n.cell, n.text) for n in report.analyses[0].notes] == [("C5000", "SYNTHETIC stray value")]
