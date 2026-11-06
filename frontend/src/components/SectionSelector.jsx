@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { OctagonAlert, TriangleAlert } from 'lucide-react';
-import { countIssues, issuesForUoir, newTaskCounts } from '../lib/report.js';
+import { countIssues, issuesForSection, newTaskCounts, sectionLabel } from '../lib/report.js';
 
-function AnalysisStats({ uoir }) {
-  const s = uoir.summary;
+function AnalysisStats({ section }) {
+  const s = section.summary;
   if (!s) return <span className="uoir-card-empty">No analysis data</span>;
   return (
     <>
@@ -20,9 +20,9 @@ function AnalysisStats({ uoir }) {
   );
 }
 
-function RecommendationStats({ uoir }) {
-  if (!uoir.recommendations.length) return <span className="uoir-card-empty">No recommendations</span>;
-  const c = newTaskCounts(uoir);
+function RecommendationStats({ section }) {
+  if (!section.recommendations.length) return <span className="uoir-card-empty">No recommendations</span>;
+  const c = newTaskCounts(section);
   return (
     <>
       <span>
@@ -40,11 +40,13 @@ function RecommendationStats({ uoir }) {
   );
 }
 
-// Card strip for choosing the UOIR shown in Analysis and Recommendation.
-export default function UoirSelector({ report, value, onChange, variant = 'analysis' }) {
+// Card strip for choosing the analysis section (one per analysis tab) shown in Analysis,
+// Recommendation and Workbook data. `value` and `onChange` use the tab name (sheet_name);
+// the tab name is shown only as the card's tooltip.
+export default function SectionSelector({ report, value, onChange, variant = 'analysis' }) {
   const stripRef = useRef(null);
 
-  // Keep the selected card in view when the strip scrolls sideways (many UOIRs).
+  // Keep the selected card in view when the strip scrolls sideways (many tabs).
   useEffect(() => {
     const strip = stripRef.current;
     const card = strip && strip.querySelector('.uoir-card.is-selected');
@@ -58,21 +60,21 @@ export default function UoirSelector({ report, value, onChange, variant = 'analy
   }, [value]);
 
   return (
-    <div className="uoir-selector" role="group" aria-label="Choose a UOIR" ref={stripRef}>
-      {report.uoirs.map((uoir) => {
-        const selected = uoir.uoir_id === value;
-        const c = countIssues(issuesForUoir(report.issues, uoir.uoir_id));
+    <div className="uoir-selector" role="group" aria-label="Choose an analysis tab" ref={stripRef}>
+      {report.analyses.map((section) => {
+        const selected = section.sheet_name === value;
+        const c = countIssues(issuesForSection(report.issues, section));
         return (
           <button
-            key={uoir.uoir_id}
+            key={section.sheet_name}
             type="button"
             className={`uoir-card ${selected ? 'is-selected' : ''}`}
             aria-pressed={selected}
-            onClick={() => onChange(uoir.uoir_id)}
-            title={uoir.title}
+            onClick={() => onChange(section.sheet_name)}
+            title={section.sheet_name}
           >
             <span className="uoir-card-top">
-              <span className="uoir-card-id">UOIR ID {uoir.uoir_id}</span>
+              <span className="uoir-card-id">UOIR ID {sectionLabel(section)}</span>
               {c.error > 0 && (
                 <span className="mini-flag mini-flag-error">
                   <OctagonAlert size={13} aria-hidden="true" />
@@ -88,9 +90,9 @@ export default function UoirSelector({ report, value, onChange, variant = 'analy
                 </span>
               )}
             </span>
-            <span className="uoir-card-title">{uoir.title}</span>
+            <span className="uoir-card-title">{section.title}</span>
             <span className="uoir-card-stats">
-              {variant === 'analysis' ? <AnalysisStats uoir={uoir} /> : <RecommendationStats uoir={uoir} />}
+              {variant === 'analysis' ? <AnalysisStats section={section} /> : <RecommendationStats section={section} />}
             </span>
           </button>
         );

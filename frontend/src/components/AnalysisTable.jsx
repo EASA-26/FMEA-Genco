@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { OctagonAlert, TriangleAlert, Copy } from 'lucide-react';
-import { FLAG_HEADERS, cellColumnLetters, normaliseHeader } from '../lib/report.js';
+import { FLAG_HEADERS, cellColumnLetters, normaliseHeader, sectionLabel } from '../lib/report.js';
 
 // Column widths (px) by header, so the wide FMEA table reads like the workbook:
 // short decision flags stay narrow, descriptive text gets room to wrap.
@@ -92,8 +92,9 @@ function flagLabel(checks, duplicateOf) {
   return parts.join(' ');
 }
 
-export default function AnalysisTable({ uoir, issues, focus }) {
-  const table = uoir.analysis;
+// `section` is one analysis section (report.analyses[]) whose `analysis` is not null.
+export default function AnalysisTable({ section, issues, focus }) {
+  const table = section.analysis;
   const scrollRef = useRef(null);
   const [flash, setFlash] = useState(null);
   const [tip, setTip] = useState(null);   // { row, left, top, align } for the row-check tooltip
@@ -115,8 +116,8 @@ export default function AnalysisTable({ uoir, issues, focus }) {
     return byRow;
   }, [issues, table.sheet]);
   const duplicates = useMemo(
-    () => new Map(uoir.tasks.filter((t) => t.is_duplicate).map((t) => [t.source_row, t.duplicate_of_row])),
-    [uoir.tasks],
+    () => new Map(section.tasks.filter((t) => t.is_duplicate).map((t) => [t.source_row, t.duplicate_of_row])),
+    [section.tasks],
   );
 
   // Bring a row (and cell) picked in Data checks into view and highlight it briefly.
@@ -162,7 +163,7 @@ export default function AnalysisTable({ uoir, issues, focus }) {
       ref={scrollRef}
       tabIndex={0}
       role="region"
-      aria-label={`FMEA Analysis table for UOIR ID ${uoir.uoir_id}`}
+      aria-label={`FMEA Analysis table for UOIR ID ${sectionLabel(section)}`}
       onScroll={hideTip}
     >
       <table className="grid-table analysis-table" style={{ width: tableWidth }}>

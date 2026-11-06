@@ -12,6 +12,7 @@
 //   ?mock_reset=1             forget the remembered mock session
 // Sign in with any username; password "wrong" -> incorrect, "locked" -> too many attempts.
 // Upload any .xlsx: a name containing "error" gives a report with blocking errors,
+// "no-tabs" gives a workbook with no analysis tabs (blocking error, empty sections),
 // "broken" gives an unreadable-workbook message, "slow" takes longer.
 // Email the PDF: a recipient containing "outlook-fail" -> Outlook could not open,
 // "outlook-busy" -> still opening the previous email; anything else opens "Outlook".
@@ -88,16 +89,21 @@ const wait = (ms, signal) =>
     }
   });
 
-/** Adds blocking problems to the SYNTHETIC report: a UOIR without its tab and an empty required cell. */
+/**
+ * Adds blocking problems to the SYNTHETIC report: an empty required cell, and an analysis
+ * tab whose table could not be read (its section has no analysis and no summary).
+ */
 function withErrors(report) {
-  const sheet901 = report.uoirs[0].analysis.sheet;
-  const row = report.uoirs[0].analysis.rows[3];
+  const first = report.analyses[0];
+  const sheet901 = first.analysis.sheet;
+  const row = first.analysis.rows[3];
   row.cells[2] = '';
-  report.uoirs[0].tasks[3].failure_effect = '';
+  first.tasks[3].failure_effect = '';
 
+  const sheet906 = 'UOIR ID 906 - Ash conveyor belt';
   report.failure_details.push({
-    no: '5',
-    uoir_id: '904',
+    no: String(report.failure_details.length + 1),
+    uoir_id: '906',
     title: 'SYNTHETIC - Ash conveyor belt misalignment trip',
     faulty_date: '2026-07-02',
     faulty_date_text: '2 July 2026',
@@ -106,13 +112,14 @@ function withErrors(report) {
     corrective_action: 'Realigned the belt and adjusted the tail pulley',
     preventive_action: 'Weekly belt tracking check',
     equipment: 'Ash Conveyor 3',
-    source_row: 9,
+    source_row: report.failure_details[report.failure_details.length - 1].source_row + 1,
   });
-  report.uoirs.push({
-    uoir_id: '904',
+  report.uoir_ids.push('906');
+  report.analyses.push({
+    sheet_name: sheet906,
+    uoir_ids: ['906'],
     title: 'SYNTHETIC - Ash conveyor belt misalignment trip',
     equipment: ['Ash Conveyor 3'],
-    sheet_name: null,
     notes: [],
     analysis: null,
     tasks: [],
@@ -128,19 +135,45 @@ function withErrors(report) {
       row: 6,
       column: 'Failure Effect',
       cell: 'C6',
-      uoir_id: '901',
+      uoir_id: first.uoir_ids.join(', '),
     },
     {
       severity: 'error',
-      code: 'ANALYSIS_SHEET_MISSING',
-      message: "No worksheet found for UOIR ID 904. Expected a tab named like 'UOIR ID 904 - Ash conveyor belt…'.",
-      sheet: null,
+      code: 'ANALYSIS_HEADER_MISSING',
+      message: `The analysis table was not found on '${sheet906}'. Expected a header row with 'Failure Mode' and 'RecommendedStrategy' within the first 15 rows.`,
+      sheet: sheet906,
       row: null,
       column: null,
       cell: null,
-      uoir_id: '904',
+      uoir_id: '906',
     },
   );
+  report.can_export = false;
+  return report;
+}
+
+/**
+ * The SYNTHETIC workbook with no analysis tabs at all: no sections, and the blocking
+ * ANALYSIS_SHEET_NONE error. The UOIR sheet and its issues stay; issues raised inside
+ * the tabs go, and ANALYSIS_SHEET_MISSING is not raised alongside ANALYSIS_SHEET_NONE.
+ */
+function withoutTabs(report) {
+  const tabNames = new Set(report.analyses.map((section) => section.sheet_name));
+  report.analyses = [];
+  report.issues = report.issues.filter(
+    (issue) => !tabNames.has(issue.sheet) && issue.code !== 'ANALYSIS_SHEET_MISSING',
+  );
+  report.issues.unshift({
+    severity: 'error',
+    code: 'ANALYSIS_SHEET_NONE',
+    message:
+      "The workbook has no analysis tabs, so the report would have no FMEA Analysis. Add a tab named like 'UOIR ID 123 - Title of the UOIR' and upload again.",
+    sheet: null,
+    row: null,
+    column: null,
+    cell: null,
+    uoir_id: null,
+  });
   report.can_export = false;
   return report;
 }
@@ -149,7 +182,9 @@ function currentReport() {
   if (!state.variant) return null;
   const report = clone(syntheticReport);
   if (state.filename) report.source_filename = state.filename;
-  return state.variant === 'errors' ? withErrors(report) : report;
+  if (state.variant === 'errors') return withErrors(report);
+  if (state.variant === 'no-tabs') return withoutTabs(report);
+  return report;
 }
 
 function json(status, body) {
@@ -278,7 +313,7 @@ export async function mockUpload(file, { onProgress, signal } = {}) {
       status: 400,
     });
   }
-  state.variant = name.includes('error') ? 'errors' : 'ok';
+  state.variant = name.includes('no-tabs') ? 'no-tabs' : name.includes('error') ? 'errors' : 'ok';
   state.filename = file.name;
   return currentReport();
 }

@@ -442,7 +442,7 @@ export default function ExportView({
     {
       icon: Activity,
       title: 'Analysis',
-      text: `${plural(report.uoirs.length, 'UOIR')}: FMEA Analysis on A3 landscape and FMEA Summary on A4`,
+      text: `${plural(report.uoir_ids.length, 'UOIR')}: FMEA Analysis on A3 landscape and FMEA Summary on A4`,
     },
     { icon: Wrench, title: 'Recommendation', text: 'Tasks grouped by Equipment and KKS for every UOIR' },
   ];

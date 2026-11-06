@@ -207,7 +207,7 @@ export default function UploadView({
             </div>
             <div className="file-panel-meta" id={fileMetaId}>
               {report.station || 'Station not found'} · {report.analysis_date_text || 'Date not found'} ·{' '}
-              {plural(report.uoirs.length, 'UOIR')}
+              {plural(report.uoir_ids.length, 'UOIR')}
               {counts.error > 0 && (
                 <>
                   {' '}
