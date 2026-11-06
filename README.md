@@ -63,13 +63,16 @@ Sign in  ->  1 Upload Excel  ->  2 Review Data  ->  3 Preview Report  ->  4 Expo
      information);
    - a **Workbook data** panel with the actual data, so you can see it before
      the report preview: tabs **Team Members** (with Station and Date of
-     Analysis), **Failure Details** and **Analysis** (one UOIR at a time, with
-     its notes and full table). It is **read-only**: to change anything, edit
+     Analysis), **Failure Details** and **Analysis** (one analysis tab at a
+     time, with its notes and full table). It is **read-only**: to change anything, edit
      the workbook in Excel, remove it on the Upload step and upload it again.
 
    The sidebar's **Report sections** (Data Checks, Front Page, Introduction,
    Analysis, Recommendation) show each part of the report in more detail,
-   including each UOIR's summary and the recommendations. Review Data shows
+   including each analysis tab's summary and the recommendations. Under
+   Analysis the sidebar lists one entry per analysis tab, showing its UOIR IDs
+   (for example "901, 902") and title; hover over an entry to see the tab
+   name. Review Data shows
    the values only and does not say which sheet or cell they came from: the
    fact cards, the Front Page, the Introduction and the Workbook data panel
    have no "sheet, cell" captions. (A data-check message still names the
@@ -151,8 +154,8 @@ Each page's title and subtitle, as shown in the top bar:
 | Review Data: Data Checks | Review data | Step 2 of 4 · What was read from *workbook file name* |
 | Review Data: Front Page | Front Page | Report section · The cover of the report, as it will appear on the first page of the PDF |
 | Review Data: Introduction | Introduction | Report section · Failure details and the analysis team, exactly as written in the workbook |
-| Review Data: Analysis | Analysis | Report section · The FMEA Analysis table and FMEA Summary counts for each UOIR |
-| Review Data: Recommendation | Recommendation | Report section · Maintenance tasks for each UOIR, grouped by Equipment and KKS |
+| Review Data: Analysis | Analysis | Report section · The FMEA Analysis table and FMEA Summary counts for each analysis tab |
+| Review Data: Recommendation | Recommendation | Report section · Maintenance tasks for each analysis tab, grouped by Equipment and KKS |
 | Preview Report | Preview report | Step 3 of 4 · *PDF file name*, exactly as it will be exported |
 | Export PDF | Export PDF | Step 4 of 4 · Download the finished report, or email it |
 | After Finish | Report complete | The workbook and report have been cleared from the app |
@@ -212,12 +215,13 @@ Workbooks and reports are cleared when you sign out or close the page."
 |---|---|---|---|
 | 1 | Cover | A4 portrait | "Failure Mode Effect Analysis (FMEA) Report", Station, Date of Analysis, blank PREPARED BY / APPROVED BY boxes |
 | 2 | Introduction | A4 portrait | Failure Details table (one row per UOIR sheet row) and Team Members table |
-| 3 | Analysis: FMEA Analysis (one per UOIR) | A3 landscape | UOIR ID, Title, any notes, then the full analysis table exactly as in the tab |
-| 4 | Analysis: FMEA Summary (one per UOIR) | A4 portrait | Failure Mode / Maintenance Task / Task Executed cards, the Existing vs Revised pie and table, and the Work-Centre Execution table |
-| 5 | Recommendation | A4 portrait | For each UOIR, one table per KKS: Failure Mode, Task, Frequency |
+| 3 | Analysis: FMEA Analysis (one per analysis tab) | A3 landscape | UOIR ID (every UOIR the tab covers, for example "901, 902"), Title, any notes, then the full analysis table exactly as in the tab |
+| 4 | Analysis: FMEA Summary (one per analysis tab) | A4 portrait | Failure Mode / Maintenance Task / Task Executed cards, the Existing vs Revised pie and table, and the Work-Centre Execution table |
+| 5 | Recommendation | A4 portrait | For each analysis tab, one table per KKS: Failure Mode, Task, Frequency |
 
-Sections 3 and 4 repeat for every UOIR, in the order they are listed on the
-UOIR sheet.
+Sections 3 and 4 repeat for every analysis tab, in the order its UOIRs are
+listed on the UOIR sheet. A tab that covers several UOIRs gives one page pair,
+not a pair for each UOIR.
 
 ---
 
@@ -231,8 +235,8 @@ UOIR sheet.
   size before sending it (it rejects `.xls` files, empty files and `~$` Excel
   lock files). After reading, the upload card shows the file with **Remove**
   and **Proceed to Review Data**.
-- Reads the Team Member, UOIR and analysis sheets. The analysis tabs are linked
-  to the UOIR list by UOIR ID.
+- Reads the Team Member, UOIR and analysis sheets. Each analysis tab is a
+  section of the report; the UOIR IDs in its name say which UOIRs it covers.
 - Every check has a plain-language message with the sheet, row, column and
   cell. Errors block the preview and export; warnings and information do not.
   A **Show in table** button jumps to the row in question.
@@ -280,7 +284,7 @@ backend/
   settings.py               Settings from environment variables / .env
   config/mapping.py         Every sheet name, cell, header, code, strategy name and colour
   excel/reader.py           Opens the workbook in memory; cell text, merged cells, formulas
-  excel/linking.py          Links "UOIR ID <id> - ..." tabs to the UOIR list
+  excel/linking.py          Reads the UOIR IDs in "UOIR ID <id> ..." tab names; tab checks
   report/models.py          The Report data model shared by API, screens and PDF
   report/builder.py         build_report(): reads the sheets and runs every check
   report/summary.py         Counts, pie percentages, work centres, recommendations
@@ -492,8 +496,10 @@ switches (all listed at the top of `frontend/src/mocks/mockServer.js`):
   hosted server).
 - Sign in with any username. The password `wrong` gives the "incorrect" message
   and `locked` gives the "too many attempts" message.
-- An upload whose file name contains `error` gives blocking errors, `broken`
-  gives an unreadable-file message, and `slow` takes longer.
+- An upload whose file name contains `error` gives blocking errors, `no-tabs`
+  gives a workbook with no analysis tabs, `broken` gives an unreadable-file
+  message, and `slow` takes longer. Any other name gives the normal report
+  (which has one analysis tab that covers two UOIRs).
 - Email the PDF: a recipient containing `outlook-fail` gives the "Outlook could
   not open a new email" message, and `outlook-busy` the "still opening the
   previous email" message. Nothing is ever sent or opened in mock mode.
@@ -585,7 +591,7 @@ codes) and `backend/report/builder.py` (checks).
 | `Team Member` | `A3` (should contain "Date of Analysis") | Layout check only |
 | `Team Member` | Header row with `No`, `Name`, `Staff No`, `Section` | **Team Members** table |
 | `UOIR` | Header row with `No`, `UOIR ID`, `Title`, `Date of fault`, `Date of UOIR`, `CA`, `PA`, `Equipment` | **Failure Details** table (shown as UOIR ID, Title, Faulty Date, UOIR ID Date, Corrective Action (CA), Preventive Action (PA), Equipment); the list of UOIRs; Equipment for recommendation headings |
-| `UOIR ID <id> - <title>` tabs | `B1` | Full UOIR title, compared with the UOIR sheet |
+| `UOIR ID <id> - <title>` tabs | `B1` | Title of a tab that covers several UOIRs (or an ID not on the UOIR sheet); for a one-UOIR tab it is only compared with the UOIR sheet title |
 | `UOIR ID <id> - <title>` tabs | Header row containing `Failure Mode` and `RecommendedStrategy` | The **FMEA Analysis** table: every column and row, as written |
 | analysis tab | `No.` | Row number only; ignored when deciding whether a row is blank or a duplicate |
 | analysis tab | `Failure Mode` | Failure Mode count, Recommendation table (must not be empty) |
@@ -627,34 +633,72 @@ shows as `00001234`.
 
 ### Linking analysis tabs to UOIRs
 
-Excel limits tab names to 31 characters, so a tab holds the UOIR ID and only
-part of the title. For example, the tab `UOIR ID 501 - Pump Trip due to` is
-for UOIR 501 "SYNTHETIC Pump Trip due to Low Suction Pressure".
+Each analysis tab becomes **one section** of the report: one FMEA Analysis
+page, one FMEA Summary page and one Recommendation block. A tab name can list
+**several UOIR IDs**, so one tab can cover several UOIRs that are about the
+same topic. Failure Details still has one row per UOIR sheet row.
+
+Excel limits tab names to 31 characters, so a tab holds the UOIR IDs and only
+part of the title. Examples (all SYNTHETIC):
+
+| Tab name | UOIRs it covers |
+|---|---|
+| `UOIR ID 901 - Pump Trip due to` | 901 |
+| `UOIR ID 901 902 - SYNTHETIC Pump trip` | 901 and 902 |
+| `UOIR ID 901, 902 & 903 - Fan` | 901, 902 and 903 |
+| `UOIR ID 901,902,903` | 901, 902 and 903 (the compact form saves room) |
 
 - A tab is an analysis tab when its name starts with `UOIR ID`, then the ID
   digits, then anything else. Upper/lower case is ignored, the spaces are
   optional, and a `:`, `#` or `-` may follow `ID`.
-- **The ID decides the link.** IDs are compared with leading zeros ignored, so
-  `0501` and `501` are the same UOIR, but `50` is not `501`.
-- One tab for the ID: it is used. If the title part of the tab name is not found
-  anywhere in the UOIR title, you get a warning, but the tab is still used. The
-  comparison ignores case, extra spaces and the characters Excel forbids in tab
-  names (`[ ] : * ? / \`).
-- Several tabs for the same ID: the one whose title part matches the title is
-  used, and the others are reported as not used. If no tab matches, or more than
-  one does, that is an error.
-- No tab for a UOIR: error.
-- A tab whose ID is not on the UOIR sheet: warning ("left out of the report").
-- A hidden tab that is linked: warning. It is still included.
-- `B1` of the tab is compared with the UOIR title (case and extra spaces
-  ignored). If they differ, you get a warning. The check is skipped when `B1`
-  is empty, when the UOIR title is empty, or when `B1` lies inside the table
-  (header on row 1).
+- **The IDs in the name decide what a tab covers.** The first number is always
+  an ID. A further number counts as an ID when it comes right after the
+  previous ID, separated by spaces, commas or `&`, and it is a UOIR ID on the
+  UOIR sheet. Reading stops at the first number or word that does not fit; the
+  rest is the title part. So `UOIR ID 905 2 fans trip` covers 905 only (the 2
+  is part of the title), and `132kV` is never an ID.
+- A `-` is not a separator between IDs: in `UOIR ID 901 - 902 - Pump` only 901
+  is read. If 902 is a UOIR that no tab names, you get the warning
+  `UOIR_ID_NOT_READ` pointing at that name.
+- IDs are compared with leading zeros ignored, so `0501` and `501` are the same
+  UOIR, but `50` is not `501`.
+- **Every analysis tab is read and checked**, including hidden tabs, tabs for
+  an ID that is not on the UOIR sheet, and tabs that share an ID. An error
+  inside any of them blocks export, so fix it or delete the tab.
+- **A UOIR that no tab names** is only information (`ANALYSIS_SHEET_MISSING`).
+  It is still in Failure Details, and it does not block the preview or export.
+- **A tab whose ID is not on the UOIR sheet:** warning. The tab is **included**
+  in the report.
+- **One UOIR ID in two tabs:** warning. Both tabs are used.
+- **A hidden tab:** warning. It is still included.
+- **No analysis tab at all:** error (the report would have no FMEA Analysis).
+- **A sheet named like an analysis tab but not readable as one**, for example
+  `UOIR 901 - Fan` (no `ID`): warning, and the sheet is not in the report.
+  Rename it, for example `UOIR ID 901 - Fan`.
+- **The title of a section:**
+  - A tab for **one listed UOIR** uses the UOIR sheet Title, as before. If that
+    is empty, it uses `B1`, then the title part of the tab name.
+  - Any other tab (several UOIRs, or an ID not on the UOIR sheet) uses `B1`
+    first. If `B1` is empty, it uses the first non-empty UOIR sheet Title of the
+    UOIRs it covers, then the title part of the tab name.
+  - `B1` is not used as a title when it lies inside the table (header on row 1).
+- The title part of the tab name is compared with `B1` and with the Title of
+  every UOIR the tab covers. If it matches none of them anywhere in the text, you
+  get a warning, but the tab is still used. The comparison ignores case, extra
+  spaces and the characters Excel forbids in tab names (`[ ] : * ? / \`).
+- For a one-UOIR tab, `B1` is also compared with the UOIR title (case and extra
+  spaces ignored); if they differ you get a warning. This check is skipped when
+  `B1` is empty, when the UOIR title is empty, or when `B1` lies inside the
+  table. It is not made for tabs that cover several UOIRs.
+- **Sections are in UOIR sheet order:** by the first UOIR on the sheet that the
+  tab covers, then by tab order. Tabs for an ID not on the UOIR sheet come last.
 - A UOIR ID listed on several rows of the UOIR sheet is **one UOIR** (every
   row still appears in Failure Details). Its different Equipment values are
-  collected and joined in recommendation headings ("Pump A / Pump B"). The
-  first non-empty Title is used; a different Title on a later row gives a
-  warning.
+  collected. The first non-empty Title is used; a different Title on a later
+  row gives a warning.
+- **Equipment in the Recommendation headings** is the Equipment values of every
+  UOIR the tab covers, joined with " / ". A tab with no UOIR on the sheet has
+  none, so its headings are just the KKS.
 
 ### Where each table ends
 
@@ -718,7 +762,9 @@ in Excel, save it and upload again.
 ### Sheets that are ignored or not used
 
 - `Notifications` and `Sheet3` are never opened, and they get no message.
-- A linked analysis tab is used.
+- Every analysis tab is used.
+- A sheet whose name starts with "UOIR" but cannot be read as an analysis tab
+  (and is not the `UOIR` sheet) gets the warning `ANALYSIS_SHEET_NAME_UNREADABLE`.
 - Any other sheet (including chart sheets) gets the information message
   "Sheet 'X' is not used in the report."
 
@@ -726,7 +772,9 @@ in Excel, save it and upload again.
 
 ## How the numbers are calculated
 
-All counts are **per UOIR**, from the rows of its analysis table.
+All counts are **per analysis tab**, from the rows of its analysis table. A
+tab that covers several UOIRs has one set of counts. The number of UOIRs shown
+in the app counts the different UOIR IDs on the UOIR sheet.
 
 ### Which rows count
 
@@ -822,13 +870,14 @@ warning and the row is counted by that value.
 
 ### Recommendation
 
-- One block per UOIR, in UOIR order. Inside it, one table per **KKS**.
+- One block per analysis tab, in the section order above. Inside it, one table
+  per **KKS**.
   Grouping ignores upper/lower case and extra spaces. Groups appear in order of
   first appearance, and rows keep workbook order.
 - Every counted row is included (Failure Mode, Task, Frequency), whatever its
   New Task value. Duplicates are left out.
-- Group heading: `<Equipment>, <KKS>`. Equipment is the UOIR's Equipment values
-  joined with " / ", for example "Pump A / Pump B, KKS-PUMP-A". If Equipment is
+- Group heading: `<Equipment>, <KKS>`. Equipment is the Equipment values of every UOIR
+  the tab covers, joined with " / ", for example "Pump A / Pump B, KKS-PUMP-A". If Equipment is
   empty, the heading is just the KKS.
 - In the app, the tabs **New Task = Yes**, **New Task = No** and **New Task not
   set** only filter the screen. "Not set" holds every row that is not Yes or
@@ -891,8 +940,7 @@ group, by sheet (tab order) and row.
 | `UOIR_HEADER_MISSING` | The UOIR table header was not found, or one of its eight columns is missing. |
 | `UOIR_VALUE_BLANK` | UOIR ID or Title is empty on a UOIR sheet row. |
 | `UOIR_NONE` | No UOIR rows were found below the header. |
-| `ANALYSIS_SHEET_MISSING` | No `UOIR ID <id> - ...` tab exists for a listed UOIR. |
-| `ANALYSIS_SHEET_AMBIGUOUS` | Several tabs share the UOIR ID, and the title does not pick exactly one. |
+| `ANALYSIS_SHEET_NONE` | The workbook has no analysis tab at all, so the report would have no FMEA Analysis. |
 | `ANALYSIS_HEADER_MISSING` | The analysis header row was not found, or a required column is missing. The table is still shown, but no counts are made. |
 | `ANALYSIS_HEADER_DUPLICATE` | A mapped column (for example Task) appears twice in the header row. |
 | `ANALYSIS_NO_ROWS` | The analysis tab has a header but no data rows. |
@@ -905,15 +953,18 @@ group, by sheet (tab order) and row.
 |---|---|
 | `LABEL_UNEXPECTED` | `A2` / `A3` on Team Member no longer say "Station" / "Date of Analysis"; the layout may have changed. |
 | `TEAM_EMPTY` | No team members were found below the header. |
-| `ROWS_AFTER_BLANK_ROW` | Rows with data sit below the empty row that ends a table, so they are not in the report. |
+| `ROWS_AFTER_BLANK_ROW` | Rows with data sit below the empty row that ends a table, so they are not in the report (a UOIR row below the gap is not in Failure Details). |
 | `UOIR_DATE_NOT_DATE` | Date of fault or Date of UOIR is not a date; it is shown as written. |
 | `UOIR_EQUIPMENT_BLANK` | Equipment is empty on a UOIR sheet row. |
 | `UOIR_DUPLICATE_ID_CONFLICT` | The same UOIR ID is listed again with a different Title; the first Title is used. |
 | `FORMULA_NO_VALUE` | A formula cell has no saved result, so it reads as empty. |
-| `ANALYSIS_SHEET_TITLE_MISMATCH` | The tab name's title part doesn't match the UOIR title; the tab was linked by its ID. |
-| `ANALYSIS_TITLE_CELL_MISMATCH` | `B1` of the tab differs from the UOIR title. |
-| `ANALYSIS_SHEET_HIDDEN` | The linked tab is hidden in Excel; it is still included. |
-| `ANALYSIS_SHEET_UNLISTED` | A `UOIR ID <id>` tab's ID is not on the UOIR sheet; the tab is left out. |
+| `ANALYSIS_SHEET_TITLE_MISMATCH` | The tab name's title part matches neither `B1` nor the Title of any UOIR the tab covers; the tab is still used. |
+| `ANALYSIS_TITLE_CELL_MISMATCH` | `B1` of a one-UOIR tab differs from the UOIR title. |
+| `ANALYSIS_SHEET_HIDDEN` | The tab is hidden in Excel; it is still included. |
+| `ANALYSIS_SHEET_UNLISTED` | A `UOIR ID <id>` tab's ID is not on the UOIR sheet; the tab is included in the report. |
+| `ANALYSIS_SHEET_NAME_UNREADABLE` | A sheet looks like an analysis tab (its name starts with "UOIR") but is not named `UOIR ID` and a number, so it is not in the report. |
+| `UOIR_ID_NOT_READ` | A UOIR that no tab names appears as a number in a tab name but was not read as one of its IDs (for example after a `-`). |
+| `UOIR_IN_SEVERAL_TABS` | A UOIR ID is named in two or more tabs; all of them are in the report. |
 | `STRATEGY_UNKNOWN` | A strategy code is not known and does not start with `R-`; it is shown as written, so check the spelling. |
 | `NEW_TASK_BLANK` | New Task is empty on a non-NSM row; the row is left out of Existing/New and Work-Centre counts. |
 | `NSM_NEW_TASK_FILLED` | An NSM row has New Task Yes or No; it is counted by that value. |
@@ -923,7 +974,8 @@ group, by sheet (tab order) and row.
 
 | Code | Plain meaning |
 |---|---|
-| `SHEET_NOT_USED` | A sheet is not part of the report. This includes an extra tab for a UOIR ID when another tab matched the title. |
+| `SHEET_NOT_USED` | A sheet is not part of the report. |
+| `ANALYSIS_SHEET_MISSING` | A UOIR on the UOIR sheet is not named in any analysis tab. It is only shown in Failure Details. Add its ID to the name of the tab that covers it if there is one. |
 | `MERGED_CELLS_CARRIED` | Merged cells cover several data rows; the merged value is used for each row. |
 | `STRATEGY_DERIVED_NAME` | An `R-` code not in the list gets the name "Redesign X". |
 | `TRADE_SPELLING_MERGED` | Different spellings of one Trade are counted as one work centre. |
@@ -953,15 +1005,16 @@ and size checks first, with similar wording; the server repeats them:
 
 1. **Cover**: A4 portrait. No page header or footer.
 2. **Introduction**: A4 portrait. Failure Details, then Team Members.
-3. For each UOIR, in UOIR sheet order:
-   - **Analysis: FMEA Analysis**: A3 landscape. "UOIR ID : ...", "Title :
+3. For each analysis tab, in the section order above (one page pair per tab,
+   even when it covers several UOIRs):
+   - **Analysis: FMEA Analysis**: A3 landscape. "UOIR ID : 901, 902", "Title :
      ...", one "Note : ..." line per note, then the full analysis table.
    - **Analysis: FMEA Summary**: A4 portrait. The three cards, "Existing vs
      Revised" (pie with legend, then the Code / Strategy / Existing / New
      table), "Work-Centre Execution" (Work Centre / Total / Executed /
      Pending) and the not-counted / duplicate notes.
 4. **Recommendation**: A4 portrait. It starts on a new page and then runs on:
-   "UOIR ID <id>: <title>", then for each KKS group the heading and a table
+   "UOIR ID <ids>: <title>" for each tab, then for each KKS group the heading and a table
    with a two-row header (Failure Mode | Recommendations: Task, Frequency).
 
 ### Header, footer and look
