@@ -1,5 +1,9 @@
 # FMEA Report Generator
 
+**Open the app: [easa-26.github.io/FMEA-Genco](https://easa-26.github.io/FMEA-Genco/)**
+(sign in with the account your administrator gave you; if nobody has used it
+for a while, the first visit can take up to a minute while it wakes up).
+
 A web app that turns an engineer's FMEA workbook (Excel) into the
 **Failure Mode Effect Analysis (FMEA) Report** PDF. You upload the workbook,
 review what the app read from it, preview the report and download the PDF.
@@ -1333,7 +1337,13 @@ for your data.
 3. **Check it.** When the deploy shows *Live*, open the link, sign in as `admin`
    with your new password, and run a SYNTHETIC workbook through to Export.
    `/api/health` returns `{"status":"ok"}`.
-4. **Share it.** Put the link in the repository's **About → Website** box.
+4. **Share it.** The public link is
+   `https://easa-26.github.io/FMEA-Genco/`: a small page on the `gh-pages`
+   branch, published by GitHub Pages (Settings → Pages → Deploy from a branch →
+   `gh-pages` / root), that forwards visitors to the Render app
+   (`https://fmea-genco.onrender.com`). Put it in the repository's
+   **About → Website** box. If the Render link ever changes, update the link in
+   `index.html` and `404.html` on the `gh-pages` branch.
 
 Free plan limits: the app sleeps after 15 minutes without visitors, and the
 next visit waits about a minute while it wakes; it has a small server (512 MB,
