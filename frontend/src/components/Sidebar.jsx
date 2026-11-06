@@ -165,7 +165,7 @@ export default function Sidebar({ report, counts, nav, sectionKey, uploadBusy, o
                                 type="button"
                                 className={`uoir-link ${selected ? 'is-active' : ''}`}
                                 onClick={() => onSection('analysis', a.sheet_name)}
-                                title={a.sheet_name}
+                                title={a.title ? `${a.sheet_name}: ${a.title}` : a.sheet_name}
                               >
                                 <span className="uoir-link-id">{sectionLabel(a)}</span>
                                 <span className="uoir-link-title">{a.title}</span>

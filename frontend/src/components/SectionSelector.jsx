@@ -42,7 +42,7 @@ function RecommendationStats({ section }) {
 
 // Card strip for choosing the analysis section (one per analysis tab) shown in Analysis,
 // Recommendation and Workbook data. `value` and `onChange` use the tab name (sheet_name);
-// the tab name is shown only as the card's tooltip.
+// the tab name is shown only in the card's tooltip, with the full title.
 export default function SectionSelector({ report, value, onChange, variant = 'analysis' }) {
   const stripRef = useRef(null);
 
@@ -71,7 +71,7 @@ export default function SectionSelector({ report, value, onChange, variant = 'an
             className={`uoir-card ${selected ? 'is-selected' : ''}`}
             aria-pressed={selected}
             onClick={() => onChange(section.sheet_name)}
-            title={section.sheet_name}
+            title={section.title ? `${section.sheet_name}: ${section.title}` : section.sheet_name}
           >
             <span className="uoir-card-top">
               <span className="uoir-card-id">UOIR ID {sectionLabel(section)}</span>
