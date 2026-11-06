@@ -179,6 +179,40 @@ def test_unreadable_uoir_sheet_name_warns(clean_workbook_with, synthetic_tool):
     assert [s.sheet_name for s in report.analyses] == [synthetic_tool.CLEAN_TAB_601]
 
 
+@pytest.mark.parametrize("misnamed", ["UIOR ID 602 - Clean Valve", "FMEA UOIR ID 602"])
+def test_misspelled_tab_name_with_a_listed_id_warns(clean_workbook_with, synthetic_tool, misnamed):
+    """A tab the app cannot recognise still points at itself when its name holds an uncovered UOIR ID."""
+    def change(wb):
+        wb[synthetic_tool.CLEAN_TAB_602].title = misnamed
+
+    report = _build(clean_workbook_with, change)
+    assert _codes(report) == [
+        ("warning", "UOIR_ID_NOT_READ", "UOIR"),
+        ("info", "SHEET_NOT_USED", misnamed),
+    ]
+    not_read = report.issues[0]
+    assert (not_read.row, not_read.cell, not_read.uoir_id) == (6, "B6", "602")
+    assert not_read.message == (
+        f"UOIR ID 602 appears in the name of tab '{misnamed}', but it was not read as one of the tab's IDs. "
+        "Write every ID right after 'UOIR ID', separated by spaces, commas or &, for example "
+        "'UOIR ID 123 124 - Title', and upload again."
+    )
+    assert report.can_export is True
+    assert [s.sheet_name for s in report.analyses] == [synthetic_tool.CLEAN_TAB_601]
+
+
+def test_unused_sheet_without_an_uncovered_id_stays_info(clean_workbook_with, synthetic_tool):
+    """Only a number that matches an uncovered UOIR turns the note into a warning."""
+    def change(wb):
+        wb[synthetic_tool.CLEAN_TAB_602].title = "Valve notes 2026"
+
+    report = _build(clean_workbook_with, change)
+    assert _codes(report) == [
+        ("info", "ANALYSIS_SHEET_MISSING", "UOIR"),
+        ("info", "SHEET_NOT_USED", "Valve notes 2026"),
+    ]
+
+
 # --------------------------------------------------------------------------- #
 # Tabs for an ID that is not listed, and IDs named by several tabs
 # --------------------------------------------------------------------------- #

@@ -767,6 +767,10 @@ in Excel, save it and upload again.
   (and is not the `UOIR` sheet) gets the warning `ANALYSIS_SHEET_NAME_UNREADABLE`.
 - Any other sheet (including chart sheets) gets the information message
   "Sheet 'X' is not used in the report."
+- If the name of a sheet that is not used holds the number of a UOIR that no
+  analysis tab names (for example a misspelled `UIOR ID 902 - Pump`), that UOIR
+  gets the warning `UOIR_ID_NOT_READ` pointing at the sheet, so the missing
+  analysis is not overlooked.
 
 ---
 
@@ -963,7 +967,7 @@ group, by sheet (tab order) and row.
 | `ANALYSIS_SHEET_HIDDEN` | The tab is hidden in Excel; it is still included. |
 | `ANALYSIS_SHEET_UNLISTED` | A `UOIR ID <id>` tab's ID is not on the UOIR sheet; the tab is included in the report. |
 | `ANALYSIS_SHEET_NAME_UNREADABLE` | A sheet looks like an analysis tab (its name starts with "UOIR") but is not named `UOIR ID` and a number, so it is not in the report. |
-| `UOIR_ID_NOT_READ` | A UOIR that no tab names appears as a number in a tab name but was not read as one of its IDs (for example after a `-`). |
+| `UOIR_ID_NOT_READ` | A UOIR that no tab names appears as a number in a tab or sheet name but was not read as one of its IDs (for example after a `-`, or in a misspelled name such as `UIOR ID 902`). |
 | `UOIR_IN_SEVERAL_TABS` | A UOIR ID is named in two or more tabs; all of them are in the report. |
 | `STRATEGY_UNKNOWN` | A strategy code is not known and does not start with `R-`; it is shown as written, so check the spelling. |
 | `NEW_TASK_BLANK` | New Task is empty on a non-NSM row; the row is left out of Existing/New and Work-Centre counts. |

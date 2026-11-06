@@ -152,7 +152,7 @@ class _ReportBuilder:
 
     # ------------------------------------------------------------------ #
     def build(self) -> Report:
-        team_sheet, uoir_sheet, analysis_sheets, unreadable_sheets = self._classify_sheets()
+        team_sheet, uoir_sheet, analysis_sheets, unused_sheets = self._classify_sheets()
         if team_sheet is not None:
             self._read_team(team_sheet)
         if uoir_sheet is not None:
@@ -164,7 +164,7 @@ class _ReportBuilder:
         tabs = read_analysis_tabs(analysis_sheets, frozenset(self.listed))
         self.issues.extend(tab_issues(tabs, self.listed, self.uoir_list_read))
         self.issues.extend(coverage_issues(
-            tabs, self.listed, [sheet.name for sheet in unreadable_sheets], self.uoir_list_read,
+            tabs, self.listed, [sheet.name for sheet in unused_sheets], self.uoir_list_read,
         ))
         sections = [(self._section_order(tab), self._read_analysis(tab)) for tab in tabs]
         sections.sort(key=lambda pair: pair[0])
@@ -243,10 +243,12 @@ class _ReportBuilder:
     def _classify_sheets(
         self,
     ) -> tuple[SheetInfo | None, SheetInfo | None, list[SheetInfo], list[SheetInfo]]:
-        """(Team Member, UOIR, analysis tabs, sheets named like an analysis tab that cannot be read).
+        """(Team Member, UOIR, analysis tabs, every other sheet the report does not use).
 
         An analysis tab is recognised by its name pattern only; the IDs in it are read later,
-        against the UOIR list.
+        against the UOIR list. The unused sheets (misnamed analysis tabs included, ignored sheets
+        excluded) are returned in workbook order so a UOIR ID hidden in a misspelled name can be
+        pointed out.
         """
         worksheets = [s for s in self.source.sheets if s.is_worksheet]
 
@@ -265,7 +267,7 @@ class _ReportBuilder:
 
         ignored = {name.strip().lower() for name in IGNORED_SHEETS}
         analysis_sheets: list[SheetInfo] = []
-        unreadable_sheets: list[SheetInfo] = []
+        unused_sheets: list[SheetInfo] = []
         for sheet in self.source.sheets:
             if sheet is team_sheet or sheet is uoir_sheet:
                 continue
@@ -274,9 +276,9 @@ class _ReportBuilder:
             if sheet.is_worksheet and ANALYSIS_SHEET_PATTERN.match(sheet.name):
                 analysis_sheets.append(sheet)
                 continue
+            unused_sheets.append(sheet)
             if sheet.is_worksheet and sheet.name.strip().casefold().startswith("uoir"):
                 # Most likely a misnamed analysis tab ("UOIR 901 - Fan"): say so instead of "not used".
-                unreadable_sheets.append(sheet)
                 self._add(
                     "warning", "ANALYSIS_SHEET_NAME_UNREADABLE", UNREADABLE_MESSAGE.format(name=sheet.name),
                     sheet=sheet.name,
@@ -286,7 +288,7 @@ class _ReportBuilder:
                 "info", "SHEET_NOT_USED", f"Sheet '{sheet.name}' is not used in the report.",
                 sheet=sheet.name,
             )
-        return team_sheet, uoir_sheet, analysis_sheets, unreadable_sheets
+        return team_sheet, uoir_sheet, analysis_sheets, unused_sheets
 
     @staticmethod
     def _find_header_row(grid: SheetGrid, required: list[str]) -> tuple[int, dict[str, int]] | None:

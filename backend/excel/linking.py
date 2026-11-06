@@ -181,10 +181,15 @@ _SEPARATE_NUMBER = re.compile(r"(?<![0-9A-Za-z])\d+(?![0-9A-Za-z])")
 def coverage_issues(
     tabs: list[AnalysisTabRef],
     listed: Mapping[str, UoirRef],
-    unreadable_names: list[str],
+    other_sheet_names: list[str],
     uoir_list_read: bool,
 ) -> list[Issue]:
-    """No analysis tabs at all, and what each listed UOIR looks like from the tabs' side."""
+    """No analysis tabs at all, and what each listed UOIR looks like from the tabs' side.
+
+    `other_sheet_names` are the sheets the report does not use (misnamed analysis tabs and any
+    other sheet, in workbook order). A listed UOIR that no tab names but whose number appears in
+    one of those names, or in a tab's title part, gets a warning instead of the info note.
+    """
     issues: list[Issue] = []
     none = uoir_list_read and not tabs
     if none:
@@ -196,8 +201,8 @@ def coverage_issues(
                 "named like 'UOIR ID 123 - Title of the UOIR' and upload again."
             ),
         ))
-    # Where to look for a number that was not read as an ID: tabs first, then unreadable names.
-    searched = [(t.sheet.name, t.fragment) for t in tabs] + [(n, n) for n in unreadable_names]
+    # Where to look for a number that was not read as an ID: tabs first, then the unused sheets.
+    searched = [(t.sheet.name, t.fragment) for t in tabs] + [(n, n) for n in other_sheet_names]
     for key, ref in sorted(listed.items(), key=lambda item: item[1].position):
         named_in = [t.sheet.name for t in tabs if key in t.keys]
         if len(named_in) >= 2:

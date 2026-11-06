@@ -342,8 +342,11 @@ Checks (messages copied from `linking.py`; examples SYNTHETIC):
   `UOIR_ID_NOT_READ`. "UOIR ID 903 is not named in any analysis tab, so it is only shown in Failure
   Details. If a tab covers it, add 903 to that tab's name and upload again."
 - `UOIR_ID_NOT_READ` -> warning. A listed ID that no tab names appears as a separate number in an
-  analysis tab's title fragment, or in the name of a sheet that gets `ANALYSIS_SHEET_NAME_UNREADABLE`.
-  Located on the UOIR sheet. "UOIR ID 902 appears in the name of tab 'UOIR ID 901 - 902 - Pump', but
+  analysis tab's title fragment, or in the name of any sheet the report does not use (one that gets
+  `ANALYSIS_SHEET_NAME_UNREADABLE` or `SHEET_NOT_USED`, e.g. a misspelled `UIOR ID 902 - Pump` or
+  `FMEA UOIR ID 902`; `Notifications` and `Sheet3` are never looked at). Tab fragments are searched
+  first, then the unused sheets, both in workbook order; the first hit is named. Located on the UOIR
+  sheet. "UOIR ID 902 appears in the name of tab 'UOIR ID 901 - 902 - Pump', but
   it was not read as one of the tab's IDs. Write every ID right after 'UOIR ID', separated by
   spaces, commas or &, for example 'UOIR ID 123 124 - Title', and upload again."
 - `ANALYSIS_SHEET_NAME_UNREADABLE` -> warning. See 3.3; located on that sheet. "Sheet 'UOIR 901 -
@@ -1236,6 +1239,11 @@ Launch (`OutlookMailer.open_draft`, run in the threadpool):
 
 ## Change log
 
+- **2026-11-06 — Misspelled analysis tab names warn.** (User request after the final review of the
+  analysis-per-tab change.) `UOIR_ID_NOT_READ` now also looks in the names of every unused sheet
+  (`SHEET_NOT_USED` ones included), so a misspelled tab such as `UIOR ID 902 - Pump` or
+  `FMEA UOIR ID 902` gives a warning naming that sheet instead of only the `ANALYSIS_SHEET_MISSING`
+  info note. A sheet without such a number keeps the info notes.
 - **2026-11-06 — Analysis per tab: one analysis section per "UOIR ID ..." worksheet tab.**
   (User request; the design is `docs/superpowers/specs/2026-11-06-analysis-per-tab-design.md`.)
   - A tab name can list several UOIR IDs (`UOIR ID 901 902 - Title`, `UOIR ID 901,902,903`,
