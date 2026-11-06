@@ -1,0 +1,45 @@
+# Render Blueprint for the FMEA Report web app (one free web service).
+#
+# Render reads this file when a Blueprint is created from this repository
+# (render.com -> New -> Blueprint) and redeploys the app on every push to main.
+# frontend/dist is committed, so no Node build runs on Render.
+# Not used when running locally (python app.py reads .env instead).
+services:
+  - type: web
+    name: fmea-genco
+    runtime: python
+    plan: free
+    branch: main
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
+    healthCheckPath: /api/health
+    envVars:
+      # Same Python version the test suite runs on.
+      - key: PYTHON_VERSION
+        value: 3.14.6
+      # Listen on all interfaces inside Render's container (Render sets PORT itself).
+      - key: HOST
+        value: 0.0.0.0
+      # One username/password account.
+      - key: AUTH_MODE
+        value: local
+      - key: ADMIN_USERNAME
+        value: admin
+      # Render asks for this value when the Blueprint is created. Make it with
+      #   python tools/hash_password.py
+      # Never put the hash (or the password) in this file. Without it the app
+      # would fall back to the development password shown in the README.
+      - key: ADMIN_PASSWORD_HASH
+        sync: false
+      # Render serves the app over HTTPS only.
+      - key: COOKIE_SECURE
+        value: "true"
+      # A server has no Outlook; users download the PDF instead.
+      - key: OUTLOOK_EMAIL
+        value: "off"
+      - key: SESSION_IDLE_MINUTES
+        value: "60"
+      - key: MAX_UPLOAD_MB
+        value: "20"
+      - key: LOG_LEVEL
+        value: info

@@ -47,6 +47,7 @@ Constraints for all code:
 README.md                  setup, rules and deployment guide for engineers/operators       [DOCS]
 app.py                     entrypoint: uvicorn.run(**server_options(settings))             [API]
 app.yaml                   Databricks Apps config (inert locally)                        [API]
+render.yaml                Render Blueprint for the public link (inert locally)          [API]
 requirements.txt / -dev    pinned deps                                                    [owner]
 .env.example                                                                              [API]
 backend/

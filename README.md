@@ -38,8 +38,9 @@ real station, person or plant record.
 12. [Emailing the PDF](#emailing-the-pdf)
 13. [Changing the workbook layout](#changing-the-workbook-layout)
 14. [Deploying to Databricks Apps](#deploying-to-databricks-apps)
-15. [Security notes](#security-notes)
-16. [Known limitations](#known-limitations)
+15. [Deploying to Render (public link)](#deploying-to-render-public-link)
+16. [Security notes](#security-notes)
+17. [Known limitations](#known-limitations)
 
 ---
 
@@ -276,6 +277,7 @@ not a pair for each UOIR.
 app.py                      Starts the web server (reads HOST / PORT / DATABRICKS_APP_PORT)
 start-app.bat               Windows: double-click to (re)start the app and open it in the browser
 app.yaml                    Databricks Apps configuration (not used locally)
+render.yaml                 Render configuration for the public link (not used locally)
 requirements.txt            Runtime Python packages (pinned)
 requirements-dev.txt        Test-only packages (pytest, httpx, PyMuPDF)
 .env.example                Local settings template; copy to .env
@@ -1307,6 +1309,41 @@ Check what gets uploaded:
   `AUTH_MODE=databricks` on a server people can reach directly.
 - To check that the app is running, open `/api/health`, which returns
   `{"status":"ok"}`.
+
+---
+
+## Deploying to Render (public link)
+
+[Render](https://render.com) runs the app from this GitHub repository and gives
+it a public `https://….onrender.com` link. Anyone with the link sees the sign-in
+page; only people with the password can use the app. `render.yaml` holds the
+settings, and Render redeploys the app on every push to `main`.
+
+**Before you start:** uploaded workbooks pass through Render's servers (outside
+your company network). The app saves nothing, but check that this is allowed
+for your data.
+
+1. **Make your own password hash.** In a terminal in the project folder run
+   `python tools/hash_password.py`, type a new password twice, and copy the
+   printed `scrypt$…` value (without `ADMIN_PASSWORD_HASH=`). Never use the
+   development password on a public server.
+2. **Create the service.** Sign in at render.com with your GitHub account,
+   choose **New → Blueprint**, pick this repository, and paste the hash when
+   Render asks for `ADMIN_PASSWORD_HASH`. Click **Deploy Blueprint**.
+3. **Check it.** When the deploy shows *Live*, open the link, sign in as `admin`
+   with your new password, and run a SYNTHETIC workbook through to Export.
+   `/api/health` returns `{"status":"ok"}`.
+4. **Share it.** Put the link in the repository's **About → Website** box.
+
+Free plan limits: the app sleeps after 15 minutes without visitors, and the
+next visit waits about a minute while it wakes; it has a small server (512 MB,
+a tenth of a CPU), so building a PDF takes a few seconds longer than locally.
+The "Email the PDF" Outlook option is off on Render; users download the PDF.
+Render's proxy hides visitors' own addresses, so after five wrong passwords in
+five minutes, sign-in pauses for five minutes for everyone.
+
+To change the password later, run step 1 again and replace
+`ADMIN_PASSWORD_HASH` in the Render dashboard (**Environment**), then redeploy.
 
 ---
 
