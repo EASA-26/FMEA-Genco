@@ -7,7 +7,7 @@ import AnimatedBackground from './AnimatedBackground.jsx';
 // Technical details go to the browser console only, never to the screen.
 //
 // variant "section": used around the content area, so the sidebar and top bar keep
-// working; it resets itself when `resetKey` changes (another section, UOIR or tab).
+// working; it resets itself when `resetKey` changes (another section or analysis tab).
 // variant "page": the outermost fallback, offering a reload.
 // `onError` (optional) runs once when the boundary catches an error; the page variant
 // uses it to discard the workbook on the server, because the screen that held it (and
@@ -53,7 +53,7 @@ export default class ErrorBoundary extends Component {
                 <span>This part of the report could not be shown</span>
               </div>
               <div className="alert-text">
-                Something in the workbook data could not be displayed here. Choose another section, UOIR or tab from the
+                Something in the workbook data could not be displayed here. Choose another section or analysis tab from the
                 menu, or upload the workbook again. If it keeps happening, contact support.
               </div>
             </div>

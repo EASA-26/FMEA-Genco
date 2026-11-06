@@ -52,7 +52,7 @@ function AnalysisPanel({ report, sectionKey, onSelectSection }) {
   if (!report.analyses.length) {
     return (
       <EmptyState icon={ListTree} title="No analysis tabs found" compact>
-        No analysis tabs were found in the workbook. See Data checks.
+        No analysis tabs were found in the workbook. The checks above say what to fix.
       </EmptyState>
     );
   }
@@ -89,7 +89,7 @@ function AnalysisPanel({ report, sectionKey, onSelectSection }) {
         </>
       ) : (
         <EmptyState icon={FileWarning} title="No analysis table for this tab" compact>
-          The analysis table could not be read from this tab. See Data checks.
+          The analysis table could not be read from this tab. The checks above say what to fix.
         </EmptyState>
       )}
     </>

@@ -7,9 +7,9 @@ import { EmptyState } from '../components/Feedback.jsx';
 import { issuesForSection, matchesNewTaskTab, newTaskCounts, plural, sectionLabel } from '../lib/report.js';
 
 const EMPTY_TEXT = {
-  yes: 'No rows in this tab have New Task = Yes.',
-  no: 'No rows in this tab have New Task = No.',
-  notset: 'Every row in this tab has New Task set.',
+  yes: 'No rows in this analysis tab have New Task = Yes.',
+  no: 'No rows in this analysis tab have New Task = No.',
+  notset: 'Every row in this analysis tab has New Task set.',
 };
 
 function NotSetTag({ row, task }) {

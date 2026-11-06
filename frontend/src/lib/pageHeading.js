@@ -7,8 +7,8 @@ const SECTION_HEADINGS = {
     title: 'Introduction',
     text: 'Failure details and the analysis team, exactly as written in the workbook',
   },
-  analysis: { title: 'Analysis', text: 'The FMEA Analysis table and FMEA Summary counts for each UOIR' },
-  recommendation: { title: 'Recommendation', text: 'Maintenance tasks for each UOIR, grouped by Equipment and KKS' },
+  analysis: { title: 'Analysis', text: 'The FMEA Analysis table and FMEA Summary counts for each analysis tab' },
+  recommendation: { title: 'Recommendation', text: 'Maintenance tasks for each analysis tab, grouped by Equipment and KKS' },
 };
 
 /**
