@@ -167,4 +167,4 @@ def test_wrong_sheet_dimension_does_not_truncate_data(clean_workbook_bytes):
     report = build_report(target.getvalue(), "SYNTHETIC.xlsx")
     assert report.issues == []
     assert len(report.team) == 2
-    assert [len(u.analysis.rows) for u in report.uoirs] == [4, 2]
+    assert [len(s.analysis.rows) for s in report.analyses] == [4, 2]

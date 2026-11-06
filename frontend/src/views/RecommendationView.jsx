@@ -1,15 +1,15 @@
 import { CircleCheck, CircleDashed, ListTree, OctagonAlert, Sparkles, TriangleAlert, Wrench } from 'lucide-react';
 import { ReviewStepNav } from '../components/StepNav.jsx';
 import Tabs from '../components/Tabs.jsx';
-import UoirSelector from '../components/UoirSelector.jsx';
-import UoirHeading from '../components/UoirHeading.jsx';
+import SectionSelector from '../components/SectionSelector.jsx';
+import SectionHeading from '../components/SectionHeading.jsx';
 import { EmptyState } from '../components/Feedback.jsx';
-import { issuesForUoir, matchesNewTaskTab, newTaskCounts, plural } from '../lib/report.js';
+import { issuesForSection, matchesNewTaskTab, newTaskCounts, plural, sectionLabel } from '../lib/report.js';
 
 const EMPTY_TEXT = {
-  yes: 'No rows in this UOIR have New Task = Yes.',
-  no: 'No rows in this UOIR have New Task = No.',
-  notset: 'Every row in this UOIR has New Task set.',
+  yes: 'No rows in this analysis tab have New Task = Yes.',
+  no: 'No rows in this analysis tab have New Task = No.',
+  notset: 'Every row in this analysis tab has New Task set.',
 };
 
 function NotSetTag({ row, task }) {
@@ -95,25 +95,26 @@ function RecommendationGroup({ group, tab, tasksByRow }) {
 }
 
 // `counts` are the data-check counts (they decide whether Next can open the preview).
-export default function RecommendationView({ report, counts, uoir, onSelectUoir, tab, onTab, onBack, onNext }) {
+// `section` is the analysis section (tab) on screen, or null when the workbook has none.
+export default function RecommendationView({ report, counts, section, onSelectSection, tab, onTab, onBack, onNext }) {
   const header = (
     <div className="page-actions">
       <ReviewStepNav counts={counts} onBack={onBack} onNext={onNext} />
     </div>
   );
 
-  if (!uoir) {
+  if (!section) {
     return (
       <div className="view-recommendation">
         {header}
-        <EmptyState icon={ListTree} title="No UOIRs found">
-          The workbook does not list any UOIRs. See Data checks for what to fix.
+        <EmptyState icon={ListTree} title="No analysis tabs found">
+          No analysis tabs were found in the workbook. See Data checks.
         </EmptyState>
       </div>
     );
   }
 
-  const taskCounts = newTaskCounts(uoir);
+  const taskCounts = newTaskCounts(section);
   const activeTab = tab === 'notset' && taskCounts.notSet === 0 ? 'yes' : tab;
   const tabs = [
     { id: 'yes', label: 'New Task = Yes', count: taskCounts.yes, icon: Sparkles },
@@ -123,21 +124,21 @@ export default function RecommendationView({ report, counts, uoir, onSelectUoir,
     tabs.push({ id: 'notset', label: 'New Task not set', count: taskCounts.notSet, icon: CircleDashed });
   }
 
-  const groups = uoir.recommendations
+  const groups = section.recommendations
     .map((group) => ({ ...group, rows: group.rows.filter((row) => matchesNewTaskTab(row, activeTab)) }))
     .filter((group) => group.rows.length > 0);
-  const tasksByRow = new Map(uoir.tasks.map((task) => [task.source_row, task]));
+  const tasksByRow = new Map(section.tasks.map((task) => [task.source_row, task]));
 
   return (
     <div className="view-recommendation">
       {header}
-      <UoirSelector report={report} value={uoir.uoir_id} onChange={onSelectUoir} variant="recommendation" />
+      <SectionSelector report={report} value={section.sheet_name} onChange={onSelectSection} variant="recommendation" />
 
-      <section className="uoir-panel" aria-label={`UOIR ID ${uoir.uoir_id}`}>
-        <UoirHeading uoir={uoir} issues={issuesForUoir(report.issues, uoir.uoir_id)} />
-        {uoir.recommendations.length === 0 ? (
-          <EmptyState icon={Wrench} title="No recommendations for this UOIR">
-            Recommendations come from the analysis tab. It was not found or has no rows to show.
+      <section className="uoir-panel" aria-label={`UOIR ID ${sectionLabel(section)}`}>
+        <SectionHeading section={section} issues={issuesForSection(report.issues, section)} />
+        {section.recommendations.length === 0 ? (
+          <EmptyState icon={Wrench} title="No recommendations for this tab">
+            Recommendations come from the analysis table on this tab. It could not be read or has no rows to show.
           </EmptyState>
         ) : (
           <>
@@ -150,7 +151,7 @@ export default function RecommendationView({ report, counts, uoir, onSelectUoir,
               role="tabpanel"
               aria-labelledby={`recommendation-tab-${activeTab}`}
               className="tab-panel rec-groups"
-              key={`${uoir.uoir_id}-${activeTab}`}
+              key={`${section.sheet_name}-${activeTab}`}
             >
               {groups.length ? (
                 groups.map((group, index) => (

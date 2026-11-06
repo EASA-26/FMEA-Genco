@@ -207,7 +207,7 @@ export default function UploadView({
             </div>
             <div className="file-panel-meta" id={fileMetaId}>
               {report.station || 'Station not found'} · {report.analysis_date_text || 'Date not found'} ·{' '}
-              {plural(report.uoirs.length, 'UOIR')}
+              {plural(report.uoir_ids.length, 'UOIR')}
               {counts.error > 0 && (
                 <>
                   {' '}
@@ -304,9 +304,11 @@ export default function UploadView({
               <Table2 size={18} />
             </span>
             <div>
-              <div className="requirement-title">One analysis tab per UOIR</div>
+              <div className="requirement-title">Analysis tabs named by UOIR ID</div>
               <div className="requirement-text">
-                Named like “UOIR ID 123 - Title of the UOIR”, with Failure Mode, Failure Effect, RecommendedStrategy, Task, Frequency,
+                Named like “UOIR ID 123 - Title of the UOIR”. A tab that covers several UOIRs lists every ID after “UOIR ID”,
+                separated by spaces, commas or &: “UOIR ID 123 124 - Title” or “UOIR ID 123,124,125”. Excel allows 31 characters,
+                so shorten the title part if needed. Each tab needs Failure Mode, Failure Effect, RecommendedStrategy, Task, Frequency,
                 Trade, KKS and New Task columns.
               </div>
             </div>

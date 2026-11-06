@@ -1,23 +1,19 @@
-import { Cog, FileSpreadsheet, OctagonAlert, TriangleAlert } from 'lucide-react';
-import { countIssues, plural } from '../lib/report.js';
+import { Cog, OctagonAlert, TriangleAlert } from 'lucide-react';
+import { countIssues, plural, sectionLabel } from '../lib/report.js';
 
-export default function UoirHeading({ uoir, issues, showSheet = false }) {
+// Heading of the analysis section on screen: its UOIR IDs, title, equipment and the
+// counts of `issues` (the section's own, from issuesForSection). No sheet caption.
+export default function SectionHeading({ section, issues }) {
   const c = countIssues(issues);
   return (
     <div className="uoir-heading">
-      <div className="uoir-heading-id">UOIR ID {uoir.uoir_id}</div>
-      <h2 className="uoir-heading-title">{uoir.title}</h2>
+      <div className="uoir-heading-id">UOIR ID {sectionLabel(section)}</div>
+      <h2 className="uoir-heading-title">{section.title}</h2>
       <div className="uoir-heading-meta">
-        {showSheet && (
-          <span className="meta-item" title="Worksheet">
-            <FileSpreadsheet size={15} aria-hidden="true" />
-            {uoir.sheet_name ? `Tab '${uoir.sheet_name}'` : 'No analysis tab linked'}
-          </span>
-        )}
-        {uoir.equipment.length > 0 && (
+        {section.equipment.length > 0 && (
           <span className="meta-item" title="Equipment">
             <Cog size={15} aria-hidden="true" />
-            {uoir.equipment.join(' / ')}
+            {section.equipment.join(' / ')}
           </span>
         )}
         {c.error > 0 && (

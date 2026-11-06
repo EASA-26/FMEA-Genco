@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { ClipboardList, FileWarning, ListTree, Lock, StickyNote, Table2, Users } from 'lucide-react';
 import Tabs from './Tabs.jsx';
-import UoirSelector from './UoirSelector.jsx';
+import SectionSelector from './SectionSelector.jsx';
 import AnalysisTable from './AnalysisTable.jsx';
 import { EmptyState } from './Feedback.jsx';
 import { FailureDetailsTable, TeamTable } from './IntroTables.jsx';
-import { issuesForUoir, plural } from '../lib/report.js';
+import { findSection, issuesForSection, plural, sectionLabel } from '../lib/report.js';
 
 // Review Data: everything read from the workbook, in one card, so it can be checked
 // before the report preview. Read-only on purpose: the workbook stays the single
@@ -47,27 +47,28 @@ function FailureDetailsPanel({ report }) {
   return <FailureDetailsTable rows={report.failure_details} />;
 }
 
-function AnalysisPanel({ report, uoirId, onSelectUoir }) {
-  if (!report.uoirs.length) {
+// One entry per analysis tab, chosen here independently of the Analysis page.
+function AnalysisPanel({ report, sectionKey, onSelectSection }) {
+  if (!report.analyses.length) {
     return (
-      <EmptyState icon={ListTree} title="No UOIRs found" compact>
-        The workbook does not list any UOIRs. The checks above say what to fix.
+      <EmptyState icon={ListTree} title="No analysis tabs found" compact>
+        No analysis tabs were found in the workbook. The checks above say what to fix.
       </EmptyState>
     );
   }
 
-  const uoir = report.uoirs.find((u) => u.uoir_id === uoirId) || report.uoirs[0];
-  const table = uoir.analysis;
+  const section = findSection(report, sectionKey) || report.analyses[0];
+  const table = section.analysis;
   return (
     <>
-      <UoirSelector report={report} value={uoir.uoir_id} onChange={onSelectUoir} variant="analysis" />
+      <SectionSelector report={report} value={section.sheet_name} onChange={onSelectSection} variant="analysis" />
       <div className="wbd-uoir-head">
-        <div className="wbd-uoir-id">UOIR ID {uoir.uoir_id}</div>
-        <h3 className="wbd-uoir-title">{uoir.title}</h3>
+        <div className="wbd-uoir-id">UOIR ID {sectionLabel(section)}</div>
+        <h3 className="wbd-uoir-title">{section.title}</h3>
       </div>
-      {uoir.notes.length > 0 && (
+      {section.notes.length > 0 && (
         <ul className="notes" aria-label="Notes found outside the table">
-          {uoir.notes.map((note) => (
+          {section.notes.map((note) => (
             <li key={note.cell} className="note">
               <StickyNote size={16} aria-hidden="true" />
               <span className="note-label">Note :</span>
@@ -84,11 +85,11 @@ function AnalysisPanel({ report, uoirId, onSelectUoir }) {
             </span>
             <span className="table-caption-hint">Scroll sideways to see every column.</span>
           </div>
-          <AnalysisTable uoir={uoir} issues={issuesForUoir(report.issues, uoir.uoir_id)} focus={null} />
+          <AnalysisTable section={section} issues={issuesForSection(report.issues, section)} focus={null} />
         </>
       ) : (
-        <EmptyState icon={FileWarning} title="No analysis table for this UOIR" compact>
-          The analysis tab for UOIR ID {uoir.uoir_id} was not found or could not be read. The checks above say what to fix.
+        <EmptyState icon={FileWarning} title="No analysis table for this tab" compact>
+          The analysis table could not be read from this tab. The checks above say what to fix.
         </EmptyState>
       )}
     </>
@@ -97,12 +98,12 @@ function AnalysisPanel({ report, uoirId, onSelectUoir }) {
 
 export default function WorkbookData({ report }) {
   const [tab, setTab] = useState('team');
-  const [uoirId, setUoirId] = useState(report.uoirs.length ? report.uoirs[0].uoir_id : null);
+  const [sectionKey, setSectionKey] = useState(report.analyses[0]?.sheet_name ?? null);
 
   const tabs = [
     { id: 'team', label: 'Team Members', icon: Users, count: report.team.length },
     { id: 'failures', label: 'Failure Details', icon: ClipboardList, count: report.failure_details.length },
-    { id: 'analysis', label: 'Analysis', icon: Table2, count: report.uoirs.filter((u) => u.analysis).length },
+    { id: 'analysis', label: 'Analysis', icon: Table2, count: report.analyses.length },
   ];
 
   return (
@@ -128,7 +129,9 @@ export default function WorkbookData({ report }) {
       >
         {tab === 'team' && <TeamPanel report={report} />}
         {tab === 'failures' && <FailureDetailsPanel report={report} />}
-        {tab === 'analysis' && <AnalysisPanel report={report} uoirId={uoirId} onSelectUoir={setUoirId} />}
+        {tab === 'analysis' && (
+          <AnalysisPanel report={report} sectionKey={sectionKey} onSelectSection={setSectionKey} />
+        )}
       </div>
     </section>
   );

@@ -92,16 +92,51 @@
       "preventive_action": "",
       "equipment": "Air Dryer A",
       "source_row": 8
+    },
+    {
+      "no": "5",
+      "uoir_id": "904",
+      "title": "SYNTHETIC - Cooling water pump motor 2 bearing vibration high",
+      "faulty_date": "2026-05-18",
+      "faulty_date_text": "18 May 2026",
+      "uoir_date": "2026-05-19",
+      "uoir_date_text": "19 May 2026",
+      "corrective_action": "Replaced the drive-end bearing and checked shaft alignment",
+      "preventive_action": "Monthly vibration route reading on the motor bearings",
+      "equipment": "CW Pump Motor 2 Bearing",
+      "source_row": 9
+    },
+    {
+      "no": "6",
+      "uoir_id": "905",
+      "title": "SYNTHETIC - Fuel oil heater outlet temperature low",
+      "faulty_date": "2026-06-30",
+      "faulty_date_text": "30 June 2026",
+      "uoir_date": "2026-07-01",
+      "uoir_date_text": "1 July 2026",
+      "corrective_action": "Cleaned the steam trap on the heater outlet",
+      "preventive_action": "Add the steam trap to the quarterly trap survey",
+      "equipment": "Fuel Oil Heater 1",
+      "source_row": 10
     }
   ],
-  "uoirs": [
+  "uoir_ids": [
+    "901",
+    "902",
+    "903",
+    "904",
+    "905"
+  ],
+  "analyses": [
     {
-      "uoir_id": "901",
+      "sheet_name": "UOIR ID 901 - Boiler feed pump",
+      "uoir_ids": [
+        "901"
+      ],
       "title": "SYNTHETIC - Boiler feed pump B tripped on low suction pressure",
       "equipment": [
         "Boiler Feed Pump B"
       ],
-      "sheet_name": "UOIR ID 901 - Boiler feed pump",
       "notes": [
         {
           "cell": "B12",
@@ -686,12 +721,16 @@
       ]
     },
     {
-      "uoir_id": "902",
+      "sheet_name": "UOIR ID 902 904 - CW pump motor",
+      "uoir_ids": [
+        "902",
+        "904"
+      ],
       "title": "SYNTHETIC - Cooling water pump motor high winding temperature",
       "equipment": [
-        "CW Pump Motor 2"
+        "CW Pump Motor 2",
+        "CW Pump Motor 2 Bearing"
       ],
-      "sheet_name": "UOIR ID 902 - CW pump motor hig",
       "notes": [
         {
           "cell": "C1",
@@ -703,7 +742,7 @@
         }
       ],
       "analysis": {
-        "sheet": "UOIR ID 902 - CW pump motor hig",
+        "sheet": "UOIR ID 902 904 - CW pump motor",
         "header_row": 2,
         "columns": [
           "No.",
@@ -1192,9 +1231,9 @@
       },
       "recommendations": [
         {
-          "equipment": "CW Pump Motor 2",
+          "equipment": "CW Pump Motor 2 / CW Pump Motor 2 Bearing",
           "kks": "SYN-20PAC20AN001",
-          "heading": "CW Pump Motor 2, SYN-20PAC20AN001",
+          "heading": "CW Pump Motor 2 / CW Pump Motor 2 Bearing, SYN-20PAC20AN001",
           "rows": [
             {
               "source_row": 3,
@@ -1234,9 +1273,9 @@
           ]
         },
         {
-          "equipment": "CW Pump Motor 2",
+          "equipment": "CW Pump Motor 2 / CW Pump Motor 2 Bearing",
           "kks": "SYN-20PAC20CT101",
-          "heading": "CW Pump Motor 2, SYN-20PAC20CT101",
+          "heading": "CW Pump Motor 2 / CW Pump Motor 2 Bearing, SYN-20PAC20CT101",
           "rows": [
             {
               "source_row": 6,
@@ -1250,13 +1289,15 @@
       ]
     },
     {
-      "uoir_id": "903",
+      "sheet_name": "UOIR ID 903 - Instrument air co",
+      "uoir_ids": [
+        "903"
+      ],
       "title": "SYNTHETIC - Instrument air compressor A unplanned stop during load change",
       "equipment": [
         "Instrument Air Compressor A",
         "Air Dryer A"
       ],
-      "sheet_name": "UOIR ID 903 - Instrument air co",
       "notes": [],
       "analysis": {
         "sheet": "UOIR ID 903 - Instrument air co",
@@ -1954,11 +1995,11 @@
       "severity": "warning",
       "code": "STRATEGY_UNKNOWN",
       "message": "Strategy 'CBM' on row 5 is not a known strategy code. It is shown as written.",
-      "sheet": "UOIR ID 902 - CW pump motor hig",
+      "sheet": "UOIR ID 902 904 - CW pump motor",
       "row": 5,
       "column": "RecommendedStrategy",
       "cell": "N5",
-      "uoir_id": "902"
+      "uoir_id": "902, 904"
     },
     {
       "severity": "warning",
@@ -1982,23 +2023,33 @@
     },
     {
       "severity": "info",
+      "code": "ANALYSIS_SHEET_MISSING",
+      "message": "UOIR ID 905 is not named in any analysis tab, so it is only shown in Failure Details. If a tab covers it, add 905 to that tab's name and upload again.",
+      "sheet": "UOIR",
+      "row": 10,
+      "column": "UOIR ID",
+      "cell": "B10",
+      "uoir_id": "905"
+    },
+    {
+      "severity": "info",
       "code": "MERGED_CELLS_CARRIED",
-      "message": "Merged cells in Failure Mode and Failure Effect on 'UOIR ID 902 - CW pump motor hig' cover more than one row. Their value is used for each covered row.",
-      "sheet": "UOIR ID 902 - CW pump motor hig",
+      "message": "Merged cells in Failure Mode and Failure Effect on 'UOIR ID 902 904 - CW pump motor' cover more than one row. Their value is used for each covered row.",
+      "sheet": "UOIR ID 902 904 - CW pump motor",
       "row": 3,
       "column": "Failure Mode",
       "cell": "B3",
-      "uoir_id": "902"
+      "uoir_id": "902, 904"
     },
     {
       "severity": "info",
       "code": "TRADE_SPELLING_MERGED",
       "message": "Trade 'SynElec' (row 4) and 'SYNELEC' are treated as the same work centre.",
-      "sheet": "UOIR ID 902 - CW pump motor hig",
+      "sheet": "UOIR ID 902 904 - CW pump motor",
       "row": 4,
       "column": "Trade",
       "cell": "Q4",
-      "uoir_id": "902"
+      "uoir_id": "902, 904"
     },
     {
       "severity": "info",

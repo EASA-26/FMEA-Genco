@@ -37,12 +37,10 @@ def test_team_member_sheet_missing(clean_workbook_with):
 
 def test_uoir_sheet_missing(clean_workbook_with):
     report = _build(clean_workbook_with, lambda wb: wb.remove(wb["UOIR"]))
-    assert _issues(report) == [
-        ("error", "SHEET_MISSING", None, None, None),
-        ("warning", "ANALYSIS_SHEET_UNLISTED", TAB_601, None, None),
-        ("warning", "ANALYSIS_SHEET_UNLISTED", TAB_602, None, None),
-    ]
-    assert report.uoirs == []
+    # No UOIR row was read, so the tabs are not reported as unlisted; they are still read.
+    assert _issues(report) == [("error", "SHEET_MISSING", None, None, None)]
+    assert report.uoir_ids == []
+    assert [s.sheet_name for s in report.analyses] == [TAB_601, TAB_602]
 
 
 def test_sheet_names_match_trimmed_and_case_insensitive(clean_workbook_with):
@@ -182,8 +180,8 @@ def test_uoir_column_missing(clean_workbook_with):
     report = _build(clean_workbook_with, remove)
     assert _issues(report) == [("error", "UOIR_HEADER_MISSING", "UOIR", 4, None)]
     assert "'Equipment'" in report.issues[0].message
-    assert report.uoirs[0].equipment == []
-    assert report.uoirs[0].recommendations[0].heading == "KKS-CLEAN-1"
+    assert report.analyses[0].equipment == []
+    assert report.analyses[0].recommendations[0].heading == "KKS-CLEAN-1"
 
 
 def test_uoir_header_not_found(clean_workbook_with):
@@ -191,11 +189,8 @@ def test_uoir_header_not_found(clean_workbook_with):
         wb["UOIR"]["B4"] = "Reference"
 
     report = _build(clean_workbook_with, rename)
-    assert [(s, c, sh) for s, c, sh, _, _ in _issues(report)] == [
-        ("error", "UOIR_HEADER_MISSING", "UOIR"),
-        ("warning", "ANALYSIS_SHEET_UNLISTED", TAB_601),
-        ("warning", "ANALYSIS_SHEET_UNLISTED", TAB_602),
-    ]
+    # No UOIR row was read, so the tabs are not reported as unlisted.
+    assert [(s, c, sh) for s, c, sh, _, _ in _issues(report)] == [("error", "UOIR_HEADER_MISSING", "UOIR")]
 
 
 def test_uoir_id_blank(clean_workbook_with):
@@ -209,7 +204,7 @@ def test_uoir_id_blank(clean_workbook_with):
     ]
     assert report.issues[0].message == "UOIR ID is empty on row 6 of 'UOIR'. Fill it in and upload again."
     assert len(report.failure_details) == 2          # the row is still shown
-    assert [u.uoir_id for u in report.uoirs] == ["601"]
+    assert report.uoir_ids == ["601"]
 
 
 def test_uoir_none(clean_workbook_with):
@@ -219,11 +214,8 @@ def test_uoir_none(clean_workbook_with):
                 wb["UOIR"][f"{col}{row}"] = None
 
     report = _build(clean_workbook_with, clear)
-    assert [(s, c, sh) for s, c, sh, _, _ in _issues(report)] == [
-        ("error", "UOIR_NONE", "UOIR"),
-        ("warning", "ANALYSIS_SHEET_UNLISTED", TAB_601),
-        ("warning", "ANALYSIS_SHEET_UNLISTED", TAB_602),
-    ]
+    # No UOIR row was read, so the tabs are not reported as unlisted.
+    assert [(s, c, sh) for s, c, sh, _, _ in _issues(report)] == [("error", "UOIR_NONE", "UOIR")]
 
 
 def test_uoir_rows_end_at_first_blank_row_even_with_no_prefilled(clean_workbook_with):
@@ -242,7 +234,7 @@ def test_uoir_equipment_blank(clean_workbook_with):
 
     report = _build(clean_workbook_with, blank)
     assert _issues(report) == [("warning", "UOIR_EQUIPMENT_BLANK", "UOIR", 6, "H6")]
-    assert report.uoirs[1].recommendations[0].heading == "KKS-CLEAN-3"
+    assert report.analyses[1].recommendations[0].heading == "KKS-CLEAN-3"
 
 
 def test_uoir_listed_twice_with_different_title(clean_workbook_with):
@@ -254,10 +246,10 @@ def test_uoir_listed_twice_with_different_title(clean_workbook_with):
 
     report = _build(clean_workbook_with, add_row)
     assert _issues(report) == [("warning", "UOIR_DUPLICATE_ID_CONFLICT", "UOIR", 7, "C7")]
-    section = report.uoirs[0]
+    section = report.analyses[0]
     assert section.title == "SYNTHETIC Clean Pump Trip on Low Flow"
     assert section.equipment == ["Clean Pump", "Clean Pump Motor"]
-    assert len(report.failure_details) == 3 and len(report.uoirs) == 2
+    assert len(report.failure_details) == 3 and len(report.uoir_ids) == 2
 
 
 def test_uoir_date_with_time_and_text_date(clean_workbook_with):
@@ -292,7 +284,7 @@ def test_analysis_header_not_found(clean_workbook_with):
 
     report = _build(clean_workbook_with, rename)
     assert _issues(report) == [("error", "ANALYSIS_HEADER_MISSING", TAB_601, None, None)]
-    section = report.uoirs[0]
+    section = report.analyses[0]
     assert (section.sheet_name, section.analysis, section.summary, section.tasks) == (TAB_601, None, None, [])
 
 
@@ -308,7 +300,7 @@ def test_analysis_required_column_missing(clean_workbook_with):
     report = _build(clean_workbook_with, remove)
     assert _issues(report) == [("error", "ANALYSIS_HEADER_MISSING", TAB_601, 2, None)]
     assert "'KKS'" in report.issues[0].message
-    section = report.uoirs[0]
+    section = report.analyses[0]
     assert section.analysis.columns[17] == ""       # kept: the blank-header column holds data
     assert (section.tasks, section.summary, section.recommendations) == ([], None, [])
 
@@ -319,7 +311,7 @@ def test_analysis_header_duplicate(clean_workbook_with):
 
     report = _build(clean_workbook_with, duplicate)
     assert _issues(report) == [("error", "ANALYSIS_HEADER_DUPLICATE", TAB_601, 2, "V2")]
-    assert report.uoirs[0].summary is None
+    assert report.analyses[0].summary is None
 
 
 def test_analysis_no_rows(clean_workbook_with):
@@ -329,7 +321,7 @@ def test_analysis_no_rows(clean_workbook_with):
 
     report = _build(clean_workbook_with, clear)
     assert _issues(report) == [("error", "ANALYSIS_NO_ROWS", TAB_601, 2, None)]
-    section = report.uoirs[0]
+    section = report.analyses[0]
     assert section.analysis.rows == []
     assert section.summary.failure_mode_count == 0
     assert section.summary.pie == [] and section.summary.pie_total == 0
@@ -343,7 +335,7 @@ def test_table_ends_at_first_blank_row_and_rest_become_notes(clean_workbook_with
         ws["B6"] = "SYNTHETIC stray text after the gap"
 
     report = _build(clean_workbook_with, extend)
-    section = report.uoirs[1]
+    section = report.analyses[1]
     assert [r.source_row for r in section.analysis.rows] == [3, 4]
     # The pre-filled row number (A5) is template numbering and is not shown as a note.
     assert [(n.cell, n.text) for n in section.notes] == [("B6", "SYNTHETIC stray text after the gap")]
@@ -356,17 +348,17 @@ def test_blank_strategy_is_required_and_shown_as_not_specified(clean_workbook_wi
 
     report = _build(clean_workbook_with, blank)
     assert _issues(report) == [("error", "REQUIRED_VALUE_BLANK", TAB_601, 4, "N4")]
-    rows = report.uoirs[0].summary.strategy_rows
+    rows = report.analyses[0].summary.strategy_rows
     assert (rows[-1].code, rows[-1].label, rows[-1].existing, rows[-1].new, rows[-1].total, rows[-1].standard) == (
         "", "Not specified", 0, 1, 1, False,
     )
     assert "SR" in [r.code for r in rows]              # standard rows always shown
-    assert report.uoirs[0].summary.pie[-1].code == ""
+    assert report.analyses[0].summary.pie[-1].code == ""
 
 
 def test_blank_frequency_and_nsm_new_task_are_allowed(clean_workbook_bytes):
     report = build_report(clean_workbook_bytes, "SYNTHETIC.xlsx")
-    tasks = report.uoirs[0].tasks
+    tasks = report.analyses[0].tasks
     assert tasks[2].strategy_code == "NSM" and tasks[2].new_task == "blank"
     assert tasks[3].frequency == ""
     assert report.issues == []
@@ -378,7 +370,7 @@ def test_nsm_with_invalid_new_task_is_an_error_but_not_listed_as_not_counted(cle
 
     report = _build(clean_workbook_with, invalid)
     assert _issues(report) == [("error", "NEW_TASK_INVALID", TAB_601, 5, "S5")]
-    assert report.uoirs[0].summary.not_counted == []
+    assert report.analyses[0].summary.not_counted == []
 
 
 def test_duplicate_ignores_the_no_column_only(clean_workbook_with):
@@ -394,7 +386,7 @@ def test_duplicate_ignores_the_no_column_only(clean_workbook_with):
 
     report = _build(clean_workbook_with, duplicate)
     assert _issues(report) == [("warning", "DUPLICATE_ROW", TAB_602, 5, None)]
-    summary = report.uoirs[1].summary
+    summary = report.analyses[1].summary
     assert summary.failure_mode_count == 3
     assert summary.duplicate_rows == [5]
-    assert [r.source_row for g in report.uoirs[1].recommendations for r in g.rows] == [3, 4, 6]
+    assert [r.source_row for g in report.analyses[1].recommendations for r in g.rows] == [3, 4, 6]

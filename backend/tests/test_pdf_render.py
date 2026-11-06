@@ -1,4 +1,4 @@
-"""End-to-end PDF checks on a normal SYNTHETIC report (3 UOIRs)."""
+"""End-to-end PDF checks on a normal SYNTHETIC report (3 analysis tabs covering 4 UOIRs)."""
 from __future__ import annotations
 
 import re
@@ -11,12 +11,14 @@ from backend.pdf.render import render_pdf
 from backend.tests.test_pdf_fixtures import (
     ANALYSIS_COLUMNS,
     NORMAL_STATION,
+    TWO_ID_SECTION_IDS,
     analysis_markers,
     compact,
     normal_report,
     page_kind,
     page_lines,
     page_sections,
+    pages_per_section,
     recommendation_markers,
     section_starts,
 )
@@ -45,6 +47,20 @@ def _text(doc, sections, wanted):
     return "\n".join(page.get_text() for page, section in zip(doc, sections) if section == wanted)
 
 
+def _lines(doc, sections, wanted):
+    return [line for page, section in zip(doc, sections) if section == wanted for line in page_lines(page)]
+
+
+def _pairs(lines, labels=("UOIR ID", "Title")):
+    """(label, value) of the key/value rows at the top of a page: label, ":", value."""
+    pairs = []
+    for label in labels:
+        index = lines.index(label)
+        assert lines[index + 1] == ":", lines[index:index + 3]
+        pairs.append((label, lines[index + 2]))
+    return pairs
+
+
 def test_returns_pdf_bytes_with_metadata(pdf_bytes, doc):
     assert pdf_bytes.startswith(b"%PDF")
     assert doc.metadata["title"] == "Failure Mode Effect Analysis (FMEA) Report"
@@ -52,7 +68,7 @@ def test_returns_pdf_bytes_with_metadata(pdf_bytes, doc):
 
 
 def test_section_order_and_page_sizes(doc, report):
-    expected = ["cover", "intro"] + ["analysis", "summary"] * len(report.uoirs) + ["recommendation"]
+    expected = ["cover", "intro"] + ["analysis", "summary"] * len(report.analyses) + ["recommendation"]
     assert section_starts(doc) == expected
 
     expected_kind = {"cover": "A4P", "intro": "A4P", "analysis": "A3L", "summary": "A4P", "recommendation": "A4P"}
@@ -97,7 +113,7 @@ def test_every_recommendation_row_is_in_the_recommendation_section(doc, report):
     sections = page_sections(doc)
     text = compact(_text(doc, sections, "recommendation"))
     markers = recommendation_markers(report)
-    assert len(markers) == sum(len(u.analysis.rows) for u in report.uoirs)
+    assert len(markers) == sum(len(s.analysis.rows) for s in report.analyses)
     for marker in markers:
         assert text.count(marker) == 1, marker
 
@@ -111,17 +127,16 @@ def test_every_analysis_column_header_on_every_analysis_page(doc):
             assert compact(header) in text, f"{header!r} missing on page {number}"
 
 
-def test_analysis_page_lists_uoir_title_and_notes(doc, report):
+def test_analysis_page_lists_uoir_ids_title_and_notes(doc, report):
     sections = page_sections(doc)
     analysis_pages = [page for page, s in zip(doc, sections) if s == "analysis"]
-    for uoir, page in zip(report.uoirs, analysis_pages):
+    for section, page in zip(report.analyses, analysis_pages):
         lines = page_lines(page)
         assert "Analysis: FMEA Analysis" in lines
-        assert "UOIR ID" in lines and uoir.uoir_id in lines
-        assert "Title" in lines and uoir.title in lines
-        assert lines.count("Note") == len(uoir.notes)
+        assert _pairs(lines) == [("UOIR ID", ", ".join(section.uoir_ids)), ("Title", section.title)]
+        assert lines.count("Note") == len(section.notes)
         text = page.get_text()
-        for note in uoir.notes:
+        for note in section.notes:
             for note_line in note.text.split("\n"):
                 assert note_line in text
 
@@ -143,10 +158,11 @@ def test_introduction_tables(doc, report):
 def test_summary_page_content(doc, report):
     sections = page_sections(doc)
     summary_pages = [page for page, s in zip(doc, sections) if s == "summary"]
-    assert len(summary_pages) == len(report.uoirs), "each summary fits on one page"
-    for uoir, page in zip(report.uoirs, summary_pages):
+    assert len(summary_pages) == len(report.analyses), "each summary fits on one page"
+    for section, page in zip(report.analyses, summary_pages):
         lines = page_lines(page)
-        summary = uoir.summary
+        assert _pairs(lines) == [("UOIR ID", ", ".join(section.uoir_ids)), ("Title", section.title)]
+        summary = section.summary
         for label, value in (("Failure Mode", summary.failure_mode_count),
                              ("Maintenance Task", summary.maintenance_task_count),
                              ("Task Executed", summary.task_executed_count)):
@@ -169,9 +185,9 @@ def test_recommendation_headings_and_grouped_header(doc, report):
     sections = page_sections(doc)
     pages = [page for page, s in zip(doc, sections) if s == "recommendation"]
     text = "\n".join(page.get_text() for page in pages)
-    for uoir in report.uoirs:
-        assert f"UOIR ID {uoir.uoir_id}: {uoir.title}" in text
-        for group in uoir.recommendations:
+    for section in report.analyses:
+        assert f"UOIR ID {', '.join(section.uoir_ids)}: {section.title}" in text
+        for group in section.recommendations:
             assert group.heading in text
     for page in pages:
         lines = page_lines(page)
@@ -182,8 +198,8 @@ def test_recommendation_headings_and_grouped_header(doc, report):
 
 
 def test_headings_are_never_the_last_thing_on_a_page(doc, report):
-    headings = {g.heading for u in report.uoirs for g in u.recommendations}
-    headings |= {f"UOIR ID {u.uoir_id}: {u.title}" for u in report.uoirs}
+    headings = {g.heading for s in report.analyses for g in s.recommendations}
+    headings |= {f"UOIR ID {', '.join(s.uoir_ids)}: {s.title}" for s in report.analyses}
     for page, section in zip(doc, page_sections(doc)):
         if section != "recommendation":
             continue
@@ -237,31 +253,66 @@ def test_renders_even_when_export_is_blocked(report):
     assert render_pdf(blocked).startswith(b"%PDF")
 
 
-def test_minimal_report_without_uoirs_team_or_details(report):
-    empty = report.model_copy(update={"uoirs": [], "team": [], "failure_details": [], "station": ""})
+def test_two_id_section_prints_one_page_pair_with_both_ids(doc, report):
+    """A tab covering UOIRs 901 and 902: one A3 + A4 page pair headed with both IDs,
+    one Recommendation heading, and still one Failure Details row per UOIR."""
+    index = next(i for i, s in enumerate(report.analyses) if s.uoir_ids == TWO_ID_SECTION_IDS)
+    section = report.analyses[index]
+    assert len(report.failure_details) > len(report.analyses), "precondition: more UOIR rows than tabs"
+
+    assert section_starts(doc) == (["cover", "intro"] + ["analysis", "summary"] * len(report.analyses)
+                                   + ["recommendation"])
+    analysis_first = pages_per_section(doc, "analysis")[index][0]
+    assert _pairs(page_lines(analysis_first)) == [("UOIR ID", "901, 902"), ("Title", section.title)]
+    summary_first = pages_per_section(doc, "summary")[index][0]
+    assert _pairs(page_lines(summary_first)) == [("UOIR ID", "901, 902"), ("Title", section.title)]
+
+    sections = page_sections(doc)
+    recommendation = _text(doc, sections, "recommendation")
+    assert "UOIR ID 901, 902: " in recommendation
+    assert recommendation.count(f"UOIR ID 901, 902: {section.title}") == 1
+
+    # Failure Details: one row per UOIR sheet row, each with its own ID.
+    ids = {detail.uoir_id for detail in report.failure_details}
+    intro_ids = [line for line in _lines(doc, sections, "intro") if line in ids]
+    assert intro_ids == [detail.uoir_id for detail in report.failure_details]
+    assert len(intro_ids) == len(report.failure_details)
+
+
+def test_empty_states_say_tab(report):
+    no_tabs = report.model_copy(update={"analyses": []})
+    bare = report.analyses[0].model_copy(update={"analysis": None, "summary": None, "recommendations": [],
+                                                  "notes": []})
+    unread = report.model_copy(update={"analyses": [bare]})
+    texts = {}
+    for name, variant, starts in (("no tabs", no_tabs, ["cover", "intro", "recommendation"]),
+                                  ("unread", unread, ["cover", "intro", "analysis", "summary", "recommendation"])):
+        document = fitz.open(stream=render_pdf(variant), filetype="pdf")
+        assert section_starts(document) == starts, name
+        texts[name] = " ".join("".join(page.get_text() for page in document).split())
+        document.close()
+    assert "No analysis tabs were found in the workbook." in texts["no tabs"]
+    assert "No analysis table was read from this tab." in texts["unread"]
+    assert "No summary is available for this tab." in texts["unread"]
+    assert "No recommendations for this tab." in texts["unread"]
+    for text in texts.values():
+        assert "this UOIR" not in text and "No UOIRs were found" not in text
+
+
+def test_minimal_report_without_analyses_team_or_details(report):
+    empty = report.model_copy(update={"analyses": [], "team": [], "failure_details": [], "station": ""})
     document = fitz.open(stream=render_pdf(empty), filetype="pdf")
     assert section_starts(document) == ["cover", "intro", "recommendation"]
     text = "".join(page.get_text() for page in document)
     assert "No failure details were found in the workbook." in text
     assert "No team members were found in the workbook." in text
-    assert "No UOIRs were found in the workbook." in text
+    assert "No analysis tabs were found in the workbook." in text
     assert "FMEA Report" in document[1].get_text()
-
-
-def test_uoir_without_analysis_summary_or_recommendations(report):
-    bare = report.uoirs[0].model_copy(update={"analysis": None, "summary": None, "recommendations": [],
-                                               "notes": []})
-    document = fitz.open(stream=render_pdf(report.model_copy(update={"uoirs": [bare]})), filetype="pdf")
-    assert section_starts(document) == ["cover", "intro", "analysis", "summary", "recommendation"]
-    text = "".join(page.get_text() for page in document)
-    assert "No analysis worksheet is linked to this UOIR" in text
-    assert "No summary is available for this UOIR." in text
-    assert "No recommendations for this UOIR." in text
 
 
 def test_very_long_station_name_stays_clear_of_the_signing_cards(report):
     station = "SYNTHETIC " + "extremely long station name " * 150
-    document = fitz.open(stream=render_pdf(report.model_copy(update={"station": station, "uoirs": []})),
+    document = fitz.open(stream=render_pdf(report.model_copy(update={"station": station, "analyses": []})),
                          filetype="pdf")
     cover = document[0]
     height = cover.rect.height

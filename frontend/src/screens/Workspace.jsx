@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import * as api from '../api/client.js';
-import { countIssues } from '../lib/report.js';
+import { countIssues, findSection } from '../lib/report.js';
 import { pageHeading } from '../lib/pageHeading.js';
 import { checkWorkbookFile } from '../lib/upload.js';
 import Sidebar from '../components/Sidebar.jsx';
@@ -28,7 +28,7 @@ function focusPageTitle() {
 }
 
 // The signed-in workspace: owns the report, the upload in progress and which
-// step / section / UOIR is on screen.
+// step / report section / analysis section (tab) is on screen.
 //
 // Steps (nav.step): 'upload' | 'review' | 'preview' | 'export', plus 'done' (the
 // "Report complete" screen after Finish). Each step has its own Back / Next buttons.
@@ -43,7 +43,8 @@ export default function Workspace({ user, authMode, features, onSignedOut }) {
   const [loadError, setLoadError] = useState('');
   const [closedNotice, setClosedNotice] = useState('');
   const [nav, setNav] = useState({ step: 'upload', section: 'checks' });
-  const [uoirId, setUoirId] = useState(null);
+  // The analysis section on screen in Analysis and Recommendation: its tab name (sheet_name).
+  const [sectionKey, setSectionKey] = useState(null);
   const [analysisTab, setAnalysisTab] = useState('analysis');
   const [recommendationTab, setRecommendationTab] = useState('yes');
   const [focus, setFocus] = useState(null);
@@ -77,7 +78,7 @@ export default function Workspace({ user, authMode, features, onSignedOut }) {
       setFocus(null);
       setAnalysisTab('analysis');
       setRecommendationTab('yes');
-      setUoirId(next && next.uoirs.length ? next.uoirs[0].uoir_id : null);
+      setSectionKey(next?.analyses[0]?.sheet_name ?? null);
       if (!next) goTo(emptyStep);
     },
     [goTo],
@@ -225,19 +226,20 @@ export default function Workspace({ user, authMode, features, onSignedOut }) {
     applyReport(null, 'done');
   }, [applyReport]);
 
-  const selectUoir = useCallback((id) => {
-    setUoirId(id);
+  const selectSection = useCallback((sheetName) => {
+    setSectionKey(sheetName);
     setFocus(null);
   }, []);
 
+  // `section` is the report section (page); `sheetName` optionally picks an analysis section.
   const openSection = useCallback(
-    (section, id) => {
-      if (id) selectUoir(id);
+    (section, sheetName) => {
+      if (sheetName) selectSection(sheetName);
       // A row picked earlier in Data checks is highlighted once, not every time the table reopens.
       setFocus(null);
       goTo('review', section);
     },
-    [goTo, selectUoir],
+    [goTo, selectSection],
   );
 
   const changeAnalysisTab = useCallback((tab) => {
@@ -247,9 +249,10 @@ export default function Workspace({ user, authMode, features, onSignedOut }) {
 
   const showInTable = useCallback(
     (issue) => {
-      setUoirId(issue.uoir_id);
+      // The issue's sheet is the tab, so it names the section to open.
+      setSectionKey(issue.sheet);
       setAnalysisTab('analysis');
-      setFocus({ uoirId: issue.uoir_id, row: issue.row, cell: issue.cell, key: Date.now() });
+      setFocus({ sheet: issue.sheet, row: issue.row, cell: issue.cell, key: Date.now() });
       goTo('review', 'analysis');
     },
     [goTo],
@@ -267,7 +270,8 @@ export default function Workspace({ user, authMode, features, onSignedOut }) {
   const markDelivered = useCallback(() => setDelivered(true), []);
 
   const busyUploading = upload.status === 'uploading' || upload.status === 'processing';
-  const selectedUoir = report ? report.uoirs.find((u) => u.uoir_id === uoirId) || report.uoirs[0] || null : null;
+  const selectedSection = report ? findSection(report, sectionKey) || report.analyses[0] || null : null;
+  const sectionFocus = focus && selectedSection && focus.sheet === selectedSection.sheet_name ? focus : null;
   // While the workspace is being prepared (or could not be), there is no page yet.
   let heading = pageHeading(nav, report);
   if (loading) heading = { title: 'Upload the FMEA workbook', subtitle: '' };
@@ -384,11 +388,11 @@ export default function Workspace({ user, authMode, features, onSignedOut }) {
         return (
           <AnalysisView
             report={report}
-            uoir={selectedUoir}
-            onSelectUoir={selectUoir}
+            section={selectedSection}
+            onSelectSection={selectSection}
             tab={analysisTab}
             onTab={changeAnalysisTab}
-            focus={focus && selectedUoir && focus.uoirId === selectedUoir.uoir_id ? focus : null}
+            focus={sectionFocus}
             onShowChecks={() => goTo('review', 'checks')}
             {...reviewNav}
           />
@@ -397,8 +401,8 @@ export default function Workspace({ user, authMode, features, onSignedOut }) {
         return (
           <RecommendationView
             report={report}
-            uoir={selectedUoir}
-            onSelectUoir={selectUoir}
+            section={selectedSection}
+            onSelectSection={selectSection}
             tab={recommendationTab}
             onTab={setRecommendationTab}
             {...reviewNav}
@@ -415,7 +419,7 @@ export default function Workspace({ user, authMode, features, onSignedOut }) {
         report={report}
         counts={counts}
         nav={nav}
-        uoirId={selectedUoir ? selectedUoir.uoir_id : null}
+        sectionKey={selectedSection ? selectedSection.sheet_name : null}
         uploadBusy={busyUploading}
         onStep={navigateFromSidebar((step) => goTo(step))}
         onSection={navigateFromSidebar(openSection)}
@@ -437,7 +441,7 @@ export default function Workspace({ user, authMode, features, onSignedOut }) {
           <div className="view" key={viewKey}>
             <ErrorBoundary
               variant="section"
-              resetKey={`${selectedUoir ? selectedUoir.uoir_id : ''}:${analysisTab}:${recommendationTab}:${report ? report.generated_at : ''}:${report ? report.source_filename : ''}`}
+              resetKey={`${selectedSection ? selectedSection.sheet_name : ''}:${analysisTab}:${recommendationTab}:${report ? report.generated_at : ''}:${report ? report.source_filename : ''}`}
             >
               {renderView()}
             </ErrorBoundary>

@@ -11,7 +11,7 @@ import {
   Wrench,
   X,
 } from 'lucide-react';
-import { issuesForUoir, countIssues, plural } from '../lib/report.js';
+import { countIssues, issuesForSection, plural, sectionLabel } from '../lib/report.js';
 import AppIcon from './AppIcon';
 import brandmark1x from '../assets/tnb-genco-ted-white@1x.png';
 import brandmark2x from '../assets/tnb-genco-ted-white@2x.png';
@@ -41,7 +41,7 @@ function stepDetail(step, report, counts, uploadBusy) {
   }
   if (!report) return { text: 'Waiting for a workbook' };
   if (step === 'review') {
-    const parts = [plural(report.uoirs.length, 'UOIR')];
+    const parts = [plural(report.uoir_ids.length, 'UOIR')];
     if (counts.error) parts.push(plural(counts.error, 'error'));
     else if (counts.warning) parts.push(plural(counts.warning, 'warning'));
     return { text: parts.join(' · ') };
@@ -52,7 +52,8 @@ function stepDetail(step, report, counts, uploadBusy) {
 
 // The signed-in user and Sign out live in the top bar; the sidebar foot names the
 // team that runs this process.
-export default function Sidebar({ report, counts, nav, uoirId, uploadBusy, onStep, onSection, onClose }) {
+// `sectionKey` is the tab name (sheet_name) of the analysis section on screen.
+export default function Sidebar({ report, counts, nav, sectionKey, uploadBusy, onStep, onSection, onClose }) {
   const currentIndex = STEPS.findIndex((s) => s.id === nav.step);
 
   return (
@@ -150,24 +151,24 @@ export default function Sidebar({ report, counts, nav, uoirId, uploadBusy, onSte
                         </span>
                       )}
                     </button>
-                    {section.id === 'analysis' && report.uoirs.length > 0 && (
+                    {section.id === 'analysis' && report.analyses.length > 0 && (
                       <ul className="uoir-subnav">
-                        {report.uoirs.map((u) => {
-                          const c = countIssues(issuesForUoir(report.issues, u.uoir_id));
+                        {report.analyses.map((a) => {
+                          const c = countIssues(issuesForSection(report.issues, a));
                           const selected =
                             nav.step === 'review' &&
                             (nav.section === 'analysis' || nav.section === 'recommendation') &&
-                            u.uoir_id === uoirId;
+                            a.sheet_name === sectionKey;
                           return (
-                            <li key={u.uoir_id}>
+                            <li key={a.sheet_name}>
                               <button
                                 type="button"
                                 className={`uoir-link ${selected ? 'is-active' : ''}`}
-                                onClick={() => onSection('analysis', u.uoir_id)}
-                                title={`UOIR ID ${u.uoir_id}: ${u.title}`}
+                                onClick={() => onSection('analysis', a.sheet_name)}
+                                title={a.title ? `${a.sheet_name}: ${a.title}` : a.sheet_name}
                               >
-                                <span className="uoir-link-id">{u.uoir_id}</span>
-                                <span className="uoir-link-title">{u.title}</span>
+                                <span className="uoir-link-id">{sectionLabel(a)}</span>
+                                <span className="uoir-link-title">{a.title}</span>
                                 {c.error > 0 && (
                                   <OctagonAlert size={13} className="uoir-link-flag is-error" role="img" aria-label="has errors" />
                                 )}

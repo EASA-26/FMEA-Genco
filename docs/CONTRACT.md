@@ -55,9 +55,9 @@ backend/
   report/models.py         pydantic Report model                                          [owner]
   excel/reader.py          open workbook from bytes, cell cleaning, merged ranges,        [PARSER]
                            formula scan, WorkbookOpenError
-  excel/linking.py         analysis-tab <-> UOIR matching                                  [PARSER]
+  excel/linking.py         UOIR IDs in analysis-tab names, tab and coverage checks        [PARSER]
   report/formatting.py     format_date, parse_date_text, make_pdf_filename, text helpers  [PARSER]
-  report/summary.py        counts per UOIR, recommendations                               [PARSER]
+  report/summary.py        counts per analysis tab, recommendations                       [PARSER]
   report/builder.py        build_report(data, filename) -> Report                          [PARSER]
   pdf/                     render_pdf(report) -> bytes                                     [PDF]
     fonts.py styles.py text.py cover.py document.py flowtable.py tables.py charts.py
@@ -82,6 +82,8 @@ tools/check_outlook_script.py      Windows only: PowerShell's parser checks the 
 frontend/                  React (Vite, JavaScript) app, builds to frontend/dist           [FRONTEND]
   src/lib/email.js         browser copy of the recipient check (same rules as the server)
   src/lib/pageHeading.js   pageHeading(nav, report): the top bar's title and subtitle for each page (6)
+  src/lib/report.js        sectionLabel / issuesForSection / findSection / issueTarget: sections are keyed
+                           by tab name (sheet_name) (6)
   src/components/AppIcon.tsx   app icons (THEME-GUIDE section 11); "fmea" = gear + warning badge
 ```
 
@@ -186,8 +188,10 @@ def server_options(settings: Settings, platform: str = sys.platform) -> dict   #
   XML in the zip (map sheet name -> part via `xl/workbook.xml` + `xl/_rels/workbook.xml.rels`).
   Sheet visibility (`state="hidden"|"veryHidden"`) and chart sheets (non-worksheet parts) also
   come from the workbook part. Single-cell merge refs are ignored.
-- Only the used sheets are read: `Team Member`, `UOIR` and the linked analysis tabs. Each sheet's
-  real extent is read (`reset_dimensions()`), so a wrong stored `<dimension>` does not hide cells.
+- Only the used sheets are read: `Team Member`, `UOIR` and **every analysis tab** (3.3, 3.6): hidden
+  tabs, tabs for an ID that is not on the UOIR sheet and tabs that share an ID are read and checked
+  too. Each sheet's real extent is read (`reset_dimensions()`), so a wrong stored `<dimension>`
+  does not hide cells.
 - Formulas: while scanning a used sheet's XML, a cell with `<f>` and no cached `<v>` -> warning
   `FORMULA_NO_VALUE` (one per cell). A `t="str"` cell with an empty `<v>` is a saved empty result
   and is not flagged. (Replaces the earlier idea of a second `data_only=False` pass.)
@@ -220,8 +224,11 @@ def server_options(settings: Settings, platform: str = sys.platform) -> dict   #
 - Locate sheets by trimmed, case-insensitive name, among worksheets only. `Team Member` or `UOIR`
   missing -> error `SHEET_MISSING` (no sheet location). `Notifications`, `Sheet3` (`IGNORED_SHEETS`)
   are never opened/iterated (no issue).
-- Worksheets whose name matches `ANALYSIS_SHEET_PATTERN` are analysis candidates. Any other sheet
-  (including chart sheets) -> info `SHEET_NOT_USED` ("Sheet 'X' is not used in the report.").
+- Worksheets whose name matches `ANALYSIS_SHEET_PATTERN` are **analysis tabs** (recognised by the
+  pattern only; the IDs in the name are read later, 3.6). A worksheet whose trimmed name starts with
+  "UOIR" (any case) but does not match the pattern and is not the UOIR sheet -> warning
+  `ANALYSIS_SHEET_NAME_UNREADABLE` (3.6). Any other sheet (including chart sheets) -> info
+  `SHEET_NOT_USED` ("Sheet 'X' is not used in the report.").
 
 ### 3.4 Team Member
 - Station = `B2`, Date of Analysis = `B3`. Blank -> error `STATION_BLANK` / `ANALYSIS_DATE_BLANK`.
@@ -253,43 +260,132 @@ def server_options(settings: Settings, platform: str = sys.platform) -> dict   #
   `format_date(date)`; otherwise keep the text and warning `UOIR_DATE_NOT_DATE`.
   Blank Equipment -> warning `UOIR_EQUIPMENT_BLANK`.
 - `failure_details`: every data row, in sheet order, exactly as written.
-- UOIR sections: one per distinct UOIR ID **with leading zeros removed** ("0501" and "501" are one
-  UOIR; `UoirSection.uoir_id` keeps the first row's text), in first-appearance order. `equipment` =
-  distinct non-blank Equipment values (compared by `text_key`, order kept). Title = the **first
-  non-blank Title** of that ID (a blank first Title is replaced silently; the blank row is already
-  a `UOIR_VALUE_BLANK` error). A later non-blank Title that differs (by `text_key`) -> warning
-  `UOIR_DUPLICATE_ID_CONFLICT` naming the row the used Title came from.
+- UOIR records: one per distinct UOIR ID **with leading zeros removed** ("0501" and "501" are one
+  UOIR; the shown ID is the first row's text), in first-appearance order. `Report.uoir_ids` lists
+  these shown IDs (blank IDs excluded). `equipment` = distinct non-blank Equipment values
+  (compared by `text_key`, order kept). Title = the **first non-blank Title** of that ID (a blank
+  first Title is replaced silently; the blank row is already a `UOIR_VALUE_BLANK` error). A later
+  non-blank Title that differs (by `text_key`) -> warning `UOIR_DUPLICATE_ID_CONFLICT` naming the
+  row the used Title came from. The records feed the tab checks and titles (3.6); they are not
+  report sections (the sections are the analysis tabs, 3.10).
 - Date of Analysis is taken from `B3` as written and is **never compared with the fault dates**
   (user decision 2026-11-04; the former `DATE_OF_ANALYSIS_BEFORE_FAULT` warning is removed).
 - Rows below the closing empty row with both UOIR ID and Title filled -> warning
   `ROWS_AFTER_BLANK_ROW`, **one per row**, with `uoir_id` set: "Row 8 of 'UOIR' has UOIR ID 699,
-  but the table ends at the empty row 7, so it is not in the report. Remove the empty rows in
-  between and upload again." (Severity for UOIR rows: see 7.)
+  but the table ends at the empty row 7, so it is not in Failure Details. Remove the empty rows in
+  between and upload again." (Severity for UOIR rows: see 7.) Its analysis tab, if any, is still
+  included (as a tab for an ID that is not on the UOIR sheet, 3.6).
 
-### 3.6 Linking analysis tabs (linking.py)
-- Tab name pattern (case-insensitive): `UOIR`, optional spaces, `ID`, optional spaces, optional
-  `:`/`#`/`-`, the ID digits, then the remainder; title fragment = remainder with leading
-  separators (`-`, `:`, spaces, tabs, non-breaking spaces) removed.
-- Match IDs exactly after stripping leading zeros ("UOIR ID 60" never links to 601). For each UOIR:
-  - 0 candidates -> error `ANALYSIS_SHEET_MISSING` ("No worksheet found for UOIR ID 501. Expected a tab
-    named like 'UOIR ID 501 - SYNTHETIC Pump Tr…'." — suggested name cut to 31 characters), located
-    on the UOIR row.
-  - 1 candidate -> linked. If the UOIR Title is non-blank and the fragment does not match -> warning
-    `ANALYSIS_SHEET_TITLE_MISMATCH` (still linked by ID).
-  - >1 candidates: keep those whose fragment matches the title. Exactly one -> linked, and each
-    other candidate -> info `SHEET_NOT_USED` ("Sheet 'X' is not used in the report. Tab 'Y' matches
-    the title of UOIR ID N and was used instead."; severity: see 7). Otherwise -> error
-    `ANALYSIS_SHEET_AMBIGUOUS` (list tab names).
-  - Fragment match: normalise both (lowercase, `\xa0` -> space, remove characters Excel forbids in
-    tab names `[]:*?/\`, collapse whitespace) and require fragment ⊆ title (substring; empty
-    fragment matches).
-  - `B1` of the tab non-blank and its `text_key` differs from the Title's (case-insensitive) ->
-    warning `ANALYSIS_TITLE_CELL_MISMATCH`. **Skipped** when the UOIR Title is blank, and when `B1`
-    lies inside the analysis table rectangle (header on row 1). Still checked when no header row
-    is found.
-  - Hidden tab linked -> warning `ANALYSIS_SHEET_HIDDEN` (included in the report).
-- Candidate tabs whose ID is not in the UOIR sheet -> warning `ANALYSIS_SHEET_UNLISTED` ("…is not in
-  the UOIR list and was left out of the report."). Unlinked tabs are not read.
+### 3.6 Analysis tabs: IDs, coverage and titles (linking.py, builder.py)
+One report section per analysis tab (3.3). A tab name can list several UOIR IDs, so one tab can cover
+several UOIRs. Terms: a **listed ID** is a UOIR ID on the UOIR sheet; a **single-UOIR tab** is a tab
+whose name gives exactly one ID and that ID is listed.
+
+**UOIR IDs in a tab name** (`parse_tab_name`, pure; the UOIR list is passed in):
+1. The first number after "UOIR ID" (pattern `ANALYSIS_SHEET_PATTERN`, case-insensitive: `UOIR`,
+   optional spaces, `ID`, optional spaces, optional `:`/`#`/`-`, digits, remainder) is always an ID.
+2. Right after it, a further number counts as an ID while all of these hold: it is separated from
+   the previous ID by whitespace (including non-breaking spaces), a comma or `&`, in any mix
+   (`901 902`, `901, 902`, `901,902`, `901 & 902`); it ends at the end of the name, whitespace or
+   one of `, & - :` (so `132kV` and `2x` are never IDs); and it **is a listed ID** (compared
+   without leading zeros).
+3. Scanning stops at the first number or word that does not qualify; the **title fragment** starts
+   there, with leading separators (`- : , &`, whitespace, non-breaking spaces) removed. A `-`
+   between IDs is not a separator, so `901-902` and `901 - 902` stop after 901. An ID repeated in
+   one name counts once. If no UOIR row could be read, only the first number counts.
+4. Each ID is shown as written on the UOIR sheet (its first row) when listed, otherwise as written
+   in the tab name.
+
+Examples (SYNTHETIC; listed IDs 901, 902, 903):
+
+| Tab name | IDs | Fragment |
+|---|---|---|
+| `UOIR ID 901 902 - SYNTHETIC Pump trip` | 901, 902 | `SYNTHETIC Pump trip` |
+| `UOIR ID 901, 902 & 903 - Fan` | 901, 902, 903 | `Fan` |
+| `UOIR ID 901,902,903` | 901, 902, 903 | (empty) |
+| `UOIR ID 905 2 fans trip` (905 listed) | 905 | `2 fans trip` |
+| `UOIR ID 901 132kV breaker` | 901 | `132kV breaker` |
+| `UOIR ID 901 - 902 - Pump` | 901 | `902 - Pump` (902: `UOIR_ID_NOT_READ`) |
+| `UOIR ID 999 902 - Valve` (999 not listed) | 999, 902 | `Valve` |
+
+Known limits: a title that starts with a number that is also a listed ID is read as an ID; Excel
+allows 31 characters in a tab name, so about 5 three-digit IDs fit with no title (`UOIR ID
+901,902,903` saves room); a UOIR that fits in no tab name appears only in Failure Details and gets
+the info `ANALYSIS_SHEET_MISSING`.
+
+**Section title** (`AnalysisSection.title`; the first non-blank of):
+- single-UOIR tab: the UOIR sheet Title of that ID (3.5); then B1 **when B1 counts as a title**
+  (`ANALYSIS_TITLE_CELL`, not inside the analysis table when the header is on row 1); then the
+  fragment;
+- any other tab (several IDs, or an unlisted ID): B1 when it counts; then the first non-blank UOIR
+  sheet Title among the tab's listed IDs, in tab-name order; then the fragment.
+- all blank -> "".
+
+**Section equipment**: the Equipment values of every listed UOIR the tab covers, in UOIR sheet order
+(each UOIR's own values in their existing order), repeats removed by `text_key`. A tab with no
+listed ID has none (its Recommendation headings are the KKS alone). Same as before for a single-UOIR tab.
+
+**Order of sections** (`Report.analyses`): by the earliest UOIR sheet position of any listed ID the
+tab covers, then workbook tab order; tabs with no listed ID come last, in workbook tab order.
+
+**Build order** (`builder.py`): sort the sheets (analysis tabs by pattern only) -> read Team Member
+and the UOIR sheet -> parse every analysis tab's name against the listed IDs -> tab checks
+(`ANALYSIS_SHEET_UNLISTED`, `ANALYSIS_SHEET_HIDDEN`; `ANALYSIS_SHEET_NAME_UNREADABLE` while sorting)
+and coverage checks (`ANALYSIS_SHEET_NONE`, `UOIR_IN_SEVERAL_TABS`, `UOIR_ID_NOT_READ`,
+`ANALYSIS_SHEET_MISSING`) -> read each tab once (title, equipment, table, notes, tasks, summary,
+recommendations; the two title checks are raised here, once it is known whether B1 counts as a
+title) -> sort the sections. A tab that cannot be read at all fails the upload (`WorkbookOpenError`).
+
+Checks (messages copied from `linking.py`; examples SYNTHETIC):
+- `ANALYSIS_SHEET_MISSING` -> **info**. A listed ID is named by no tab; located on the UOIR sheet,
+  first row of that ID. Not raised when `ANALYSIS_SHEET_NONE` is raised, nor for an ID that gets
+  `UOIR_ID_NOT_READ`. "UOIR ID 903 is not named in any analysis tab, so it is only shown in Failure
+  Details. If a tab covers it, add 903 to that tab's name and upload again."
+- `UOIR_ID_NOT_READ` -> warning. A listed ID that no tab names appears as a separate number in an
+  analysis tab's title fragment, or in the name of a sheet that gets `ANALYSIS_SHEET_NAME_UNREADABLE`.
+  Located on the UOIR sheet. "UOIR ID 902 appears in the name of tab 'UOIR ID 901 - 902 - Pump', but
+  it was not read as one of the tab's IDs. Write every ID right after 'UOIR ID', separated by
+  spaces, commas or &, for example 'UOIR ID 123 124 - Title', and upload again."
+- `ANALYSIS_SHEET_NAME_UNREADABLE` -> warning. See 3.3; located on that sheet. "Sheet 'UOIR 901 -
+  Fan' looks like an analysis tab, but its name does not start with 'UOIR ID' and a number, so it is
+  not in the report. Rename it like 'UOIR ID 123 - Title of the UOIR' and upload again."
+- `ANALYSIS_SHEET_UNLISTED` -> warning. The tab's first ID is not on the UOIR sheet (only the first
+  ID can be unlisted). The tab **is included**. Skipped when no UOIR row was read. "Tab 'UOIR ID 999 -
+  SYNTHETIC Valve' is for UOIR ID 999, which is not in the UOIR list. It is included in the report.
+  Add UOIR ID 999 to the UOIR sheet if it belongs there."
+- `UOIR_IN_SEVERAL_TABS` -> warning. A listed ID is named by two or more tabs (not raised for
+  unlisted IDs); all the tabs are used. Located on the UOIR sheet. "UOIR ID 902 is named in 2 tabs:
+  'UOIR ID 901 902 - SYNTHETIC Pump' and 'UOIR ID 902 - SYNTHETIC Pump'. Both are in the report.
+  Check that this is intended." ("All of them are" for 3 or more; tab names in workbook order.)
+- `ANALYSIS_SHEET_TITLE_MISMATCH` -> warning. The fragment is not empty and matches **none** of: B1
+  (when it counts) and the non-blank UOIR sheet Titles of the tab's listed IDs. Fragment match:
+  normalise both (lowercase, `\xa0` -> space, remove characters Excel forbids in tab names
+  `[]:*?/\`, collapse whitespace) and require fragment ⊆ title (empty fragment matches). Skipped
+  when there is nothing to compare with or no UOIR row was read. The message names only what was
+  compared: "The name of tab 'UOIR ID 901 902 - Fan' does not match cell B1 ('SYNTHETIC Pump trip')
+  or the Title of UOIR ID 901 ('…') or 902 ('…'). It is still used; check that it is the right tab."
+- `ANALYSIS_TITLE_CELL_MISMATCH` -> warning. **Single-UOIR tabs only**: B1 is non-blank, counts as a
+  title (not inside the analysis table) and its `text_key` differs (case-insensitive) from the UOIR
+  Title; skipped when the UOIR Title is blank. Skipped for every other tab (the B1 cross-check does
+  not apply to a tab that covers several UOIRs).
+- `ANALYSIS_SHEET_HIDDEN` -> warning. "Tab '…' (UOIR ID 901, 902) is hidden in Excel. It is included
+  in the report."
+- `ANALYSIS_SHEET_NONE` -> **error**. The workbook has no analysis tab at all (skipped when no UOIR
+  row was read, because that already blocks export). Located nowhere. "The workbook has no analysis
+  tabs, so the report would have no FMEA Analysis. Add a tab named like 'UOIR ID 123 - Title of the
+  UOIR' and upload again."
+
+Issue locations: an issue raised for or inside a tab has `sheet` = the tab name and `uoir_id` = the
+tab's IDs joined with ", " ("901, 902"; "901" for a one-ID tab). That covers every table-reading
+issue and the five tab checks above. UOIR sheet issues (`UOIR_*`, `ROWS_AFTER_BLANK_ROW` on the
+UOIR sheet, `ANALYSIS_SHEET_MISSING`, `UOIR_ID_NOT_READ`, `UOIR_IN_SEVERAL_TABS`) keep `sheet` = the
+UOIR sheet and one ID. The app finds a section by `sheet`, never by `uoir_id`. On one tab,
+`ANALYSIS_SHEET_UNLISTED` and `ANALYSIS_SHEET_HIDDEN` are raised before the tab is read, so with
+equal severity and no row they sort before `ANALYSIS_SHEET_TITLE_MISMATCH`.
+
+Removed: the error for several tabs with one ID (they are now all used) and the title
+tie-break that marked the other tabs `SHEET_NOT_USED` (`SHEET_NOT_USED` stays for sheets that are
+not used at all).
 
 ### 3.7 Analysis tab
 - Header row: first row within `HEADER_SEARCH_ROWS` whose normalised cells include every
@@ -342,9 +438,10 @@ def server_options(settings: Settings, platform: str = sys.platform) -> dict   #
   - Row-level issues (`REQUIRED_VALUE_BLANK`, `STRATEGY_*`, `NEW_TASK_*`, `NSM_NEW_TASK_FILLED`) are
     raised for every row, duplicates included.
 
-### 3.8 Summary (summary.py) — per UOIR, over records with `is_duplicate == False` ("counted")
-- `summary` is None when the analysis tab is missing, has no header row, or has missing/duplicate
-  mapped headers (3.7). Consumers must handle None.
+### 3.8 Summary (summary.py) — per analysis tab, over records with `is_duplicate == False` ("counted")
+- `summary` is None when the tab has no header row, or has missing/duplicate mapped headers (3.7).
+  Consumers must handle None. All counts are per tab (a tab that covers several UOIRs gives one set
+  of counts); the UOIR figures count distinct UOIR IDs on the UOIR sheet (`Report.uoir_ids`).
 - `failure_mode_count` = len(counted). *(A failure mode with several different tasks/strategies counts once per row; only exact duplicates are ignored.)*
 - `maintenance_task_count` = counted with `strategy_code != "NSM"`.
 - `task_executed_count` = counted with `new_task == "no"`.
@@ -366,15 +463,20 @@ def server_options(settings: Settings, platform: str = sys.platform) -> dict   #
 - `duplicate_rows`: source rows of duplicates.
 
 ### 3.9 Recommendations
-- Per UOIR, rows = counted records in workbook order (any new_task value): failure_mode, task,
+- Per analysis tab, rows = counted records in workbook order (any new_task value): failure_mode, task,
   frequency, new_task.
 - Grouped by KKS (key = value_key(kks).upper()), groups in first-appearance order, rows keep
-  workbook order within a group. equipment = " / ".join(UoirSection.equipment);
+  workbook order within a group. equipment = " / ".join(AnalysisSection.equipment) (3.6);
   heading = ", ".join of the non-empty parts of (equipment, kks): `f"{equipment}, {kks}"`, just kks
   when equipment is empty, just equipment when kks is blank (already an error), "" when both are
   empty (the PDF then shows "KKS not specified").
 
 ### 3.10 Report
+- `Report.uoir_ids` = the distinct UOIR IDs on the UOIR sheet (3.5). `Report.analyses` = one
+  `AnalysisSection` per analysis tab, ordered as in 3.6: `sheet_name` (the tab name; unique, the
+  section's key in the app), `uoir_ids` (the tab's IDs in tab-name order), `title`, `equipment`,
+  `notes`, `analysis`, `tasks`, `summary`, `recommendations`. `failure_details` is unchanged (one
+  row per UOIR sheet row). The earlier list with one section for each UOIR ID is gone.
 - `can_export` = no issue with severity "error". `pdf_filename` = `make_pdf_filename`.
   `analysis_date_text` = format_date. `generated_at` = `datetime.now()`.
 - Issues ordered by (severity error < warning < info, sheet tab index with sheet None first,
@@ -414,6 +516,8 @@ through the API and the PDF, by `backend/tests/test_e2e_report_consistency.py`.
   (44.5 / 11.1 x 5). Work centres: SYNINCS 5 (3/2), SYNBOIL 2 (1/1), SYNOPER 2 (0/2). Notes: C1 (next
   to the title, above the table). One group "SYNTHETIC Condensate Recirculation Valve,
   SYN40AA310/320" (9 rows).
+- Each of these tabs names one listed ID, so each is a single-UOIR tab; they are read through
+  `Report.analyses` (three sections, in the order 712, 705, 748; `uoir_ids` lists the same three IDs) and the workbook still has no issues.
 - All counts above are invented for this workbook; none is taken from a real workbook.
 - `Notifications` (300 filler rows) and `Sheet3` are ignored without a message.
 - `build_report` on this workbook stays under 3 s (test limit).
@@ -422,9 +526,9 @@ through the API and the PDF, by `backend/tests/test_e2e_report_consistency.py`.
 
 | Severity | Codes |
 |---|---|
-| error (blocks preview/export) | `SHEET_MISSING`, `STATION_BLANK`, `ANALYSIS_DATE_BLANK`, `ANALYSIS_DATE_INVALID`, `TEAM_HEADER_MISSING`, `UOIR_HEADER_MISSING`, `UOIR_VALUE_BLANK`, `UOIR_NONE`, `ANALYSIS_SHEET_MISSING`, `ANALYSIS_SHEET_AMBIGUOUS`, `ANALYSIS_HEADER_MISSING`, `ANALYSIS_HEADER_DUPLICATE`, `ANALYSIS_NO_ROWS`, `REQUIRED_VALUE_BLANK`, `NEW_TASK_INVALID` |
-| warning | `LABEL_UNEXPECTED`, `TEAM_EMPTY`, `ROWS_AFTER_BLANK_ROW`, `UOIR_DATE_NOT_DATE`, `UOIR_EQUIPMENT_BLANK`, `UOIR_DUPLICATE_ID_CONFLICT`, `FORMULA_NO_VALUE`, `ANALYSIS_SHEET_TITLE_MISMATCH`, `ANALYSIS_TITLE_CELL_MISMATCH`, `ANALYSIS_SHEET_HIDDEN`, `ANALYSIS_SHEET_UNLISTED`, `STRATEGY_UNKNOWN`, `NEW_TASK_BLANK`, `NSM_NEW_TASK_FILLED`, `DUPLICATE_ROW` |
-| info | `SHEET_NOT_USED`, `MERGED_CELLS_CARRIED`, `STRATEGY_DERIVED_NAME`, `TRADE_SPELLING_MERGED` |
+| error (blocks preview/export) | `SHEET_MISSING`, `STATION_BLANK`, `ANALYSIS_DATE_BLANK`, `ANALYSIS_DATE_INVALID`, `TEAM_HEADER_MISSING`, `UOIR_HEADER_MISSING`, `UOIR_VALUE_BLANK`, `UOIR_NONE`, `ANALYSIS_SHEET_NONE`, `ANALYSIS_HEADER_MISSING`, `ANALYSIS_HEADER_DUPLICATE`, `ANALYSIS_NO_ROWS`, `REQUIRED_VALUE_BLANK`, `NEW_TASK_INVALID` |
+| warning | `LABEL_UNEXPECTED`, `TEAM_EMPTY`, `ROWS_AFTER_BLANK_ROW`, `UOIR_DATE_NOT_DATE`, `UOIR_EQUIPMENT_BLANK`, `UOIR_DUPLICATE_ID_CONFLICT`, `FORMULA_NO_VALUE`, `ANALYSIS_SHEET_TITLE_MISMATCH`, `ANALYSIS_TITLE_CELL_MISMATCH`, `ANALYSIS_SHEET_HIDDEN`, `ANALYSIS_SHEET_UNLISTED`, `ANALYSIS_SHEET_NAME_UNREADABLE`, `UOIR_ID_NOT_READ`, `UOIR_IN_SEVERAL_TABS`, `STRATEGY_UNKNOWN`, `NEW_TASK_BLANK`, `NSM_NEW_TASK_FILLED`, `DUPLICATE_ROW` |
+| info | `SHEET_NOT_USED`, `ANALYSIS_SHEET_MISSING`, `MERGED_CELLS_CARRIED`, `STRATEGY_DERIVED_NAME`, `TRADE_SPELLING_MERGED` |
 
 A new code must be added here and to the README "Checks and messages" tables.
 
@@ -743,12 +847,13 @@ Launch (`OutlookMailer.open_draft`, run in the threadpool):
      wrapped (keep `\n` as line breaks), header repeated; then "Team Members" table (No, Name, Staff
      No, Section). Empty lists show "No failure details were found in the workbook." / "No team
      members were found in the workbook."
-  3. For each UOIR in order:
-     - **A3 landscape** page: "Analysis: FMEA Analysis", then aligned key/value rows "UOIR ID : <id>",
-       "Title : <title>", one "Note : <text>" row per note; then the full `analysis` table: every
+  3. For each section in `report.analyses` (one per analysis tab, 3.6 order) a page pair; a tab that
+     covers several UOIRs gets one pair, headed with all its IDs:
+     - **A3 landscape** page: "Analysis: FMEA Analysis", then aligned key/value rows "UOIR ID : <ids>"
+       ("901, 902"), "Title : <title>", one "Note : <text>" row per note; then the full `analysis` table: every
        column (header text exactly as in the workbook) and every row, in order. Body 7.5 pt, header
-       bold 7.5 pt, header repeated on continuation pages. No analysis -> "No analysis worksheet is
-       linked to this UOIR, so there is no table to show."; no columns -> "The analysis worksheet has
+       bold 7.5 pt, header repeated on continuation pages. No analysis -> "No analysis table was read
+       from this tab."; no columns -> "The analysis worksheet has
        no table columns."; no rows -> header plus "The analysis worksheet has no data rows."
        - Column widths: flag columns (H, S, E, O, 1, 2, 3, H4, H5, S4) 16 pt and centred; No., New
          Task and Frequency centred; width hints for known columns (No. 24, Failure Mode 112, Failure
@@ -773,8 +878,8 @@ Launch (`OutlookMailer.open_draft`, run in the threadpool):
          continuation (No. and Failure Mode in the analysis table; the first column in other
          tables). Merged text taller than an empty page -> that one group is drawn unmerged (text
          splits inside its row); later groups keep their merges.
-     - **A4 portrait** page: "Analysis: FMEA Summary", "UOIR ID : <id>", "Title : <title>"; summary
-       None -> "No summary is available for this UOIR."; otherwise three cards in a row: Failure
+     - **A4 portrait** page: "Analysis: FMEA Summary", "UOIR ID : <ids>", "Title : <title>"; summary
+       None -> "No summary is available for this tab."; otherwise three cards in a row: Failure
        Mode, Maintenance Task, Task Executed (label + big number); section "Existing vs Revised" with
        sub-heading "Recommended Strategy": vector pie chart (reportlab.graphics, plain pie, white
        slice separators, a single slice drawn as a full disc, colours from `PieSlice.color`) with a
@@ -788,13 +893,15 @@ Launch (`OutlookMailer.open_draft`, run in the threadpool):
        `not_counted` row ("Not counted: row 8 (OC, SYNMECH-A) — New Task blank.") and per duplicate
        ("Row 9 is identical to an earlier row and was counted once."). Keep the summary on one page
        when it fits; otherwise flow with repeated table headers.
-  4. **Recommendation** (A4, starts on a new page, continuous): "Recommendation"; for each UOIR a
-     heading "UOIR ID <id>: <title>"; for each group a sub-heading `group.heading` ("KKS not
+  4. **Recommendation** (A4, starts on a new page, continuous): "Recommendation"; for each section a
+     heading "UOIR ID <ids>: <title>" ("UOIR ID 901, 902: <title>"); for each group a sub-heading `group.heading` ("KKS not
      specified" when empty); table with a 2-row header: "Failure Mode" (spans both header rows) |
      "Recommendations" (spans Task and Frequency) / "Task" | "Frequency"; rows in order; header
      repeated on continuation pages; keep headings with the header + first 2 rows (CondPageBreak,
-     capped at 80 % of the page), never orphan a heading. Do not force a page break per UOIR. No
-     groups -> "No recommendations for this UOIR."; no UOIRs -> "No UOIRs were found in the workbook."
+     capped at 80 % of the page), never orphan a heading. Do not force a page break per section. No
+     groups -> "No recommendations for this tab."; no sections -> "No analysis tabs were found in the
+     workbook." (blocked from export by `ANALYSIS_SHEET_NONE`). The Introduction's Failure Details keeps
+     one row per UOIR sheet row; tab names are not printed.
 - Escape `& < >` in Paragraph text; empty cells render empty.
 - PDF metadata: title "Failure Mode Effect Analysis (FMEA) Report", subject = station with whitespace
   and newlines collapsed, creator "FMEA Report Generator".
@@ -813,12 +920,17 @@ Launch (`OutlookMailer.open_draft`, run in the threadpool):
   again on Upload); only the mock sign-in is remembered in `sessionStorage`. Switches: `?mock_reset=1`,
   `?mock_signed_in=1`, `?mock_auth=databricks`, `?mock_outlook=0` (Outlook drafts not offered, so Export
   shows the mail-app fallback);
-  passwords `wrong`/`locked`; upload names containing `error`/`broken`/`slow`; Email recipients
+  passwords `wrong`/`locked`; upload names containing `error` (a report with blocking errors, including
+  a section whose `analysis` is null and `ANALYSIS_HEADER_MISSING`), `no-tabs` (no analysis tabs:
+  `ANALYSIS_SHEET_NONE`, empty sections), `broken` or `slow` (any other name gives the normal report,
+  which has one two-ID section); Email recipients
   containing `outlook-fail` (502) or `outlook-busy` (429); `window.fmeaMock.expireSession()` (next
   request 401) and `window.fmeaMock.closeWorkbook()` (next preview/download/email 404, as after another
   tab). The mock answers `POST /api/report/email` with the same 200/400/404/409/429/501/502 replies
   as the server (it checks 404/409 before 501/400). If the model changes, regenerate `src/mocks/synthetic-report.json` and validate it
-  against `backend/report/models.py`.
+  against `backend/report/models.py`. `src/lib/report.js` holds the section helpers (`sectionLabel`:
+  "901, 902"; `issuesForSection`: issues whose `sheet` is the section's `sheet_name`; `findSection`;
+  `issueTarget` for "Show in table").
 - Visual direction: IZ's Genco Project Theme, rebuilt in plain CSS (`frontend/src/styles/genco-theme.css`,
   imported first; `tokens.css` maps the app's own names onto it). A navy `#041225` frame (sidebar 256px
   + top bar 80px) round a gray-50 `#F9FAFB` canvas with a rounded top-left corner; white cards
@@ -847,14 +959,14 @@ Launch (`OutlookMailer.open_draft`, run in the threadpool):
   to Close, Escape/Close/backdrop return focus to the menu button).
 - Accessibility as built: keyboard focus ring electric-500 `#1A75FF` on light surfaces and electric-400
   `#3D8FFF` on the navy frame; muted text gray-500 `#6B7280` (≥ 4.5:1 on white and gray-50; gray-600
-  on tinted fills); UOIR status in the sidebar uses icons with labels, not colour alone; the pie is
+  on tinted fills); a section's error/warning status in the sidebar uses icons with labels, not colour alone; the pie is
   not a keyboard stop and carries an `aria-label` listing every slice; "Sign in" is the sign-in page's
   only h1, and in the workspace the top bar's page title (`h1#page-title`) is every page's only h1
   (cards use h2). Disabled buttons use the theme's 60% fade (disabled controls are exempt from WCAG
   contrast); the reason beside a disabled Next button (red-700) stays at ≥ 4.5:1 and is linked to the
   button with `aria-describedby`. Scrolling tables take keyboard focus (`tabIndex` 0) with a label:
   the Failure Details / Team Members scrollers (`role="region"`, "Failure Details table" / "Team
-  Members table"), the analysis table scroller ("FMEA Analysis table for UOIR ID <id>") and the
+  Members table"), the analysis table scroller ("FMEA Analysis table for UOIR ID <ids>", e.g. "… for UOIR ID 901, 902") and the
   Workbook data tab panel.
 - Screens / flow: **Sign in** -> workspace with stepper **Upload Excel → Review Data → Preview Report → Export PDF**,
   then the **Report complete** screen after Finish. `nav.step` is `'upload' | 'review' | 'preview' |
@@ -876,7 +988,7 @@ Launch (`OutlookMailer.open_draft`, run in the threadpool):
     discard on `pagehide`, reload on a back/forward-cache `pageshow`, 404 -> Upload with the "Workbook
     closed" notice).
   - Shell: navy sidebar (brand, product block with the app icon, stepper, section nav: **Data
-    Checks**, Front Page, Introduction, Analysis (UOIR list), Recommendation; at the bottom the team
+    Checks**, Front Page, Introduction, Analysis (one entry per analysis tab), Recommendation; at the bottom the team
     "ALCM - Maintenance Strategy"). The stepper's steps open directly once a workbook is read. Top
     bar (`TopBar` props: heading, report, counts, user, authMode, onMenu, onShowChecks, onSignOut):
     menu button (tablet), the **page title** `h1#page-title` (`.gt-topbar-title`, 24px bold white;
@@ -889,8 +1001,11 @@ Launch (`OutlookMailer.open_draft`, run in the threadpool):
     title drops to 20px, the chips move to a second row (row 1: menu, title, user) and the user's
     name and status line are visually hidden (kept for screen readers); at ≤ 640px Sign out becomes
     an icon button with its label as accessible name. There is **no Export or Upload another button
-    in the top bar**: exporting is step 4. (`Sidebar` props: report, counts, nav, uoirId,
-    uploadBusy, onStep, onSection, onClose.)
+    in the top bar**: exporting is step 4. (`Sidebar` props: report, counts, nav, sectionKey,
+    uploadBusy, onStep, onSection, onClose; `sectionKey` is the selected section's tab name. Each
+    Analysis entry shows the tab's IDs ("901, 902") and title, with an error or warning marker from
+    the issues whose `sheet` is that tab; its tooltip is "<tab name>: <title>", or just the tab name
+    when the title is blank. No tab-name caption is shown.)
   - Page titles and subtitles: `pageHeading(nav, report)` (`src/lib/pageHeading.js`) gives
     `{ title, subtitle }` for the page on screen; Workspace passes it to `TopBar` as `heading`.
 
@@ -900,8 +1015,8 @@ Launch (`OutlookMailer.open_draft`, run in the threadpool):
     | `'review'`, Data Checks (and any section not listed below) | "Review data" | "Step 2 of 4 · What was read from <source_filename>" |
     | `'review'`, `front` | "Front Page" | "Report section · The cover of the report, as it will appear on the first page of the PDF" |
     | `'review'`, `intro` | "Introduction" | "Report section · Failure details and the analysis team, exactly as written in the workbook" |
-    | `'review'`, `analysis` | "Analysis" | "Report section · The FMEA Analysis table and FMEA Summary counts for each UOIR" |
-    | `'review'`, `recommendation` | "Recommendation" | "Report section · Maintenance tasks for each UOIR, grouped by Equipment and KKS" |
+    | `'review'`, `analysis` | "Analysis" | "Report section · The FMEA Analysis table and FMEA Summary counts for each analysis tab" |
+    | `'review'`, `recommendation` | "Recommendation" | "Report section · Maintenance tasks for each analysis tab, grouped by Equipment and KKS" |
     | `'preview'` | "Preview report" | "Step 3 of 4 · <pdf_filename>, exactly as it will be exported" |
     | `'export'` | "Export PDF" | "Step 4 of 4 · Download the finished report, or email it" |
     | `'done'` with no report | "Report complete" | "The workbook and report have been cleared from the app" |
@@ -945,7 +1060,7 @@ Launch (`OutlookMailer.open_draft`, run in the threadpool):
       .xlsx), other extensions, empty files and size (hard-coded 20 MB in `src/api/client.js`, see 7);
     - uploading: progress, Cancel, then a "reading workbook" state;
     - report open: the **file card replaces the drop area** in the same card: "Workbook uploaded",
-      the file name, "station · date · n UOIRs" (plus "n errors" when there are any), **Remove**
+      the file name, "station · date · n UOIRs" (distinct UOIR IDs on the UOIR sheet; plus "n errors" when there are any), **Remove**
       (secondary, lucide `Trash2`; "Removing…" while it runs; awaits `onRemove`, a failure shows a
       "Not removed" alert and keeps the report) and **Proceed to Review Data** (primary, described by
       the file name and meta). Dropping a file on the card then only shows the note "Remove the
@@ -954,24 +1069,30 @@ Launch (`OutlookMailer.open_draft`, run in the threadpool):
 
     Errors from the API show above the card. Focus: Proceed after a successful upload, "Browse files"
     after Cancel, a failed upload or a removal, Remove after a failed removal. The "What the workbook
-    needs" card stays below. The "Workbook closed" notice (4.1) shows here until dismissed or a new
+    needs" card stays below. Its analysis line is titled "Analysis tabs named by UOIR ID": "Named like
+    'UOIR ID 123 - Title of the UOIR'. A tab that covers several UOIRs lists every ID after 'UOIR ID',
+    separated by spaces, commas or &: 'UOIR ID 123 124 - Title' or 'UOIR ID 123,124,125'. Excel allows
+    31 characters, so shorten the title part if needed." followed by the required columns. The "Workbook closed" notice (4.1) shows here until dismissed or a new
     upload starts.
   - Review Data (`ChecksView` props: report, counts, onShowInTable, onBack, onNext): no heading
     (top bar: "Review data" / "Step 2 of 4 · What was read from <source_filename>"); the
-    `page-actions` row with Back / Next; four fact cards (Station, Date of Analysis, UOIRs, Team
-    members) with **no sheet or cell captions**; "Ready to export" or "Export blocked" banner (no
+    `page-actions` row with Back / Next; four fact cards (Station, Date of Analysis, UOIRs =
+    `report.uoir_ids.length`, Team members) with **no sheet or cell captions**; "Ready to export" or "Export blocked" banner (no
     buttons inside it); groups "Must fix before export" (errors) and "Please check" (warnings), hidden
     when empty; "For
     information" (info) collapsed by default and hidden when empty; each item shows the message and
     location chips (sheet, row, column, cell) and, when it points into an analysis table, **Show in
-    table** (switches UOIR, scrolls to the column and marks the row/cell).
+    table** (opens the section whose `sheet_name` equals the issue's `sheet`, scrolls to the column
+    and marks the row/cell). UOIR sheet issues show here only; they do not mark an Analysis entry.
   - Review Data, **Workbook data** card (`src/components/WorkbookData.jsx`) below the checks: the
     data itself, **read-only** (user decision 2026-11-05: no editing in the app; the workbook stays
     the single source of truth), with the note "Read-only. To change anything, edit the workbook in
     Excel and upload it again." Tabs with counts: **Team Members** (Station, Date of Analysis, team
-    table), **Failure Details** (table), **Analysis** (UOIR selector, UOIR ID and title, notes, "n rows
-    · n columns", the analysis table with its Row column; no row focus). Empty states point to the
-    checks above. No sheet or cell references in this card. The tab panel and the table scrollers
+    table), **Failure Details** (table), **Analysis** (the tab's count is `report.analyses.length`; section
+    selector, `SectionHeading` with the IDs and title, notes, "n rows · n columns", the analysis table
+    with its Row column; no row focus). Empty states point to the checks above and end "The checks
+    above say what to fix." ("No analysis tabs were found in the workbook." / "The analysis table
+    could not be read from this tab."). No sheet or cell references in this card. The tab panel and the table scrollers
     take keyboard focus (labelled regions, see Accessibility). The Failure Details and Team Members
     tables come from `src/components/IntroTables.jsx`, shared with the Introduction section.
   - Report sections (no heading of their own: title and subtitle in the top bar, see "Page titles
@@ -986,8 +1107,13 @@ Launch (`OutlookMailer.open_draft`, run in the threadpool):
     Members tables (wrapping, multiline preserved; the shared `IntroTables.jsx`); the card meta is
     the count only ("n rows", "n members"), with **no "· UOIR sheet" / "· Team Member sheet"
     caption**.
-  - Analysis (`AnalysisView` props: report, counts, uoir, onSelectUoir, tab, onTab, focus,
-    onShowChecks, onBack, onNext): UOIR list/selector (ID, title, counts); tabs **FMEA Analysis**
+  - Analysis (`AnalysisView` props: report, counts, section, onSelectSection, tab, onTab, focus,
+    onShowChecks, onBack, onNext): `SectionSelector` (`src/components/SectionSelector.jsx`; one card
+    per analysis tab with its IDs, title and counts; group label "Choose an analysis tab"; the card's
+    tooltip is "<tab name>: <title>", no visible tab-name caption) and `SectionHeading`
+    (`SectionHeading.jsx`: "UOIR ID 901, 902", title, equipment, issue counts). The selection is
+    keyed by `sheet_name`. Empty states: "No analysis tabs were found in the workbook. See Data
+    checks." and "The analysis table could not be read from this tab. See Data checks.". Tabs **FMEA Analysis**
     (notes above; full table with horizontal scroll, sticky header and an extra muted **Row** column with the Excel row number,
     not part of the report; merged cells via rowSpan/colSpan; cells drawn by header column so short or
     long `cells` lists never shift columns; merges outside the table ignored, others clipped, overlaps
@@ -995,13 +1121,21 @@ Launch (`OutlookMailer.open_draft`, run in the threadpool):
     pie + legend with counts & % + strategy table, same colours, standard zero rows muted;
     "Work-Centre Execution" table; not-counted/duplicate notes; empty states when `summary` is None or
     the pie is empty).
-  - Recommendation (`RecommendationView` props: report, counts, uoir, onSelectUoir, tab, onTab,
-    onBack, onNext): UOIR selector; tabs **New Task = Yes** and **New Task = No**, plus **New Task not
+  - Recommendation (`RecommendationView` props: report, counts, section, onSelectSection, tab, onTab,
+    onBack, onNext): `SectionSelector` (recommendation variant); tabs **New Task = Yes** and **New Task = No**, plus **New Task not
     set** only when such rows exist. "Not set" holds **every row whose new_task is not "yes" or "no"**
     (blank, invalid or unexpected), so each row is in exactly one tab; rows there are tagged "NSM · not
-    required", "Blank" or "Not Yes or No: "<value>"". Switching to a UOIR without such rows falls back
-    to the Yes tab. Groups with `heading`; table Failure Mode | Recommendations (Task, Frequency) with
+    required", "Blank" or "Not Yes or No: "<value>"". Switching to a section without such rows falls back
+    to the Yes tab. A filter with no rows says "No rows in this analysis tab have New Task = Yes." (likewise
+    "… = No.", and "Every row in this analysis tab has New Task set."). Groups with `heading`; table Failure Mode | Recommendations (Task, Frequency) with
     the Row column. Tabs are view filters only ("Tabs only filter this view. The PDF lists every row.").
+  - DOM ids and keys: React keys use `sheet_name`; ids that were built from a UOIR ID (the summary
+    cards' headings and their `aria-labelledby`) come from `useId()`, because tab names and joined IDs
+    contain spaces. Screen texts that said "this UOIR" / "every UOIR" about analysis or
+    recommendations say "this tab" / "every analysis tab" (SummaryPanel, RecommendationView,
+    ExportView, page subtitles, ErrorBoundary). The Export "PDF contents" card reads "3 analysis tabs
+    (7 UOIRs): FMEA Analysis on A3 landscape and FMEA Summary on A4" and "Tasks grouped by Equipment
+    and KKS for every analysis tab".
   - Preview (`PreviewView` props: report, counts, onShowChecks, onBack, onNext, onWorkbookClosed):
     no heading (the top bar's subtitle carries the PDF's file name); the `page-actions` row with
     Back / Next; **view only**, with no download or Export button on this step (user request: the
@@ -1077,7 +1211,7 @@ Launch (`OutlookMailer.open_draft`, run in the threadpool):
     including 502/503/504 ("The FMEA service is not available right now…") and network failures.
   - **ErrorBoundary** (`src/components/ErrorBoundary.jsx`): a "section" boundary around the content
     area shows a plain "This part of the report could not be shown" message (sidebar and top bar keep
-    working; it resets when the section, UOIR or tab changes); an outer "page" boundary offers
+    working; it resets when the section (its `sheet_name`) or tab changes); an outer "page" boundary offers
     "Reload the page". Details go to the console only.
   - Loading, empty ("Upload a workbook to begin"), error and success states everywhere. No technical
     jargon, no raw JSON, no stack traces.
@@ -1086,8 +1220,7 @@ Launch (`OutlookMailer.open_draft`, run in the threadpool):
 
 | Area | Request | Current behaviour |
 |---|---|---|
-| Parser 3.6 | Severity for extra tabs with the same UOIR ID when the title picks one (a warning is safer: that tab's data is left out) | info `SHEET_NOT_USED` |
-| Parser 3.5 | Should `ROWS_AFTER_BLANK_ROW` be an error for UOIR rows (a whole UOIR is left out)? | warning |
+| Parser 3.5 | Should `ROWS_AFTER_BLANK_ROW` be an error for UOIR rows (a whole UOIR is left out of Failure Details)? | warning |
 | Mapping | Move the Team Member label words ("station", "date of analysis") into `mapping.py` | constant `_TEAM_LABELS` in `builder.py` |
 | Mapping / summary | Distinct fallback colours for unknown and extra `R-` strategy codes | all share `#c3c2b7` |
 | PDF fonts | Embed a symbol-capable font (e.g. a DejaVu Sans subset) or formally allow non-embedded ZapfDingbats | ZapfDingbats fallback; other symbols print as boxes |
@@ -1103,6 +1236,38 @@ Launch (`OutlookMailer.open_draft`, run in the threadpool):
 
 ## Change log
 
+- **2026-11-06 — Analysis per tab: one analysis section per "UOIR ID ..." worksheet tab.**
+  (User request; the design is `docs/superpowers/specs/2026-11-06-analysis-per-tab-design.md`.)
+  - A tab name can list several UOIR IDs (`UOIR ID 901 902 - Title`, `UOIR ID 901,902,903`,
+    `UOIR ID 901, 902 & 903`); the tab covers all of them. FMEA Analysis, FMEA Summary and
+    Recommendation have one section per **tab**, not per UOIR ID. Failure Details and the Introduction
+    still have one row per UOIR sheet row. A UOIR that no tab names is only an info note.
+  - Model: `Report.uoirs` / `UoirSection` are replaced by `Report.uoir_ids` (distinct UOIR sheet
+    IDs) and `Report.analyses` (`AnalysisSection`: `sheet_name`, `uoir_ids`, `title`, `equipment`, ...).
+  - 3.1, 3.3, 3.6: every analysis tab is read and checked, hidden, unlisted or sharing an ID; a tab
+    for an ID not on the UOIR sheet is included with a warning. A heading shows all the tab's IDs.
+    Title: single-UOIR tab = UOIR sheet Title, then B1 when B1 counts as a title (not inside the
+    analysis table), then the name fragment; any other tab = B1 when it counts, then the first listed
+    Title, then the fragment. Equipment is the union over the tab's listed UOIRs. Sections follow the
+    UOIR sheet order, tabs with no listed ID last.
+  - 3.12 codes. Removed: `ANALYSIS_SHEET_AMBIGUOUS` and the same-ID title tie-break (the 7 row).
+    Changed: `ANALYSIS_SHEET_MISSING` is now **info** (a listed ID named by no tab);
+    `ANALYSIS_SHEET_UNLISTED` now says the tab is included. New: `ANALYSIS_SHEET_NONE` (error, no
+    analysis tab at all), `ANALYSIS_SHEET_NAME_UNREADABLE` (warning, a sheet starting "UOIR" that is not
+    read as an analysis tab, replacing `SHEET_NOT_USED` for it), `UOIR_ID_NOT_READ` (warning) and
+    `UOIR_IN_SEVERAL_TABS` (warning). `ANALYSIS_TITLE_CELL_MISMATCH` is for single-UOIR tabs only;
+    `ANALYSIS_SHEET_TITLE_MISMATCH` compares the fragment with B1 and every covered UOIR Title.
+    `ROWS_AFTER_BLANK_ROW` on the UOIR sheet now says "not in Failure Details".
+  - 5: one Analysis + Summary page pair per tab, headed "UOIR ID : 901, 902"; Recommendation has one
+    heading per tab; new empty-state texts say "this tab" / "No analysis tabs were found...".
+  - 6: screens use `report.analyses`; the selection is keyed by `sheet_name`; `UoirSelector` /
+    `UoirHeading` became `SectionSelector` / `SectionHeading`; views take `section` /
+    `onSelectSection`; issues match a section by `issue.sheet`; UOIR sheet issues show in Data Checks only.
+    Sidebar entries and selector cards carry the tooltip "<tab name>: <title>" and no visible tab-name
+    caption. Counts: "UOIRs" = `report.uoir_ids.length`, "Analysis" = `report.analyses.length`. Page
+    subtitles, empty states and the Upload and Export texts say "analysis tab". The mock server has
+    three upload variants by file name: normal (one two-ID section), `error` (blocking errors) and
+    `no-tabs` (no analysis tabs).
 - **2026-11-05 — design pass: app icon in the sidebar, page titles in the top bar; review fixes.**
   (User request. The design pass is design only, nothing works differently; it follows IZ's theme
   guide, sections 3, 4 "Top bar", 6 product block and 11 "Using it". The review fixes follow an

@@ -24,13 +24,13 @@ def clean_report(clean_workbook_bytes):
 
 
 def _uoir(report, uoir_id):
-    return next(u for u in report.uoirs if u.uoir_id == uoir_id)
+    return next(s for s in report.analyses if s.uoir_ids == [uoir_id])
 
 
 def test_clean_variant_has_no_issues(clean_report):
     assert clean_report.issues == []
     assert clean_report.can_export is True
-    assert [u.uoir_id for u in clean_report.uoirs] == ["601", "602"]
+    assert clean_report.uoir_ids == ["601", "602"]
 
 
 def test_exact_issue_list_in_order(report):
@@ -46,14 +46,18 @@ def test_exact_issue_list_in_order(report):
         ("warning", "DUPLICATE_ROW", TAB_501, 10, None, None, "501"),
         ("warning", "NSM_NEW_TASK_FILLED", TAB_502, 5, "New Task", "J5", "502"),
         ("warning", "FORMULA_NO_VALUE", TAB_502, 6, None, "L6", "502"),
+        # Spec 3.6: unchanged code and location; the tab is now included (new message below).
         ("warning", "ANALYSIS_SHEET_UNLISTED", TAB_999, None, None, None, "999"),
+        # Spec 3.1 and 3.6: TAB_999 is now read, and its fragment "Not in list" is not in its B1.
+        ("warning", "ANALYSIS_SHEET_TITLE_MISMATCH", TAB_999, None, None, None, "999"),
         ("info", "MERGED_CELLS_CARRIED", TAB_501, None, None, None, "501"),
         ("info", "TRADE_SPELLING_MERGED", TAB_501, 4, "Trade", "Q4", "501"),
         ("info", "STRATEGY_DERIVED_NAME", TAB_501, 11, "RecommendedStrategy", "N11", "501"),
         ("info", "SHEET_NOT_USED", "Extra Notes", None, None, None, None),
     ]
     counts = {s: sum(1 for i in report.issues if i.severity == s) for s in ("error", "warning", "info")}
-    assert counts == {"error": 3, "warning": 8, "info": 4}
+    # Spec 3.6: one more warning (ANALYSIS_SHEET_TITLE_MISMATCH on TAB_999).
+    assert counts == {"error": 3, "warning": 9, "info": 4}
     assert report.can_export is False
 
 
@@ -65,8 +69,15 @@ def test_issue_messages(report):
     assert messages[("DUPLICATE_ROW", 10)] == "Row 10 is identical to row 9 and is counted once."
     assert messages[("NEW_TASK_INVALID", 7)].startswith("New Task must be Yes or No")
     assert "'TBC'" in messages[("NEW_TASK_INVALID", 7)]
+    # Spec 3.6: the tab for an unlisted ID is now included in the report.
     assert messages[("ANALYSIS_SHEET_UNLISTED", None)] == (
-        f"Sheet '{TAB_999}' is for UOIR ID 999, which is not in the UOIR list and was left out of the report."
+        f"Tab '{TAB_999}' is for UOIR ID 999, which is not in the UOIR list. It is included in the report. "
+        "Add UOIR ID 999 to the UOIR sheet if it belongs there."
+    )
+    # Spec 3.6: TAB_999 has no listed ID, so only B1 is compared with its fragment.
+    assert messages[("ANALYSIS_SHEET_TITLE_MISMATCH", None)] == (
+        f"The name of tab '{TAB_999}' does not match cell B1 ('SYNTHETIC tab for a UOIR that is not listed'). "
+        "It is still used; check that it is the right tab."
     )
     assert messages[("SHEET_NOT_USED", None)] == "Sheet 'Extra Notes' is not used in the report."
     assert "Failure Mode and Failure Effect" in messages[("MERGED_CELLS_CARRIED", None)]
@@ -103,9 +114,12 @@ def test_failure_details(report):
 
 
 def test_uoir_sections_and_linking(report):
-    assert [(u.uoir_id, u.sheet_name, u.equipment) for u in report.uoirs] == [
-        ("501", TAB_501, ["Pump A", "Pump B"]),
-        ("502", TAB_502, ["Feed Valve"]),
+    assert report.uoir_ids == ["501", "502"]
+    assert [(s.uoir_ids, s.sheet_name, s.equipment) for s in report.analyses] == [
+        (["501"], TAB_501, ["Pump A", "Pump B"]),
+        (["502"], TAB_502, ["Feed Valve"]),
+        # Spec 3.1: every analysis tab is read and becomes one section, even with no listed ID.
+        (["999"], TAB_999, []),
     ]
 
 

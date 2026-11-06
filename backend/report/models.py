@@ -169,17 +169,19 @@ class RecommendationRow(BaseModel):
 class RecommendationGroup(BaseModel):
     """One heading + table in the Recommendation section (one per Equipment/KKS)."""
 
-    equipment: str                   # UOIR equipment, several joined with " / "
+    equipment: str                   # Equipment of every UOIR the tab covers, joined with " / "
     kks: str
     heading: str                     # "<equipment>, <kks>"
     rows: list[RecommendationRow]
 
 
-class UoirSection(BaseModel):
-    uoir_id: str
-    title: str
-    equipment: list[str]
-    sheet_name: str | None = None
+class AnalysisSection(BaseModel):
+    """One analysis tab: its FMEA Analysis table, FMEA Summary and Recommendation groups."""
+
+    sheet_name: str                  # tab name; unique in a workbook; the section's key in the UI
+    uoir_ids: list[str]              # IDs in tab-name order (3.2), shown as in 3.2
+    title: str                       # 3.3
+    equipment: list[str]             # 3.4 (distinct, ordered)
     notes: list[Note] = Field(default_factory=list)
     analysis: AnalysisTable | None = None
     tasks: list[TaskRecord] = Field(default_factory=list)
@@ -194,7 +196,8 @@ class Report(BaseModel):
     analysis_date_text: str          # "14 September 2026"
     team: list[TeamMember] = Field(default_factory=list)
     failure_details: list[FailureDetail] = Field(default_factory=list)
-    uoirs: list[UoirSection] = Field(default_factory=list)
+    uoir_ids: list[str] = Field(default_factory=list)              # distinct UOIR sheet IDs, in order
+    analyses: list[AnalysisSection] = Field(default_factory=list)  # one per analysis tab, ordered by 3.5
     issues: list[Issue] = Field(default_factory=list)
     can_export: bool                 # False when any issue has severity "error"
     pdf_filename: str                # FMEA_Report_<Station>_<YYYY-MM-DD>.pdf

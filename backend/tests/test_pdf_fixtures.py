@@ -15,6 +15,7 @@ from datetime import date, datetime
 from backend.config.mapping import STANDARD_STRATEGY_CODES, strategy_color, strategy_label
 from backend.report.models import (
     AnalysisRow,
+    AnalysisSection,
     AnalysisTable,
     FailureDetail,
     MergedRange,
@@ -27,7 +28,6 @@ from backend.report.models import (
     StrategyRow,
     Summary,
     TeamMember,
-    UoirSection,
     WorkCentreRow,
 )
 
@@ -84,14 +84,20 @@ def column_letters(count: int) -> list[str]:
 # --------------------------------------------------------------------------- #
 # Analysis tables
 # --------------------------------------------------------------------------- #
+def tab_name(uoir_ids: list[str]) -> str:
+    """SYNTHETIC analysis tab name naming every ID of the section: 'UOIR ID 901 902 - SYNTHETIC'."""
+    return f"UOIR ID {' '.join(uoir_ids)} - SYNTHETIC"
+
+
 def build_analysis(uoir_id: str, group_sizes: list[int], *, header_row: int = 2, rng: random.Random,
                    long_kks_every: int = 0, tall_remark_row: int | None = None,
-                   tall_merged_group: int | None = None, horizontal_merge_row: int | None = None
-                   ) -> tuple[AnalysisTable, list[dict]]:
+                   tall_merged_group: int | None = None, horizontal_merge_row: int | None = None,
+                   sheet: str | None = None) -> tuple[AnalysisTable, list[dict]]:
     """Rows grouped by failure mode; No./Failure Mode/Failure Effect merged over each group.
 
-    Returns the table and a plain description of each row (used to derive the
-    summary and recommendations)."""
+    `uoir_id` is the section's first UOIR ID and keys the row markers; `sheet`
+    defaults to the one-ID tab name. Returns the table and a plain description of
+    each row (used to derive the summary and recommendations)."""
     rows: list[AnalysisRow] = []
     merged: list[MergedRange] = []
     described: list[dict] = []
@@ -141,7 +147,7 @@ def build_analysis(uoir_id: str, group_sizes: list[int], *, header_row: int = 2,
                 merged.append(MergedRange(first_row=first, first_col=COL[col],
                                           last_row=first + size - 1, last_col=COL[col]))
     table = AnalysisTable(
-        sheet=f"UOIR ID {uoir_id} - SYNTHETIC",
+        sheet=sheet or tab_name([uoir_id]),
         header_row=header_row,
         columns=list(ANALYSIS_COLUMNS),
         column_letters=column_letters(len(ANALYSIS_COLUMNS)),
@@ -242,7 +248,7 @@ def _team(count: int) -> list[TeamMember]:
 
 
 def _report(station: str, team: list[TeamMember], details: list[FailureDetail],
-            uoirs: list[UoirSection]) -> Report:
+            analyses: list[AnalysisSection]) -> Report:
     return Report(
         source_filename="SYNTHETIC_fmea_workbook.xlsx",
         station=station,
@@ -250,7 +256,8 @@ def _report(station: str, team: list[TeamMember], details: list[FailureDetail],
         analysis_date_text="14 September 2026",
         team=team,
         failure_details=details,
-        uoirs=uoirs,
+        uoir_ids=list(dict.fromkeys(detail.uoir_id for detail in details)),
+        analyses=analyses,
         issues=[],
         can_export=True,
         pdf_filename="FMEA_Report_SYNTHETIC_2026-09-14.pdf",
@@ -259,38 +266,45 @@ def _report(station: str, team: list[TeamMember], details: list[FailureDetail],
 
 
 # --------------------------------------------------------------------------- #
-# Normal report: 3 UOIRs
+# Normal report: 3 analysis tabs covering 4 UOIRs
 # --------------------------------------------------------------------------- #
 NORMAL_STATION = "SYNTHETIC Power Station"
+TWO_ID_SECTION_IDS = ["901", "902"]
 
 
 def normal_report() -> Report:
+    """Two one-UOIR tabs and one tab covering UOIRs 901 and 902, so Failure Details
+    has one row more than there are analysis sections."""
     rng = random.Random(9101)
     specs = [
-        ("9101", "SYNTHETIC Unit Trip (Main Relay) on inlet damper", ["SYNTHETIC Inlet Isolation Damper"],
+        (["9101"], "SYNTHETIC Unit Trip (Main Relay) on inlet damper", ["SYNTHETIC Inlet Isolation Damper"],
          [3, 1, 2, 1, 4], ["SYN10/AB020-120", "SYN11/AB920-980 XV03-04"],
          [Note(cell="B19", text="SYNTHETIC root cause - inlet isolation damper")], 5),
-        ("9102", "SYNTHETIC cooling water temperature sensor fault", ["SYNTHETIC Cooling Water Sensor"],
+        (["9102"], "SYNTHETIC cooling water temperature sensor fault", ["SYNTHETIC Cooling Water Sensor"],
          [2, 1, 1, 2], ["SYN10/AB020-120"], [], None),
-        ("9103", "SYNTHETIC outlet flow control & actuator <slow>", ["SYNTHETIC Flow Actuator",
-                                                                        "SYNTHETIC Flow Valve"],
+        (TWO_ID_SECTION_IDS, "SYNTHETIC outlet flow control & actuator <slow>",
+         ["SYNTHETIC Flow Actuator", "SYNTHETIC Flow Valve"],
          [1, 3, 2, 1, 3], ["SYN7XYZ40AB120/140", "SYN7XYZ40AB150"],
          [Note(cell="C1", text="SYNTHETIC RCA - actuator air supply leak"),
           Note(cell="B20", text="SYNTHETIC second note\nwith a second line")], None),
     ]
-    uoirs, details = [], []
-    for no, (uoir_id, title, equipment, groups, kks_names, notes, hmerge) in enumerate(specs, start=1):
-        table, described = build_analysis(uoir_id, groups, rng=rng, horizontal_merge_row=hmerge)
+    analyses, details = [], []
+    for uoir_ids, title, equipment, groups, kks_names, notes, hmerge in specs:
+        key = uoir_ids[0]
+        table, described = build_analysis(key, groups, rng=rng, horizontal_merge_row=hmerge,
+                                          sheet=tab_name(uoir_ids))
         summary = build_summary(described)
         summary.not_counted = [NotCountedRow(source_row=8, reason="New Task blank", strategy="OC", trade="SYNINCS")]
-        summary.duplicate_rows = [9] if uoir_id == "9101" else []
-        uoirs.append(UoirSection(
-            uoir_id=uoir_id, title=title, equipment=equipment, sheet_name=table.sheet, notes=notes,
+        summary.duplicate_rows = [9] if key == "9101" else []
+        analyses.append(AnalysisSection(
+            sheet_name=table.sheet, uoir_ids=list(uoir_ids), title=title, equipment=equipment, notes=notes,
             analysis=table, summary=summary,
-            recommendations=build_recommendations(uoir_id, equipment, described, kks_names),
+            recommendations=build_recommendations(key, equipment, described, kks_names),
         ))
-        details.append(_failure_detail(no, uoir_id, title, equipment[0]))
-    return _report(NORMAL_STATION, _team(7), details, uoirs)
+        # One Failure Details row per UOIR the tab covers (a one-UOIR tab: its first equipment).
+        for uoir_id, item in zip(uoir_ids, equipment):
+            details.append(_failure_detail(len(details) + 1, uoir_id, title, item))
+    return _report(NORMAL_STATION, _team(7), details, analyses)
 
 
 # --------------------------------------------------------------------------- #
@@ -347,9 +361,9 @@ def stress_report() -> Report:
 
     long_equipment = ["SYNTHETIC Inlet Duct Isolation Gate Damper Assembly North Side",
                       "SYNTHETIC Inlet Duct Isolation Gate Damper Assembly South Side"]
-    uoirs = [
-        UoirSection(
-            uoir_id="9001", title=STRESS_TITLE, equipment=long_equipment, sheet_name=table_a.sheet,
+    analyses = [
+        AnalysisSection(
+            sheet_name=table_a.sheet, uoir_ids=["9001"], title=STRESS_TITLE, equipment=long_equipment,
             notes=[Note(cell="B19", text="SYNTHETIC root cause note"),
                    Note(cell="B20", text="SYNTHETIC long note " + "with many words " * 40),
                    Note(cell="C1", text="SYNTHETIC note\nacross\nfour lines\nof text")],
@@ -358,15 +372,15 @@ def stress_report() -> Report:
                                                   [LONG_KKS, "SYN10/AB020-120", "SYN11/AC300-390", "SYN12/BB100",
                                                    "SYN13/CC200"], tall_task_row=40),
         ),
-        UoirSection(
-            uoir_id="9002", title="SYNTHETIC empty summary UOIR", equipment=["SYNTHETIC Equipment B"],
-            sheet_name=table_b.sheet, analysis=table_b, summary=summary_b,
+        AnalysisSection(
+            sheet_name=table_b.sheet, uoir_ids=["9002"], title="SYNTHETIC empty summary UOIR",
+            equipment=["SYNTHETIC Equipment B"], analysis=table_b, summary=summary_b,
             recommendations=build_recommendations("9002", ["SYNTHETIC Equipment B"], described_b[:20],
                                                   ["SYN20/AA001", "SYN21/AA002", "SYN22/AA003"]),
         ),
-        UoirSection(
-            uoir_id="9003", title="SYNTHETIC tall merged failure mode", equipment=["SYNTHETIC Equipment C"],
-            sheet_name=table_c.sheet, analysis=table_c, summary=summary_c,
+        AnalysisSection(
+            sheet_name=table_c.sheet, uoir_ids=["9003"], title="SYNTHETIC tall merged failure mode",
+            equipment=["SYNTHETIC Equipment C"], analysis=table_c, summary=summary_c,
             recommendations=build_recommendations("9003", ["SYNTHETIC Equipment C"], described_c,
                                                   ["SYN30/AA001", "SYN31/AA002"]),
         ),
@@ -376,7 +390,7 @@ def stress_report() -> Report:
         _failure_detail(2, "9002", "SYNTHETIC empty summary UOIR", "SYNTHETIC Equipment B"),
         _failure_detail(3, "9003", "SYNTHETIC tall merged failure mode", "SYNTHETIC Equipment C"),
     ]
-    return _report(STRESS_STATION, _team(25), details, uoirs)
+    return _report(STRESS_STATION, _team(25), details, analyses)
 
 
 # --------------------------------------------------------------------------- #
@@ -385,13 +399,15 @@ def stress_report() -> Report:
 ADVERSARIAL_STATION = "SYNTHETIC Station & <Unit 5>"
 WIDE_FLAG_TEXT = "SYNTHETICWIDEFLAGTEXTWITHOUTANYBREAKS"
 LONG_STRATEGY_CODE = "R-" + "SYNTHETICVERYLONGSTRATEGYCODE" * 2
+UNREAD_TAB_TITLE = "SYNTHETIC tab whose table could not be read"
 FLAG_HEADERS = ("H", "S", "E", "O", "1", "2", "3", "H4", "H5", "S4")
 
 
 def adversarial_report() -> Report:
-    """Wide text in narrow flag columns, 30 notes, a UOIR without analysis or
-    summary, a very long strategy label, 40 work centres, '&' and '<' in the
-    station, 40-line CA/PA cells and 500 recommendation rows in one group."""
+    """Wide text in narrow flag columns, 30 notes, a tab whose table could not be
+    read (no analysis or summary), a very long strategy label, 40 work centres,
+    '&' and '<' in the station, 40-line CA/PA cells and 500 recommendation rows in
+    one group."""
     rng = random.Random(8001)
 
     table_a, described_a = build_analysis("8001", [2, 1, 3, 1, 1, 2, 2], rng=rng)
@@ -412,43 +428,46 @@ def adversarial_report() -> Report:
     notes = [Note(cell=f"B{20 + i}", text=f"SYNTHETIC note {i + 1:02d} " + "about the damper " * (i % 6))
              for i in range(30)]
     equipment_a = ["SYNTHETIC Damper & <Actuator>"]
-    uoir_a = UoirSection(
-        uoir_id="8001", title="SYNTHETIC flags & notes <stress>", equipment=equipment_a,
-        sheet_name=table_a.sheet, notes=notes, analysis=table_a, summary=summary_a,
+    section_a = AnalysisSection(
+        sheet_name=table_a.sheet, uoir_ids=["8001"], title="SYNTHETIC flags & notes <stress>",
+        equipment=equipment_a, notes=notes, analysis=table_a, summary=summary_a,
         recommendations=build_recommendations("8001", equipment_a, described_a, ["SYN/A1", "SYN/A2"]),
     )
 
-    uoir_b = UoirSection(uoir_id="8002", title="SYNTHETIC UOIR without a linked worksheet",
-                         equipment=[], analysis=None, summary=None, recommendations=[])
+    section_b = AnalysisSection(sheet_name=tab_name(["8002"]), uoir_ids=["8002"],
+                                title=UNREAD_TAB_TITLE, equipment=[], analysis=None, summary=None,
+                                recommendations=[])
 
     table_c, described_c = build_analysis("8003", [1] * 500, rng=rng)
     equipment_c = ["SYNTHETIC Feed Pump"]
-    uoir_c = UoirSection(
-        uoir_id="8003", title="SYNTHETIC 500 recommendations in one group", equipment=equipment_c,
-        sheet_name=table_c.sheet, analysis=table_c, summary=build_summary(described_c),
+    section_c = AnalysisSection(
+        sheet_name=table_c.sheet, uoir_ids=["8003"], title="SYNTHETIC 500 recommendations in one group",
+        equipment=equipment_c, analysis=table_c, summary=build_summary(described_c),
         recommendations=build_recommendations("8003", equipment_c, described_c, ["SYN/ONE-GROUP"]),
     )
 
     details = []
-    for no, uoir in enumerate((uoir_a, uoir_b, uoir_c), start=1):
-        detail = _failure_detail(no, uoir.uoir_id, uoir.title, "SYNTHETIC equipment & <tag>")
-        detail.corrective_action = "\n".join(f"SYNTHETIC CA {uoir.uoir_id} line {k:02d}" for k in range(1, 41))
-        detail.preventive_action = "\n".join(f"SYNTHETIC PA {uoir.uoir_id} line {k:02d}" for k in range(1, 41))
+    for no, section in enumerate((section_a, section_b, section_c), start=1):
+        uoir_id = section.uoir_ids[0]
+        detail = _failure_detail(no, uoir_id, section.title, "SYNTHETIC equipment & <tag>")
+        detail.corrective_action = "\n".join(f"SYNTHETIC CA {uoir_id} line {k:02d}" for k in range(1, 41))
+        detail.preventive_action = "\n".join(f"SYNTHETIC PA {uoir_id} line {k:02d}" for k in range(1, 41))
         details.append(detail)
-    return _report(ADVERSARIAL_STATION, _team(9), details, [uoir_a, uoir_b, uoir_c])
+    return _report(ADVERSARIAL_STATION, _team(9), details, [section_a, section_b, section_c])
 
 
 def analysis_markers(report: Report) -> list[str]:
+    """Markers of every analysis row (keyed by each section's first UOIR ID)."""
     markers = []
-    for uoir in report.uoirs:
-        for index in range(len(uoir.analysis.rows) if uoir.analysis else 0):
-            markers.append(analysis_marker(uoir.uoir_id, index))
+    for section in report.analyses:
+        for index in range(len(section.analysis.rows) if section.analysis else 0):
+            markers.append(analysis_marker(section.uoir_ids[0], index))
     return markers
 
 
 def recommendation_markers(report: Report) -> list[str]:
     return [row.task.split(" ", 1)[0]
-            for uoir in report.uoirs for group in uoir.recommendations for row in group.rows]
+            for section in report.analyses for group in section.recommendations for row in group.rows]
 
 
 # --------------------------------------------------------------------------- #
@@ -507,9 +526,9 @@ def section_starts(doc) -> list[str]:
     return starts
 
 
-def pages_per_uoir(doc, section: str) -> list[list]:
-    """Pages of an "analysis" or "summary" section, one list per UOIR (a new list
-    starts on each page that carries the section title)."""
+def pages_per_section(doc, section: str) -> list[list]:
+    """Pages of an "analysis" or "summary" section, one list per analysis section
+    (a new list starts on each page that carries the section title)."""
     title = next(t for t, s in SECTION_TITLES.items() if s == section)
     groups: list[list] = []
     for page, current in zip(doc, page_sections(doc)):

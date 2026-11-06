@@ -1,4 +1,9 @@
-"""The report story: Introduction, per-UOIR Analysis + Summary, Recommendation."""
+"""The report story: Introduction, one Analysis + Summary page pair per analysis tab, Recommendation.
+
+One analysis tab can cover several UOIRs; its pages are headed with all of them
+("UOIR ID : 901, 902"). Failure Details in the Introduction keeps one row per
+UOIR sheet row.
+"""
 from __future__ import annotations
 
 from typing import Sequence
@@ -28,7 +33,7 @@ from backend.pdf.tables import (
     work_centre_table,
 )
 from backend.pdf.text import plain_markup
-from backend.report.models import NotCountedRow, Report, UoirSection
+from backend.report.models import AnalysisSection, NotCountedRow, Report
 
 # A heading is kept with its table's header and this many first rows.
 ROWS_KEPT_WITH_HEADING = 2
@@ -69,6 +74,16 @@ def empty_note(text: str) -> Paragraph:
     return Paragraph(plain_markup(text), styles.EMPTY_NOTE)
 
 
+def uoir_ids_text(section: AnalysisSection) -> str:
+    """Every UOIR ID the tab covers, as printed: "901, 902"."""
+    return ", ".join(section.uoir_ids)
+
+
+def heading_pairs(section: AnalysisSection) -> list[tuple[str, str]]:
+    """The "UOIR ID" and "Title" rows at the top of a section's pages."""
+    return [("UOIR ID", uoir_ids_text(section)), ("Title", section.title)]
+
+
 # --------------------------------------------------------------------------- #
 # Introduction (A4)
 # --------------------------------------------------------------------------- #
@@ -93,20 +108,19 @@ def introduction(report: Report) -> list[Flowable]:
 # --------------------------------------------------------------------------- #
 # FMEA Analysis (A3 landscape)
 # --------------------------------------------------------------------------- #
-def analysis_page(uoir: UoirSection) -> list[Flowable]:
+def analysis_page(section: AnalysisSection) -> list[Flowable]:
     width = styles.A3_FRAME_WIDTH
     story = section_title("Analysis: FMEA Analysis")
-    pairs = [("UOIR ID", uoir.uoir_id), ("Title", uoir.title)]
-    pairs += [("Note", note.text) for note in uoir.notes]
+    pairs = heading_pairs(section) + [("Note", note.text) for note in section.notes]
     story += [key_value_table(pairs, width), Spacer(1, 10)]
 
-    if uoir.analysis is None:
-        story.append(empty_note("No analysis worksheet is linked to this UOIR, so there is no table to show."))
-    elif not uoir.analysis.columns:
+    if section.analysis is None:
+        story.append(empty_note("No analysis table was read from this tab."))
+    elif not section.analysis.columns:
         story.append(empty_note("The analysis worksheet has no table columns."))
     else:
-        story.append(analysis_table(uoir.analysis, width))
-        if not uoir.analysis.rows:
+        story.append(analysis_table(section.analysis, width))
+        if not section.analysis.rows:
             story.append(empty_note("The analysis worksheet has no data rows."))
     return story
 
@@ -125,14 +139,14 @@ def duplicate_line(source_row: int) -> str:
     return f"Row {source_row} is identical to an earlier row and was counted once."
 
 
-def summary_page(uoir: UoirSection) -> list[Flowable]:
+def summary_page(section: AnalysisSection) -> list[Flowable]:
     width = styles.A4_FRAME_WIDTH
     story = section_title("Analysis: FMEA Summary")
-    story += [key_value_table([("UOIR ID", uoir.uoir_id), ("Title", uoir.title)], width), Spacer(1, 12)]
+    story += [key_value_table(heading_pairs(section), width), Spacer(1, 12)]
 
-    summary = uoir.summary
+    summary = section.summary
     if summary is None:
-        story.append(empty_note("No summary is available for this UOIR."))
+        story.append(empty_note("No summary is available for this tab."))
         return story
 
     story.append(StatCards([
@@ -174,14 +188,14 @@ def summary_page(uoir: UoirSection) -> list[Flowable]:
 def recommendation_section(report: Report) -> list[Flowable]:
     width = styles.A4_FRAME_WIDTH
     story = section_title("Recommendation")
-    if not report.uoirs:
-        story.append(empty_note("No UOIRs were found in the workbook."))
-    for uoir in report.uoirs:
-        heading = Paragraph(plain_markup(f"UOIR ID {uoir.uoir_id}: {uoir.title}"), styles.HEADING_2)
-        if not uoir.recommendations:
-            story += keep_with_note(heading, empty_note("No recommendations for this UOIR."), width)
+    if not report.analyses:
+        story.append(empty_note("No analysis tabs were found in the workbook."))
+    for section in report.analyses:
+        heading = Paragraph(plain_markup(f"UOIR ID {uoir_ids_text(section)}: {section.title}"), styles.HEADING_2)
+        if not section.recommendations:
+            story += keep_with_note(heading, empty_note("No recommendations for this tab."), width)
             continue
-        for index, group in enumerate(uoir.recommendations):
+        for index, group in enumerate(section.recommendations):
             sub_heading = Paragraph(plain_markup(group.heading or "KKS not specified"), styles.HEADING_3)
             headings = [heading, sub_heading] if index == 0 else [sub_heading]
             story += keep_with_table(headings, recommendation_table(group, width), width)
@@ -195,11 +209,11 @@ def build_story(report: Report) -> list[Flowable]:
     # Page 1 is the cover, drawn entirely by the cover page template.
     story: list[Flowable] = [NextPageTemplate(A4), PageBreak()]
     story += introduction(report)
-    for uoir in report.uoirs:
+    for section in report.analyses:
         story += [NextPageTemplate(A3), PageBreak()]
-        story += analysis_page(uoir)
+        story += analysis_page(section)
         story += [NextPageTemplate(A4), PageBreak()]
-        story += summary_page(uoir)
+        story += summary_page(section)
     story += [NextPageTemplate(A4), PageBreak()]
     story += recommendation_section(report)
     return story

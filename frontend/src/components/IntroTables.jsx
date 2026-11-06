@@ -35,7 +35,7 @@ function RowsTable({ columns, rows, className, label }) {
   );
 }
 
-/** Failure Details: one row per UOIR from the UOIR sheet. */
+/** Failure Details: one row per UOIR sheet row (a UOIR ID can repeat). */
 export function FailureDetailsTable({ rows }) {
   return (
     <RowsTable columns={FAILURE_DETAILS_COLUMNS} rows={rows} className="failure-details-table" label="Failure Details table" />

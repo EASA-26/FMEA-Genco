@@ -33,6 +33,7 @@ from backend.tests.test_pdf_fixtures import (
     COL,
     FLAG_HEADERS,
     LONG_STRATEGY_CODE,
+    UNREAD_TAB_TITLE,
     WIDE_FLAG_TEXT,
     adversarial_report,
     analysis_markers,
@@ -42,7 +43,7 @@ from backend.tests.test_pdf_fixtures import (
     page_kind,
     page_lines,
     page_sections,
-    pages_per_uoir,
+    pages_per_section,
     recommendation_markers,
     section_starts,
     shown_on_pages,
@@ -115,18 +116,18 @@ def test_every_row_exactly_once(doc, sections, report):
         assert recommendation.count(marker) == 1, marker
 
 
-def test_every_analysis_cell_line_is_on_its_uoirs_pages(doc, report):
-    groups = pages_per_uoir(doc, "analysis")
-    assert len(groups) == len(report.uoirs)
-    for uoir, pages in zip(report.uoirs, groups):
+def test_every_analysis_cell_line_is_on_its_sections_pages(doc, report):
+    groups = pages_per_section(doc, "analysis")
+    assert len(groups) == len(report.analyses)
+    for section, pages in zip(report.analyses, groups):
         text = compact("".join(page.get_text() for page in pages)).replace("(cont.)", "")
-        if uoir.analysis is None:
-            assert "No analysis worksheet is linked to this UOIR" in pages[0].get_text()
+        if section.analysis is None:
+            assert "No analysis table was read from this tab." in pages[0].get_text()
             continue
-        for row in uoir.analysis.rows:
+        for row in section.analysis.rows:
             for cell in row.cells:
                 for line in cell.split("\n"):
-                    assert compact(line) in text, (uoir.uoir_id, row.source_row, line)
+                    assert compact(line) in text, (section.uoir_ids, row.source_row, line)
         for page in pages:   # the header repeats on every A3 page
             page_text = compact(page.get_text())
             assert all(compact(h) in page_text for h in ANALYSIS_COLUMNS)
@@ -136,9 +137,9 @@ def test_wide_flag_text_stays_in_its_column_complete_and_in_order(doc, report):
     """Read each narrow flag column top to bottom over all pages: the text inside the
     column's edges must be exactly the workbook cells in order (a row split across
     pages continues where it stopped; nothing spills into the next column)."""
-    table = report.uoirs[0].analysis
+    table = report.analyses[0].analysis
     widths = analysis_column_widths(table.columns, styles.A3_FRAME_WIDTH)
-    pages = pages_per_uoir(doc, "analysis")[0]
+    pages = pages_per_section(doc, "analysis")[0]
     for flag in FLAG_HEADERS:
         col = COL[flag]
         left = styles.A3_SIDE_MARGIN + sum(widths[:col])
@@ -159,17 +160,17 @@ def test_nothing_leaves_the_page_body(doc):
 
 
 def test_thirty_notes_are_listed(doc, report):
-    pages = pages_per_uoir(doc, "analysis")[0]
+    pages = pages_per_section(doc, "analysis")[0]
     lines = [line for page in pages for line in page_lines(page)]
     assert lines.count("Note") == 30
     text = " ".join(" ".join(page.get_text().split()) for page in pages)
-    for note in report.uoirs[0].notes:
+    for note in report.analyses[0].notes:
         assert note.text.strip() in text
 
 
 def test_analysis_table_with_columns_but_no_rows():
     base = normal_report()
-    table = base.uoirs[0].analysis.model_copy(update={"rows": [], "merged": []})
+    table = base.analyses[0].analysis.model_copy(update={"rows": [], "merged": []})
     doc = _open(_normal_with(analysis=table))
     page = next(page for page, s in zip(doc, page_sections(doc)) if s == "analysis")
     text = compact(page.get_text())
@@ -177,22 +178,23 @@ def test_analysis_table_with_columns_but_no_rows():
     assert "The analysis worksheet has no data rows." in page.get_text()
 
 
-def test_uoir_without_analysis_or_summary(doc):
-    summary_pages = pages_per_uoir(doc, "summary")[1]
-    assert "No summary is available for this UOIR." in summary_pages[0].get_text()
-    assert "UOIR ID 8002: SYNTHETIC UOIR without a linked worksheet" in " ".join(
-        page.get_text() for page in doc)
+def test_tab_whose_table_could_not_be_read(doc):
+    analysis_pages = pages_per_section(doc, "analysis")[1]
+    assert "No analysis table was read from this tab." in analysis_pages[0].get_text()
+    summary_pages = pages_per_section(doc, "summary")[1]
+    assert "No summary is available for this tab." in summary_pages[0].get_text()
+    assert f"UOIR ID 8002: {UNREAD_TAB_TITLE}" in " ".join(page.get_text() for page in doc)
 
 
 def test_long_strategy_label_forty_work_centres_and_notes(doc, report):
-    pages = pages_per_uoir(doc, "summary")[0]
+    pages = pages_per_section(doc, "summary")[0]
     text = compact("".join(page.get_text() for page in pages))
     label = compact(strategy_label(LONG_STRATEGY_CODE))
     assert text.count(label) == 2, "legend and Existing vs Revised table"
     lines = [line for page in pages for line in page_lines(page)]
     for i in range(40):
         assert lines.count(f"SYNTRADE{i:02d}") == 1
-    summary = report.uoirs[0].summary
+    summary = report.analyses[0].summary
     assert sum(1 for line in lines if line.startswith("Not counted: row ")) == len(summary.not_counted)
     assert sum(1 for line in lines if "is identical to an earlier row" in line) == len(summary.duplicate_rows)
 
@@ -216,9 +218,9 @@ def test_five_hundred_rows_in_one_group_repeat_the_two_row_header(doc, sections)
 # --------------------------------------------------------------------------- #
 # Crashes found in review
 # --------------------------------------------------------------------------- #
-def _normal_with(**uoir_update):
+def _normal_with(**section_update):
     base = normal_report()
-    return base.model_copy(update={"uoirs": [base.uoirs[0].model_copy(update=uoir_update)]})
+    return base.model_copy(update={"analyses": [base.analyses[0].model_copy(update=section_update)]})
 
 
 def test_legend_with_sixty_strategies_flows_over_pages():
@@ -226,7 +228,7 @@ def test_legend_with_sixty_strategies_flows_over_pages():
     base = normal_report()
     codes = [f"R-SYN{i:02d}" for i in range(60)]
     pie = [PieSlice(code=c, label=strategy_label(c), count=1, percent=1.7, color=strategy_color(c)) for c in codes]
-    summary = base.uoirs[0].summary.model_copy(update={"pie": pie, "pie_total": 60})
+    summary = base.analyses[0].summary.model_copy(update={"pie": pie, "pie_total": 60})
     doc = _open(_normal_with(summary=summary))
     sections = page_sections(doc)
     pages = [page for page, s in zip(doc, sections) if s == "summary"]
@@ -247,7 +249,7 @@ def test_many_strategy_rows_and_tall_legend_labels_render():
     pie = [PieSlice(code=c, label=f"{c} {long_label}", count=1, percent=2.2, color=strategy_color(c)) for c in codes]
     rows = [StrategyRow(code=c, label=strategy_label(c), existing=1, new=0, total=1,
                         color=strategy_color(c), standard=False) for c in codes]
-    summary = base.uoirs[0].summary.model_copy(update={"pie": pie, "pie_total": 45, "strategy_rows": rows})
+    summary = base.analyses[0].summary.model_copy(update={"pie": pie, "pie_total": 45, "strategy_rows": rows})
     doc = _open(_normal_with(summary=summary))
     text = compact(_section_text(doc, page_sections(doc), "summary"))
     for c in codes:
@@ -257,7 +259,7 @@ def test_many_strategy_rows_and_tall_legend_labels_render():
 def test_long_header_label_is_shrunk_so_the_table_still_renders():
     """A header cell taller than a page used to raise LayoutError."""
     base = normal_report()
-    table = base.uoirs[0].analysis.model_copy(deep=True)
+    table = base.analyses[0].analysis.model_copy(deep=True)
     table.columns[COL["Remark"]] = "SYNTHETIC remark header " * 400
     layout = analysis_table(table, styles.A3_FRAME_WIDTH).layout
     assert layout.header_height() <= MAX_HEADER_FRACTION * styles.FRAME_HEIGHT + 1
@@ -275,7 +277,7 @@ def test_long_header_label_is_shrunk_so_the_table_still_renders():
 def test_many_columns_render_every_value(extra_columns):
     """More columns than fit their padding used to raise a negative-width error."""
     base = normal_report()
-    table = base.uoirs[0].analysis.model_copy(deep=True)
+    table = base.analyses[0].analysis.model_copy(deep=True)
     table.columns = table.columns + [f"SYNX{i}" for i in range(extra_columns)]
     table.column_letters = column_letters(len(table.columns))
     for r, row in enumerate(table.rows):
@@ -305,7 +307,7 @@ def test_extra_columns_keep_short_columns_readable():
 
 def test_long_unbroken_station_name_wraps_inside_the_cover():
     station = "SYNTHETIC" + "Z" * 400
-    doc = _open(normal_report().model_copy(update={"station": station, "uoirs": []}))
+    doc = _open(normal_report().model_copy(update={"station": station, "analyses": []}))
     cover = doc[0]
     cards_top = cover.rect.height - max(y + h for _, y, _, h in signature_box_rects())
     words = cover.get_text("words")
@@ -332,7 +334,7 @@ def _filled_shapes(page) -> list[tuple[str, float, float]]:
 @pytest.mark.parametrize("slice_count", [1, 6])
 def test_each_slice_colour_is_one_wedge_and_one_legend_swatch(slice_count):
     base = normal_report()
-    summary = base.uoirs[0].summary
+    summary = base.analyses[0].summary
     pie = summary.pie[:slice_count]
     if slice_count == 1:
         pie = [pie[0].model_copy(update={"percent": 100.0})]
@@ -358,7 +360,7 @@ def test_tick_marks_use_the_symbol_font():
     assert escape("OK ✓ & ✗") == f'OK <font name="{SYMBOL_FONT}">✓</font> &amp; <font name="{SYMBOL_FONT}">✗</font>'
     assert escape("90°C ±5% µm Ω – “x” • →") == "90°C ±5% µm Ω – “x” • →"   # Liberation Sans has these
     base = normal_report()
-    table = base.uoirs[0].analysis.model_copy(deep=True)
+    table = base.analyses[0].analysis.model_copy(deep=True)
     table.rows[0].cells[COL["H"]] = "✓"
     doc = _open(_normal_with(analysis=table))
     first = next(page for page, s in zip(doc, page_sections(doc)) if s == "analysis")
@@ -370,7 +372,7 @@ def test_tick_marks_use_the_symbol_font():
 
 def test_markup_like_text_is_shown_literally():
     base = normal_report()
-    table = base.uoirs[0].analysis.model_copy(deep=True)
+    table = base.analyses[0].analysis.model_copy(deep=True)
     literal = 'SYNTHETIC <b>bold</b> <br/> &amp; &#169; <font size="40">big</font> ]]>'
     table.rows[0].cells[COL["Task"]] = literal
     doc = _open(_normal_with(analysis=table))
@@ -494,10 +496,10 @@ def test_recommendation_headings_stay_with_their_first_rows(first_group_rows):
         RecommendationGroup(equipment="SYN", kks="K0", heading="SYNHEAD G0", rows=_recommendation_rows(0, first_group_rows, 3)),
         RecommendationGroup(equipment="SYN", kks="K1", heading="SYNHEAD G1", rows=_recommendation_rows(1000, 3)),
     ]
-    second = base.uoirs[1].model_copy(update={"analysis": None, "summary": None, "recommendations": [
+    second = base.analyses[1].model_copy(update={"analysis": None, "summary": None, "recommendations": [
         RecommendationGroup(equipment="SYN", kks="K2", heading="SYNHEAD G2", rows=_recommendation_rows(2000, 3))]})
-    first = base.uoirs[0].model_copy(update={"analysis": None, "summary": None, "recommendations": groups})
-    doc = _open(base.model_copy(update={"uoirs": [first, second], "failure_details": [], "team": []}))
+    first = base.analyses[0].model_copy(update={"analysis": None, "summary": None, "recommendations": groups})
+    doc = _open(base.model_copy(update={"analyses": [first, second], "failure_details": [], "team": []}))
     sections = page_sections(doc)
     pages = [page for page, s in zip(doc, sections) if s == "recommendation"]
 
@@ -518,13 +520,13 @@ def test_recommendation_headings_stay_with_their_first_rows(first_group_rows):
 @pytest.mark.parametrize("extra_strategy_rows", range(0, 22, 2))
 def test_summary_headings_stay_with_their_content(extra_strategy_rows):
     base = normal_report()
-    summary = base.uoirs[0].summary
+    summary = base.analyses[0].summary
     rows = list(summary.strategy_rows) + [
         StrategyRow(code=f"R-S{i}", label=strategy_label(f"R-S{i}"), existing=0, new=1, total=1,
                     color=strategy_color(f"R-S{i}"), standard=False) for i in range(extra_strategy_rows)]
-    uoir = base.uoirs[0].model_copy(update={"analysis": None, "recommendations": [],
-                                            "summary": summary.model_copy(update={"strategy_rows": rows})})
-    doc = _open(base.model_copy(update={"uoirs": [uoir], "failure_details": [], "team": []}))
+    section = base.analyses[0].model_copy(update={"analysis": None, "recommendations": [],
+                                                  "summary": summary.model_copy(update={"strategy_rows": rows})})
+    doc = _open(base.model_copy(update={"analyses": [section], "failure_details": [], "team": []}))
     pages = [page for page, s in zip(doc, page_sections(doc)) if s == "summary"]
     for page in doc.pages(1):
         assert _body_lines(page), f"page {page.number + 1} is blank"
@@ -555,18 +557,19 @@ def test_analysis_table_header_is_never_left_without_rows(note_count):
 def test_synthetic_workbook_renders_completely(workbook, request):
     report = build_report(request.getfixturevalue(workbook), "SYNTHETIC_workbook.xlsx")
     doc = _open(report)
-    assert section_starts(doc) == ["cover", "intro"] + ["analysis", "summary"] * len(report.uoirs) + ["recommendation"]
+    assert section_starts(doc) == ["cover", "intro"] + ["analysis", "summary"] * len(report.analyses) + ["recommendation"]
     sections = page_sections(doc)
 
     def section_pages(wanted):
         return [page.get_text() for page, s in zip(doc, sections) if s == wanted]
 
-    for uoir, pages in zip(report.uoirs, pages_per_uoir(doc, "analysis")):
+    for section, pages in zip(report.analyses, pages_per_section(doc, "analysis")):
         texts = [page.get_text() for page in pages]
-        cells = [cell for row in (uoir.analysis.rows if uoir.analysis else []) for cell in row.cells]
-        for value in cells + list(uoir.analysis.columns if uoir.analysis else []) + [n.text for n in uoir.notes]:
+        table = section.analysis
+        cells = [cell for row in (table.rows if table else []) for cell in row.cells]
+        for value in cells + list(table.columns if table else []) + [n.text for n in section.notes]:
             for line in value.split("\n"):
-                assert shown_on_pages(line, texts), (uoir.uoir_id, line)
+                assert shown_on_pages(line, texts), (section.uoir_ids, line)
     intro = section_pages("intro")
     for detail in report.failure_details:
         for value in (detail.uoir_id, detail.title, detail.faulty_date_text, detail.uoir_date_text,
@@ -576,8 +579,8 @@ def test_synthetic_workbook_renders_completely(workbook, request):
     for member in report.team:
         assert all(shown_on_pages(v, intro) for v in (member.no, member.name, member.staff_no, member.section))
     recommendation = section_pages("recommendation")
-    for uoir in report.uoirs:
-        for group in uoir.recommendations:
+    for section in report.analyses:
+        for group in section.recommendations:
             assert shown_on_pages(group.heading, recommendation)
             for row in group.rows:
                 for line in (row.failure_mode + "\n" + row.task + "\n" + row.frequency).split("\n"):

@@ -29,6 +29,7 @@ IGNORED_SHEETS = ("Notifications", "Sheet3")
 # Analysis tabs are named "UOIR ID <id> - <part of the title>". Excel limits tab
 # names to 31 characters, so the title part may be cut or taken from the middle.
 ANALYSIS_SHEET_PATTERN = re.compile(r"^\s*UOIR\s*ID\s*[:#-]?\s*(\d+)\s*(.*)$", re.IGNORECASE)
+ANALYSIS_EXTRA_ID_PATTERN = re.compile(r"[\s,&]+(\d+)(?=$|[\s,&:\-])")   # more IDs after the first; used with .match
 
 # Rows searched when looking for a header row.
 HEADER_SEARCH_ROWS = 15
@@ -80,7 +81,7 @@ FAILURE_DETAILS_LABELS = {
 # --------------------------------------------------------------------------- #
 # Analysis tabs
 # --------------------------------------------------------------------------- #
-ANALYSIS_TITLE_CELL = "B1"   # full UOIR title, used as a cross-check
+ANALYSIS_TITLE_CELL = "B1"   # title cell: cross-check for one-UOIR tabs, the title for multi-UOIR tabs
 
 # field key -> workbook header. Every column in the tab is displayed; these are
 # the ones the calculations use.

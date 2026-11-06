@@ -15,8 +15,23 @@ export function countIssues(issues = []) {
   return counts;
 }
 
-export function issuesForUoir(issues = [], uoirId) {
-  return issues.filter((issue) => issue.uoir_id === uoirId);
+// An analysis section is one analysis tab (`report.analyses[]`). It may cover several
+// UOIR IDs; its key in the UI is the tab name, `sheet_name`, which is unique.
+
+/** The section's UOIR IDs as shown on screen, e.g. "901, 902". */
+export function sectionLabel(section) {
+  return section.uoir_ids.join(', ');
+}
+
+/** Issues raised inside the section's tab (UOIR sheet issues are not included). */
+export function issuesForSection(issues = [], section) {
+  return issues.filter((issue) => issue.sheet === section.sheet_name);
+}
+
+/** The section read from the tab named `sheetName`, or null. */
+export function findSection(report, sheetName) {
+  if (!report || !sheetName) return null;
+  return report.analyses.find((section) => section.sheet_name === sheetName) || null;
 }
 
 /** Header key used by the workbook mapping: lowercase letters and digits only. */
@@ -54,9 +69,9 @@ export const TEAM_COLUMNS = [
 ];
 
 /** Counts of recommendation rows per New Task filter tab. */
-export function newTaskCounts(uoir) {
+export function newTaskCounts(section) {
   const counts = { yes: 0, no: 0, notSet: 0 };
-  for (const group of uoir.recommendations || []) {
+  for (const group of section.recommendations || []) {
     for (const row of group.rows) {
       if (row.new_task === 'yes') counts.yes += 1;
       else if (row.new_task === 'no') counts.no += 1;
@@ -104,11 +119,15 @@ export function issueLocation(issue) {
   return parts;
 }
 
-/** The UOIR section whose analysis tab an issue points into (for "Show in table"). */
+/**
+ * Where "Show in table" goes for an issue: the section of the tab the issue was raised
+ * in, and the row (and cell) in its analysis table, as { section, row, cell }. Null when
+ * the issue is not on a row of a table shown in the app.
+ */
 export function issueTarget(report, issue) {
-  if (!issue.uoir_id || !issue.row || !issue.sheet) return null;
-  const uoir = report.uoirs.find((u) => u.uoir_id === issue.uoir_id);
-  if (!uoir || !uoir.analysis || uoir.analysis.sheet !== issue.sheet) return null;
-  const hasRow = uoir.analysis.rows.some((r) => r.source_row === issue.row);
-  return hasRow ? uoir : null;
+  if (!issue.row || !issue.sheet) return null;
+  const section = findSection(report, issue.sheet);
+  if (!section || !section.analysis || section.analysis.sheet !== issue.sheet) return null;
+  const hasRow = section.analysis.rows.some((r) => r.source_row === issue.row);
+  return hasRow ? { section, row: issue.row, cell: issue.cell || null } : null;
 }

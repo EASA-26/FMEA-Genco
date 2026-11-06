@@ -82,7 +82,7 @@ export default function ChecksView({ report, counts, onShowInTable, onBack, onNe
   const facts = [
     { icon: Factory, label: 'Station', value: report.station || 'Not found' },
     { icon: CalendarDays, label: 'Date of Analysis', value: report.analysis_date_text || 'Not found' },
-    { icon: ListTree, label: 'UOIRs', value: String(report.uoirs.length) },
+    { icon: ListTree, label: 'UOIRs', value: String(report.uoir_ids.length) },
     { icon: Users, label: 'Team members', value: String(report.team.length) },
   ];
 

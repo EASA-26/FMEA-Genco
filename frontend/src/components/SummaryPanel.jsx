@@ -1,4 +1,4 @@
-import { Suspense, lazy, useState } from 'react';
+import { Suspense, lazy, useId, useState } from 'react';
 import { ChartPie, CircleCheck, Copy, ListTree, TriangleAlert, Wrench } from 'lucide-react';
 import { EmptyState } from './Feedback.jsx';
 import Spinner from './Spinner.jsx';
@@ -22,22 +22,25 @@ function StatCard({ icon: Icon, label, value, hint }) {
   );
 }
 
-export default function SummaryPanel({ uoir, onShowChecks }) {
+export default function SummaryPanel({ section, onShowChecks }) {
   const [active, setActive] = useState(null);
-  const s = uoir.summary;
+  // Tab names and joined IDs contain spaces, so the card headings get React ids.
+  const evrId = useId();
+  const wcId = useId();
+  const s = section.summary;
 
   if (!s) {
     return (
       <EmptyState
         icon={ChartPie}
-        title="No summary for this UOIR"
+        title="No summary for this tab"
         actions={
           <button type="button" className="gt-btn-secondary" onClick={onShowChecks}>
             Open Data checks
           </button>
         }
       >
-        The analysis tab for UOIR ID {uoir.uoir_id} could not be read, so there is nothing to count yet.
+        The summary could not be worked out for this tab. See Data checks.
       </EmptyState>
     );
   }
@@ -50,9 +53,9 @@ export default function SummaryPanel({ uoir, onShowChecks }) {
         <StatCard icon={CircleCheck} label="Task Executed" value={s.task_executed_count} hint="Rows with New Task = No" />
       </div>
 
-      <section className="gt-card summary-card" aria-labelledby={`evr-${uoir.uoir_id}`}>
+      <section className="gt-card summary-card" aria-labelledby={evrId}>
         <div className="summary-card-head">
-          <h3 id={`evr-${uoir.uoir_id}`} className="card-title">
+          <h3 id={evrId} className="card-title">
             Existing vs Revised
           </h3>
           <span className="card-meta">Existing = New Task No · New = New Task Yes</span>
@@ -134,9 +137,9 @@ export default function SummaryPanel({ uoir, onShowChecks }) {
         </div>
       </section>
 
-      <section className="gt-card summary-card" aria-labelledby={`wc-${uoir.uoir_id}`}>
+      <section className="gt-card summary-card" aria-labelledby={wcId}>
         <div className="summary-card-head">
-          <h3 id={`wc-${uoir.uoir_id}`} className="card-title">
+          <h3 id={wcId} className="card-title">
             Work-Centre Execution
           </h3>
           <span className="card-meta">Executed = New Task No · Pending = New Task Yes</span>

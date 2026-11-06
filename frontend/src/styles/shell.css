@@ -250,9 +250,14 @@
   color: var(--white);
 }
 
+/* All the tab's IDs ("902, 904"); a long list is cut short, and the tooltip names the tab. */
 .uoir-link-id {
   flex: none;
   min-width: 34px;
+  max-width: 50%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   padding: 1px 6px;
   border-radius: 6px;
   background: rgb(61 143 255 / 0.15);
