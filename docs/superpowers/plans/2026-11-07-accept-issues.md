@@ -191,8 +191,9 @@ report can be previewed and exported with the data exactly as written.
   - **`test_duplicate_ids_count_once`:** 200.
   - **`test_undo_on_structural_id_is_refused`:** 400.
   - **`test_accept_warning_marks_it_only`:** `can_export` is unchanged.
-  - **`test_info_cannot_be_accepted`:** use the real builder through `FakeServices.build_report`
-    returning a finalised report with an info issue → 400.
+  - **`test_info_cannot_be_accepted`:** set `services.next_report` to `finalise_report(make_report())`
+    with one extra `Issue(severity="info", code="SHEET_NOT_USED", message="SYNTHETIC info")`
+    added before finalising. Accepting its id → 400.
   - **`test_new_upload_resets_acceptance`:** set a fresh `make_report` before the second upload;
     the new `report_id` differs and nothing is accepted.
   - **`test_pdf_cache_kept_across_acceptance`:** `services.render_calls` stays 1 across accept,
