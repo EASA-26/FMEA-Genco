@@ -502,7 +502,8 @@ switches (all listed at the top of `frontend/src/mocks/mockServer.js`):
   hosted server).
 - Sign in with any username. The password `wrong` gives the "incorrect" message
   and `locked` gives the "too many attempts" message.
-- An upload whose file name contains `error` gives blocking errors, `no-tabs`
+- An upload whose file name contains `error` gives blocking errors,
+  `value-error` gives a report whose only errors can be accepted, `no-tabs`
   gives a workbook with no analysis tabs, `broken` gives an unreadable-file
   message, and `slow` takes longer. Any other name gives the normal report
   (which has one analysis tab that covers two UOIRs).
@@ -971,7 +972,7 @@ workbook, for example a blank KKS or "Done" in New Task. Some items have an
 - **How long it lasts.** Acceptance lasts for this upload only. A new upload,
   signing out or closing the page clears it.
 
-### Errors (block export)
+### Errors (block export until fixed or accepted)
 
 | Code | Plain meaning |
 |---|---|

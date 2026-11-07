@@ -341,7 +341,7 @@ function mockAcceptance(init) {
     Array.isArray(body.ids) &&
     body.ids.every((id) => typeof id === 'string') &&
     typeof body.accepted === 'boolean';
-  if (!wellFormed) return json(422, { detail: 'The request could not be completed. Please check and try again.' });
+  if (!wellFormed) return json(422, { detail: 'Some of the information sent was missing or not in the expected format.' });
 
   const report = currentReport();
   if (!report) return json(404, { detail: 'No workbook uploaded yet.' });

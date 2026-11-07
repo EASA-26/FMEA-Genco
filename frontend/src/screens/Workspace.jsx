@@ -60,6 +60,9 @@ export default function Workspace({ user, authMode, features, onSignedOut }) {
   // does leaving the page discard the session's workbook, so closing an older tab of
   // the app that holds nothing does not close the workbook open in another tab.
   const holdsReport = useRef(false);
+  // The report_id of the report on screen (null with none), so a late Accept / Undo
+  // reply can tell whether it is still about the report shown.
+  const shownReportId = useRef(null);
 
   // Open issues only: accepted errors and checked warnings no longer count anywhere.
   const counts = useMemo(() => countIssues(openIssues(report ? report.issues : [])), [report]);
@@ -76,6 +79,7 @@ export default function Workspace({ user, authMode, features, onSignedOut }) {
   const applyReport = useCallback(
     (next, emptyStep = 'upload') => {
       holdsReport.current = Boolean(next);
+      shownReportId.current = next ? next.report_id : null;
       setReport(next);
       setDelivered(false);
       setFocus(null);
@@ -166,19 +170,21 @@ export default function Workspace({ user, authMode, features, onSignedOut }) {
 
   // Accept (or, with `accepted` false, undo) the issues `ids` on Data Checks. The
   // server returns the updated report. A 404 or 409 means this workbook is no longer
-  // open here: the "Workbook closed" notice, back to Upload. Any other failure (a 400
-  // refusal, or the service not answering) reaches the caller, which shows its plain
-  // message; nothing changes then.
+  // open here: the "Workbook closed" notice, back to Upload, but only while the report
+  // shown is still the one the request was for (a late reply about an older report is
+  // ignored). Any other failure (a 400 refusal, or the service not answering) reaches
+  // the caller, which shows its plain message; nothing changes then.
   const changeAcceptance = useCallback(
     async (ids, accepted) => {
       if (!report) return;
+      const reportId = report.report_id;
       setAcceptance({ busy: true });
       try {
-        const next = await api.setIssueAcceptance(report.report_id, ids, accepted);
+        const next = await api.setIssueAcceptance(reportId, ids, accepted);
         replaceReport(next);
       } catch (err) {
         if (err instanceof api.ApiError && (err.status === 404 || err.status === 409)) {
-          workbookClosed();
+          if (shownReportId.current === reportId) workbookClosed();
           return;
         }
         throw err;

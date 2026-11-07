@@ -748,3 +748,9 @@ def test_pdf_renders_with_accepted_value_errors(clean_workbook_with, synthetic_t
     pdf = client.get("/api/report/pdf")
     assert pdf.status_code == 200
     assert pdf.content.startswith(b"%PDF")
+    # The Date of Analysis is not a date, so the download name says "undated".
+    download = client.get("/api/report/pdf?download=1")
+    assert download.status_code == 200
+    disposition = download.headers["content-disposition"]
+    assert disposition.startswith("attachment;")
+    assert "undated" in disposition
