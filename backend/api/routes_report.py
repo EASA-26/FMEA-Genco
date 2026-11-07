@@ -28,14 +28,15 @@ from backend.mail.outlook import (
     parse_recipients,
     safe_attachment_name,
 )
-from backend.report.models import Report
-from backend.sessions.store import Session, SessionStore
+from backend.report.models import Report, open_error_count
+from backend.sessions.store import MSG_NO_REPORT, AcceptanceError, Session, SessionStore
 
 logger = logging.getLogger("fmea.report")
 
 router = APIRouter(prefix="/api", tags=["report"])
 
-MSG_NO_REPORT = "No workbook uploaded yet."
+# MSG_NO_REPORT ("No workbook uploaded yet.") comes from the session store, which
+# also refuses an acceptance change with it.
 MSG_UPLOAD_SUPERSEDED = (
     "This upload was cancelled before it finished: the workbook was closed or another "
     "upload started. Upload the workbook again to continue."
@@ -67,10 +68,6 @@ def _outlook(request: Request) -> OutlookMailer:
 def _report_response(report: Report) -> Response:
     # Serialised by pydantic directly (dates as ISO strings).
     return Response(content=report.model_dump_json(), media_type="application/json")
-
-
-def _error_count(report: Report) -> int:
-    return sum(1 for issue in report.issues if issue.severity == "error")
 
 
 def _pdf_name(cleaned: str) -> str:
@@ -164,6 +161,33 @@ async def get_report(request: Request, user: CurrentUser = Depends(require_user)
     return _report_response(report)
 
 
+class AcceptanceRequest(BaseModel):
+    # A JSON body only (like EmailRequest): a text/plain body is refused with 422.
+    report_id: str
+    ids: list[str]
+    accepted: bool                   # False undoes
+
+
+@router.post("/report/issues/acceptance")
+async def update_issue_acceptance(
+    body: AcceptanceRequest,
+    request: Request,
+    user: CurrentUser = Depends(require_user),
+) -> Response:
+    """Accept value errors / mark warnings checked for this report (or undo); returns the report.
+
+    Preview, download and email follow `can_export` of the returned report. The
+    cached PDF is kept: acceptance does not change its content.
+    """
+    try:
+        report = session_store(request).update_issue_acceptance(
+            user.session, body.report_id, body.ids, body.accepted
+        )
+    except AcceptanceError as refused:
+        raise HTTPException(status_code=refused.status, detail=refused.detail) from None
+    return _report_response(report)
+
+
 def _pdf_for_session(store: SessionStore, session: Session, services) -> tuple[Report | None, bytes | None]:
     """Return (report, pdf). pdf is None when there is no report or it has errors.
 
@@ -200,7 +224,7 @@ async def get_report_pdf(
     if pdf is None:
         return JSONResponse(
             status_code=409,
-            content={"detail": MSG_EXPORT_BLOCKED, "error_count": _error_count(report)},
+            content={"detail": MSG_EXPORT_BLOCKED, "error_count": open_error_count(report.issues)},
         )
 
     disposition = "attachment" if download else "inline"
@@ -249,7 +273,7 @@ async def email_report_pdf(
     if pdf is None:
         return JSONResponse(
             status_code=409,
-            content={"detail": MSG_EXPORT_BLOCKED, "error_count": _error_count(report)},
+            content={"detail": MSG_EXPORT_BLOCKED, "error_count": open_error_count(report.issues)},
         )
 
     attachment = safe_attachment_name(report.pdf_filename)

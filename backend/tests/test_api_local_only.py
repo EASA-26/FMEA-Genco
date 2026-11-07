@@ -73,12 +73,18 @@ def test_rebinding_page_cannot_sign_in_or_open_outlook():
     assert runner.calls == []
 
 
-@pytest.mark.parametrize("method", ["post", "delete"])
-def test_changes_from_a_page_on_another_origin_are_refused(method):
+@pytest.mark.parametrize(
+    "method,path,body",
+    [
+        ("post", "/api/auth/login", LOGIN),
+        ("post", "/api/report/issues/acceptance", {"report_id": "x", "ids": ["1"], "accepted": True}),
+        ("delete", "/api/workbook", None),
+    ],
+)
+def test_changes_from_a_page_on_another_origin_are_refused(method, path, body):
     client = _strict_client()
     assert client.post("/api/auth/login", json=LOGIN).status_code == 200
-    kwargs = {"json": LOGIN} if method == "post" else {}
-    path = "/api/auth/login" if method == "post" else "/api/workbook"
+    kwargs = {"json": body} if body is not None else {}
     for origin in (REBIND_ORIGIN, "null", "file://", "http://127.0.0.1.SYNTHETIC-rebind.example"):
         response = getattr(client, method)(path, headers={"Origin": origin}, **kwargs)
         assert response.status_code == 403, origin
