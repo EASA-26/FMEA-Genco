@@ -90,7 +90,7 @@ export default function ChecksView({ report, counts, onShowInTable, onBack, onNe
     <div className="view-checks">
       {/* The title and subtitle are in the top bar; this row holds the page's buttons only. */}
       <div className="page-actions">
-        <ReviewStepNav counts={counts} onBack={onBack} onNext={onNext} />
+        <ReviewStepNav report={report} counts={counts} onBack={onBack} onNext={onNext} />
       </div>
 
       <div className="fact-grid">

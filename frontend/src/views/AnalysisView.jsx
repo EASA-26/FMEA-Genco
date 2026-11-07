@@ -59,7 +59,7 @@ function AnalysisTab({ section, issues, focus, onShowChecks }) {
 export default function AnalysisView({ report, counts, section, onSelectSection, tab, onTab, focus, onShowChecks, onBack, onNext }) {
   const header = (
     <div className="page-actions">
-      <ReviewStepNav counts={counts} onBack={onBack} onNext={onNext} />
+      <ReviewStepNav report={report} counts={counts} onBack={onBack} onNext={onNext} />
     </div>
   );
 

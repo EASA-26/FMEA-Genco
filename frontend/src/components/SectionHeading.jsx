@@ -1,10 +1,10 @@
 import { Cog, OctagonAlert, TriangleAlert } from 'lucide-react';
-import { countIssues, plural, sectionLabel } from '../lib/report.js';
+import { countIssues, openIssues, plural, sectionLabel } from '../lib/report.js';
 
 // Heading of the analysis section on screen: its UOIR IDs, title, equipment and the
-// counts of `issues` (the section's own, from issuesForSection). No sheet caption.
+// counts of `issues` (the section's own, from issuesForSection) still open. No sheet caption.
 export default function SectionHeading({ section, issues }) {
-  const c = countIssues(issues);
+  const c = countIssues(openIssues(issues));
   return (
     <div className="uoir-heading">
       <div className="uoir-heading-id">UOIR ID {sectionLabel(section)}</div>
