@@ -237,8 +237,8 @@ def server_options(settings: Settings, platform: str = sys.platform) -> dict   #
   %d-%b-%y %d-%b-%Y %d %B %Y %d %b %Y %Y-%m-%d`; unparseable -> error `ANALYSIS_DATE_INVALID`.
   The typed text (trimmed) is kept: `analysis_date_text` shows it as written (for example "TBC June
   2026") on the cover, in the app's Date of Analysis fact and in the email subject and intro, while
-  `analysis_date` stays None and the file name uses `undated`. It is only ever shown once the error
-  has been accepted (3.10a).
+  `analysis_date` stays None and the file name uses `undated`. It reaches the PDF and the email only once
+  the error has been accepted (3.10a); the review screens show it straight after upload.
 - `A2` should contain "station", `A3` "date of analysis" (case-insensitive, whitespace collapsed)
   else warning `LABEL_UNEXPECTED` (layout may have changed). The expected words currently live in
   `builder._TEAM_LABELS` (see 7).
@@ -489,7 +489,8 @@ not used at all).
 - Every issue has `id`, `acceptable` and `accepted`; the report has `report_id` (3.10a).
   `can_export` = no issue with severity "error" and `accepted == False` (`export_allowed(issues)`;
   `open_error_count(issues)` counts those errors). `pdf_filename` = `make_pdf_filename`.
-  `analysis_date_text` = format_date. `generated_at` = `datetime.now()`.
+  `analysis_date_text` = format_date(analysis_date) when a date was read, otherwise the trimmed
+  typed text when B3 is not a date (3.4), otherwise "". `generated_at` = `datetime.now()`.
 - Issues ordered by (severity error < warning < info, sheet tab index with sheet None first,
   row with None first); the sort is stable, so equal keys keep the order they were found in.
 

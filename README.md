@@ -946,7 +946,8 @@ group, by sheet (tab order) and row.
 
 Sometimes the report should go out with the data exactly as written in the
 workbook, for example a blank KKS or "Done" in New Task. Some items have an
-**Accept** button. Each group also has **Accept all**.
+**Accept** button. "Must fix before export" (when at least one of its errors can be accepted) and "Please check"
+each have an **Accept all** button.
 
 - **Which errors can be accepted.** Only errors about a blank or wrong value:
   `REQUIRED_VALUE_BLANK`, `NEW_TASK_INVALID`, `UOIR_VALUE_BLANK`,
