@@ -260,16 +260,58 @@
   font-size: 15px;
 }
 
-.issue-group-error .issue-group-head {
+/* "Must fix before export" and "Please check": the heading, with Accept all beside it. */
+.issue-group-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  padding-right: 14px;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.issue-group-bar .issue-group-head {
+  flex: 1 1 auto;
+  min-width: 0;
+  border-bottom: 0;
+}
+
+/* Focus moves to the heading after the group's last Accept button has gone; the card
+   clips anything outside it (overflow: hidden), so draw the ring inside. */
+.issue-group-bar .issue-group-head:focus-visible {
+  outline-offset: -3px;
+  border-radius: 14px;
+}
+
+.issue-group-error .issue-group-bar {
   background: linear-gradient(90deg, var(--red-50), transparent 70%);
 }
 
-.issue-group-warning .issue-group-head {
+.issue-group-warning .issue-group-bar {
   background: linear-gradient(90deg, var(--amber-50), transparent 70%);
 }
 
-.issue-group-info .issue-group-head {
+.issue-group-info .issue-group-head,
+.issue-group-accepted .issue-group-head {
   padding: 0;
+}
+
+.issue-accept-all {
+  flex: none;
+  color: var(--electric-700);
+}
+
+/* "Accepted values go into the PDF exactly as they are in the workbook." */
+.issue-group-note {
+  margin: 0;
+  padding: 10px 18px;
+  border-top: 1px solid var(--hairline);
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.issue-group-accepted .issue-group-note {
+  border-top: 0;
 }
 
 .issue-group-toggle {
@@ -349,12 +391,43 @@
   margin-top: 7px;
 }
 
+/* Show in table, then Accept / Undo or the "Fix this in the workbook" note. */
+.issue-actions {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px 8px;
+  max-width: 50%;
+}
+
 .issue-action {
   flex: none;
   color: var(--electric-700);
 }
 
-.issue-group-info .issue-list {
+.issue-accept,
+.issue-undo {
+  flex: none;
+}
+
+.issue-fix-note {
+  padding: 6px 4px;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* Accepted errors and checked warnings: the same item, in a neutral grey. */
+.issue-accepted .sev-icon,
+.sev-accepted {
+  color: var(--muted);
+}
+
+.issue-group-info .issue-list,
+.issue-group-accepted .issue-list {
   border-top: 1px solid var(--hairline);
 }
 
@@ -371,6 +444,23 @@
 
   .fact .icon-tile {
     display: inline-grid;
+  }
+}
+
+/* Narrow screens: the item's buttons go under its message. */
+@media (max-width: 760px) {
+  .issue {
+    flex-wrap: wrap;
+  }
+
+  .issue-body {
+    flex-basis: calc(100% - 30px);
+  }
+
+  .issue-actions {
+    max-width: none;
+    margin-left: 30px;
+    justify-content: flex-start;
   }
 }
 
@@ -1154,6 +1244,11 @@
 
 .gutter-warning {
   box-shadow: inset 3px 0 0 var(--amber-700);
+}
+
+/* Every check of the row was accepted on Data checks: a neutral grey mark. */
+.gutter-accepted {
+  box-shadow: inset 3px 0 0 var(--muted);
 }
 
 .grid-table tr.is-flash td,

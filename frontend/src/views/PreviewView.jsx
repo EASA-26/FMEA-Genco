@@ -4,7 +4,7 @@ import * as api from '../api/client.js';
 import StepNav from '../components/StepNav.jsx';
 import Spinner from '../components/Spinner.jsx';
 import { Alert, EmptyState } from '../components/Feedback.jsx';
-import { plural } from '../lib/report.js';
+import { openIssues, plural } from '../lib/report.js';
 
 // PDF open parameters: the browser's PDF viewer shows the pages without its toolbar
 // (no download or print button), so the PDF is only downloaded once, in Export PDF.
@@ -20,8 +20,11 @@ function viewOnly(src) {
   return `${src}${fragment ? '&' : ''}${VIEW_ONLY}`;
 }
 
+// The open errors only: errors accepted on Data checks no longer block. The hint to
+// accept them shows only when at least one open error can be accepted.
 export function BlockedByErrors({ report, counts, onShowChecks, action }) {
-  const errors = report.issues.filter((issue) => issue.severity === 'error');
+  const errors = openIssues(report.issues).filter((issue) => issue.severity === 'error');
+  const canAccept = errors.some((issue) => issue.acceptable);
   return (
     <section className="gt-card blocked" aria-labelledby="blocked-title">
       <span className="icon-tile icon-tile-error" aria-hidden="true">
@@ -32,10 +35,12 @@ export function BlockedByErrors({ report, counts, onShowChecks, action }) {
         <h2 id="blocked-title" className="blocked-title">
           {action} is not available until {plural(counts.error, 'error')} {counts.error === 1 ? 'is' : 'are'} fixed
         </h2>
-        <p className="blocked-text">Fix these in the workbook, save it and upload it again.</p>
+        <p className="blocked-text">
+          Fix these in the workbook, save it and upload it again{canAccept ? ', or accept them on Data Checks' : ''}.
+        </p>
         <ul className="blocked-list">
-          {errors.slice(0, 5).map((issue, index) => (
-            <li key={`${issue.code}-${index}`}>
+          {errors.slice(0, 5).map((issue) => (
+            <li key={issue.id}>
               <OctagonAlert size={15} className="sev-error" aria-hidden="true" />
               <span>{issue.message}</span>
             </li>
