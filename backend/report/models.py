@@ -12,17 +12,21 @@ the exact place in their workbook.
 """
 from __future__ import annotations
 
+import secrets
+from collections.abc import Collection
 from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
+
+from backend.config.mapping import ACCEPTABLE_ERROR_CODES
 
 Severity = Literal["error", "warning", "info"]
 NewTaskValue = Literal["yes", "no", "blank", "invalid"]
 
 
 class Issue(BaseModel):
-    """A validation finding. `error` blocks preview and export."""
+    """A validation finding. An `error` blocks preview and export until it is accepted."""
 
     severity: Severity
     code: str                        # stable machine code, e.g. "REQUIRED_VALUE_BLANK"
@@ -32,6 +36,9 @@ class Issue(BaseModel):
     column: str | None = None        # header text as in the workbook
     cell: str | None = None          # e.g. "N8"
     uoir_id: str | None = None
+    id: str = ""                     # "1", "2", ... in report order (set by finalise_report)
+    acceptable: bool = False         # may be accepted on Data Checks (set by finalise_report)
+    accepted: bool = False           # accepted for this report; changed only through the API
 
 
 class TeamMember(BaseModel):
@@ -199,6 +206,45 @@ class Report(BaseModel):
     uoir_ids: list[str] = Field(default_factory=list)              # distinct UOIR sheet IDs, in order
     analyses: list[AnalysisSection] = Field(default_factory=list)  # one per analysis tab, ordered by 3.5
     issues: list[Issue] = Field(default_factory=list)
-    can_export: bool                 # False when any issue has severity "error"
+    report_id: str = ""              # random hex token per built report (set by finalise_report)
+    can_export: bool                 # export_allowed(issues): no error left unaccepted
     pdf_filename: str                # FMEA_Report_<Station>_<YYYY-MM-DD>.pdf
     generated_at: datetime
+
+
+# --------------------------------------------------------------------------- #
+# Accepting issues
+# --------------------------------------------------------------------------- #
+def open_error_count(issues: list[Issue]) -> int:
+    """Errors that are not accepted."""
+    return sum(1 for issue in issues if issue.severity == "error" and not issue.accepted)
+
+
+def export_allowed(issues: list[Issue]) -> bool:
+    """The export rule: no issue with severity "error" and accepted == False."""
+    return open_error_count(issues) == 0
+
+
+def _is_acceptable(issue: Issue, not_acceptable_rows: Collection[tuple[str, int]]) -> bool:
+    if issue.severity == "warning":
+        return True
+    if issue.severity != "error" or issue.code not in ACCEPTABLE_ERROR_CODES:
+        return False
+    # A row whose every required value is blank is not an analysis row with a missing value.
+    return not (issue.code == "REQUIRED_VALUE_BLANK" and (issue.sheet, issue.row) in not_acceptable_rows)
+
+
+def finalise_report(report: Report, not_acceptable_rows: Collection[tuple[str, int]] = ()) -> Report:
+    """A deep copy with a new `report_id`, issue ids "1".. in list order, `acceptable` and `can_export`.
+
+    `not_acceptable_rows` holds the (sheet, row) of analysis rows whose every required value is
+    blank; their REQUIRED_VALUE_BLANK issues cannot be accepted.
+    """
+    final = report.model_copy(deep=True)
+    rows = set(not_acceptable_rows)
+    for n, issue in enumerate(final.issues, start=1):
+        issue.id = str(n)
+        issue.acceptable = _is_acceptable(issue, rows)
+    final.report_id = secrets.token_hex(8)
+    final.can_export = export_allowed(final.issues)
+    return final

@@ -21,7 +21,7 @@ from fastapi.testclient import TestClient
 from backend.auth.passwords import hash_password
 from backend.mail.outlook import ENV_ATTACHMENT, OutlookMailer, RunResult
 from backend.main import create_app
-from backend.report.models import Issue, Report
+from backend.report.models import Issue, Report, export_allowed, finalise_report
 from backend.settings import Settings
 
 # Tests sign in with their own SYNTHETIC account, never the development password.
@@ -65,25 +65,39 @@ def make_settings(**overrides) -> Settings:
 def make_report(
     *,
     errors: int = 0,
+    codes: list[str] | None = None,
     station: str = "SYNTHETIC Station",
     source_filename: str = "SYNTHETIC_workbook.xlsx",
     pdf_filename: str = "FMEA_Report_SYNTHETIC_Station_2026-01-15.pdf",
 ) -> Report:
+    """A finalised SYNTHETIC report (issue ids, acceptability and a report_id, as the builder gives).
+
+    `errors=N` adds N errors with the code SYNTHETIC_ERROR, which can never be accepted.
+    `codes` adds one error per real code (acceptable when the code is in ACCEPTABLE_ERROR_CODES).
+    One warning is always added.
+    """
     issues = [
         Issue(severity="error", code="SYNTHETIC_ERROR", message=f"SYNTHETIC error {n + 1}")
         for n in range(errors)
     ]
+    issues.extend(
+        Issue(
+            severity="error", code=code, message=f"SYNTHETIC {code} {n}",
+            sheet="UOIR ID 901 - SYNTHETIC", row=3 + n, cell="R3",
+        )
+        for n, code in enumerate(codes or [])
+    )
     issues.append(Issue(severity="warning", code="SYNTHETIC_WARNING", message="SYNTHETIC warning"))
-    return Report(
+    return finalise_report(Report(
         source_filename=source_filename,
         station=station,
         analysis_date=date(2026, 1, 15),
         analysis_date_text="15 January 2026",
         issues=issues,
-        can_export=errors == 0,
+        can_export=export_allowed(issues),
         pdf_filename=pdf_filename,
         generated_at=datetime(2026, 1, 15, 9, 30),
-    )
+    ))
 
 
 class FakeWorkbookOpenError(Exception):

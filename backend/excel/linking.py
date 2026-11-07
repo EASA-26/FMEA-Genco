@@ -183,15 +183,21 @@ def coverage_issues(
     listed: Mapping[str, UoirRef],
     other_sheet_names: list[str],
     uoir_list_read: bool,
+    uoir_table_read: bool | None = None,
 ) -> list[Issue]:
     """No analysis tabs at all, and what each listed UOIR looks like from the tabs' side.
 
     `other_sheet_names` are the sheets the report does not use (misnamed analysis tabs and any
     other sheet, in workbook order). A listed UOIR that no tab names but whose number appears in
     one of those names, or in a tab's title part, gets a warning instead of the info note.
+
+    `uoir_table_read` is True when the UOIR sheet's header row was found, even if no UOIR ID was
+    read (every ID blank): no analysis tab is then still an error, so accepting the blank IDs can
+    never export a report without any analysis. None means the same as `uoir_list_read`.
     """
     issues: list[Issue] = []
-    none = uoir_list_read and not tabs
+    table_read = uoir_list_read if uoir_table_read is None else uoir_table_read
+    none = table_read and not tabs
     if none:
         issues.append(Issue(
             severity="error",
