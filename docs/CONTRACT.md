@@ -235,6 +235,10 @@ def server_options(settings: Settings, platform: str = sys.platform) -> dict   #
 - Station = `B2`, Date of Analysis = `B3`. Blank -> error `STATION_BLANK` / `ANALYSIS_DATE_BLANK`.
   B3 must be an Excel date; a text date is parsed with formats `%d/%m/%Y %d-%m-%Y %d.%m.%Y
   %d-%b-%y %d-%b-%Y %d %B %Y %d %b %Y %Y-%m-%d`; unparseable -> error `ANALYSIS_DATE_INVALID`.
+  The typed text (trimmed) is kept: `analysis_date_text` shows it as written (for example "TBC June
+  2026") on the cover, in the app's Date of Analysis fact and in the email subject and intro, while
+  `analysis_date` stays None and the file name uses `undated`. It is only ever shown once the error
+  has been accepted (3.10a).
 - `A2` should contain "station", `A3` "date of analysis" (case-insensitive, whitespace collapsed)
   else warning `LABEL_UNEXPECTED` (layout may have changed). The expected words currently live in
   `builder._TEAM_LABELS` (see 7).
@@ -374,8 +378,9 @@ Checks (messages copied from `linking.py`; examples SYNTHETIC):
   not apply to a tab that covers several UOIRs).
 - `ANALYSIS_SHEET_HIDDEN` -> warning. "Tab '…' (UOIR ID 901, 902) is hidden in Excel. It is included
   in the report."
-- `ANALYSIS_SHEET_NONE` -> **error**. The workbook has no analysis tab at all (skipped when no UOIR
-  row was read, because that already blocks export). Located nowhere. "The workbook has no analysis
+- `ANALYSIS_SHEET_NONE` -> **error**. The workbook has no analysis tab at all. Raised whenever the UOIR
+  sheet's header row was found (`uoir_table_read`), even if every UOIR ID is blank; skipped only
+  when that header was not found, because that already blocks export. Located nowhere. "The workbook has no analysis
   tabs, so the report would have no FMEA Analysis. Add a tab named like 'UOIR ID 123 - Title of the
   UOIR' and upload again."
 
@@ -481,10 +486,42 @@ not used at all).
   section's key in the app), `uoir_ids` (the tab's IDs in tab-name order), `title`, `equipment`,
   `notes`, `analysis`, `tasks`, `summary`, `recommendations`. `failure_details` is unchanged (one
   row per UOIR sheet row). The earlier list with one section for each UOIR ID is gone.
-- `can_export` = no issue with severity "error". `pdf_filename` = `make_pdf_filename`.
+- Every issue has `id`, `acceptable` and `accepted`; the report has `report_id` (3.10a).
+  `can_export` = no issue with severity "error" and `accepted == False` (`export_allowed(issues)`;
+  `open_error_count(issues)` counts those errors). `pdf_filename` = `make_pdf_filename`.
   `analysis_date_text` = format_date. `generated_at` = `datetime.now()`.
 - Issues ordered by (severity error < warning < info, sheet tab index with sheet None first,
   row with None first); the sort is stable, so equal keys keep the order they were found in.
+
+### 3.10a Accepting issues (value errors) and marking warnings as checked
+
+Engineers can accept value errors on Data Checks so the report goes out with the data as written
+in the workbook, and mark warnings as checked. Acceptance lasts for this upload only (nothing is
+saved; a new upload, sign-out or closing the page clears it; 4.1).
+- **Fields.** `finalise_report(report, not_acceptable_rows)` (`backend/report/models.py`) runs last
+  in the builder and returns a copy with a new `report_id` (`secrets.token_hex(8)`, new for every
+  built report), each issue's `id` ("1", "2", ... = its position in the final sorted list),
+  `acceptable` (see below) and `can_export`. `accepted` starts False and changes only through the
+  API (4).
+- **Which issues are acceptable.** An error whose code is in `ACCEPTABLE_ERROR_CODES`
+  (`backend/config/mapping.py`: `REQUIRED_VALUE_BLANK`, `NEW_TASK_INVALID`, `UOIR_VALUE_BLANK`,
+  `STATION_BLANK`, `ANALYSIS_DATE_BLANK`, `ANALYSIS_DATE_INVALID`), and every warning (accepting a
+  warning marks it as checked and does not change `can_export`). Structural errors and info notes
+  are never acceptable. An error code added later is not acceptable until it is added to that list.
+- **All-blank row.** When every `ANALYSIS_REQUIRED_VALUES` cell of one analysis row is blank (for
+  example a second header row, or a row holding only a Frequency), that row's
+  `REQUIRED_VALUE_BLANK` issues are not acceptable: it is not an analysis row with a missing value.
+  The builder decides this per row (`all_blank_rows`) and passes the rows to `finalise_report`.
+- **What the report shows for accepted values.** Counts follow the existing rules; accepted values
+  go in as written. A blank Strategy gives the "Not specified" row and slice, a blank Trade "Trade
+  not specified", a blank KKS its own Recommendation group (3.9). `NEW_TASK_INVALID` shows the value
+  as written ("Done"), leaves the row out of the Existing/New and Work-Centre counts and lists it in
+  the "Not counted" note (NSM rows never, 3.8). `UOIR_VALUE_BLANK`: a blank Title leaves the Failure
+  Details cell blank (section headings use the existing fallback); a blank UOIR ID shows the row
+  with a blank ID but it is not a UOIR (a tab naming that ID becomes an unlisted tab). A blank
+  Station shows blank on the cover and running header (file name uses `Station`); a blank or
+  invalid date shows on the cover as in 3.4 (file name `undated`).
+- **The PDF looks normal.** No list of accepted issues and no marks.
 
 ### 3.11 Expected results for the SYNTHETIC sample-like workbook (tests)
 The `sample` variant of `tools/make_synthetic_workbook.py` copies the sheets, layout and quirks of
@@ -528,11 +565,12 @@ through the API and the PDF, by `backend/tests/test_e2e_report_consistency.py`.
 
 ### 3.12 Issue code catalogue
 
-| Severity | Codes |
-|---|---|
-| error (blocks preview/export) | `SHEET_MISSING`, `STATION_BLANK`, `ANALYSIS_DATE_BLANK`, `ANALYSIS_DATE_INVALID`, `TEAM_HEADER_MISSING`, `UOIR_HEADER_MISSING`, `UOIR_VALUE_BLANK`, `UOIR_NONE`, `ANALYSIS_SHEET_NONE`, `ANALYSIS_HEADER_MISSING`, `ANALYSIS_HEADER_DUPLICATE`, `ANALYSIS_NO_ROWS`, `REQUIRED_VALUE_BLANK`, `NEW_TASK_INVALID` |
-| warning | `LABEL_UNEXPECTED`, `TEAM_EMPTY`, `ROWS_AFTER_BLANK_ROW`, `UOIR_DATE_NOT_DATE`, `UOIR_EQUIPMENT_BLANK`, `UOIR_DUPLICATE_ID_CONFLICT`, `FORMULA_NO_VALUE`, `ANALYSIS_SHEET_TITLE_MISMATCH`, `ANALYSIS_TITLE_CELL_MISMATCH`, `ANALYSIS_SHEET_HIDDEN`, `ANALYSIS_SHEET_UNLISTED`, `ANALYSIS_SHEET_NAME_UNREADABLE`, `UOIR_ID_NOT_READ`, `UOIR_IN_SEVERAL_TABS`, `STRATEGY_UNKNOWN`, `NEW_TASK_BLANK`, `NSM_NEW_TASK_FILLED`, `DUPLICATE_ROW` |
-| info | `SHEET_NOT_USED`, `ANALYSIS_SHEET_MISSING`, `MERGED_CELLS_CARRIED`, `STRATEGY_DERIVED_NAME`, `TRADE_SPELLING_MERGED` |
+| Severity | Codes | Acceptable |
+|---|---|---|
+| error, value (blocks preview/export until accepted) | `STATION_BLANK`, `ANALYSIS_DATE_BLANK`, `ANALYSIS_DATE_INVALID`, `UOIR_VALUE_BLANK`, `REQUIRED_VALUE_BLANK`, `NEW_TASK_INVALID` (exactly `ACCEPTABLE_ERROR_CODES`) | Yes (except `REQUIRED_VALUE_BLANK` on an all-blank row, 3.10a) |
+| error, structural (blocks preview/export) | `SHEET_MISSING`, `TEAM_HEADER_MISSING`, `UOIR_HEADER_MISSING`, `UOIR_NONE`, `ANALYSIS_SHEET_NONE`, `ANALYSIS_HEADER_MISSING`, `ANALYSIS_HEADER_DUPLICATE`, `ANALYSIS_NO_ROWS` | No |
+| warning | `LABEL_UNEXPECTED`, `TEAM_EMPTY`, `ROWS_AFTER_BLANK_ROW`, `UOIR_DATE_NOT_DATE`, `UOIR_EQUIPMENT_BLANK`, `UOIR_DUPLICATE_ID_CONFLICT`, `FORMULA_NO_VALUE`, `ANALYSIS_SHEET_TITLE_MISMATCH`, `ANALYSIS_TITLE_CELL_MISMATCH`, `ANALYSIS_SHEET_HIDDEN`, `ANALYSIS_SHEET_UNLISTED`, `ANALYSIS_SHEET_NAME_UNREADABLE`, `UOIR_ID_NOT_READ`, `UOIR_IN_SEVERAL_TABS`, `STRATEGY_UNKNOWN`, `NEW_TASK_BLANK`, `NSM_NEW_TASK_FILLED`, `DUPLICATE_ROW` | Yes (marks it as checked) |
+| info | `SHEET_NOT_USED`, `ANALYSIS_SHEET_MISSING`, `MERGED_CELLS_CARRIED`, `STRATEGY_DERIVED_NAME`, `TRADE_SPELLING_MERGED` | No |
 
 A new code must be added here and to the README "Checks and messages" tables.
 
@@ -547,7 +585,8 @@ A new code must be added here and to the README "Checks and messages" tables.
 | `POST /api/workbook` multipart `file` | yes | See upload rules below. 200 Report JSON (content issues are inside the report). Only a **successful** upload replaces the session's report and PDF cache; any failure keeps the previous ones. Parsing runs in the threadpool. 409 "This upload was cancelled before it finished: the workbook was closed or another upload started. Upload the workbook again to continue." when, while this upload was being read, the workbook was discarded (`DELETE /api/workbook`, sign-out) or a newer upload started (that one wins), or the browser disconnected (Cancel, page left; the previous report is then kept); nothing is stored (4.1). |
 | `GET /api/report` | yes | 200 Report JSON; 404 "No workbook uploaded yet." **Not called by the frontend**: a page never restores a report from the server (4.1). Kept for tests. |
 | `DELETE /api/workbook` | yes | 204, clears report and PDF cache (also 204 when there is none) and cancels an upload still being read. The frontend calls it when the workspace opens, on `pagehide` (keepalive) while the page holds a report or an upload is running, when the workspace itself fails to draw, for **Remove** (Upload step), and for **Upload another** and **Finish** (Export step) (4.1) |
-| `GET /api/report/pdf?download=0\|1` | yes | 404 if no report; 409 `{"detail":"Fix the errors listed before previewing or exporting.","error_count":n}` if `can_export` false; else `application/pdf`, `Content-Disposition: inline\|attachment; filename="<ASCII-safe pdf_filename>"` plus `; filename*=UTF-8''<percent-encoded>` when the ASCII form had to change, `Cache-Control: no-store`. PDF bytes cached per session until the next upload/delete; a per-session lock makes concurrent preview + download render once. Render failure -> 500 "The PDF could not be created. Please try again or contact support." (logged, not cached). A `download` value that is not a boolean -> 422. |
+| `GET /api/report/pdf?download=0\|1` | yes | 404 if no report; 409 `{"detail":"Fix the errors listed before previewing or exporting.","error_count":n}` if `can_export` false, where `n` = `open_error_count` (errors not accepted); else `application/pdf`, `Content-Disposition: inline\|attachment; filename="<ASCII-safe pdf_filename>"` plus `; filename*=UTF-8''<percent-encoded>` when the ASCII form had to change, `Cache-Control: no-store`. PDF bytes cached per session until the next upload/delete; a per-session lock makes concurrent preview + download render once. Render failure -> 500 "The PDF could not be created. Please try again or contact support." (logged, not cached). A `download` value that is not a boolean -> 422. |
+| `POST /api/report/issues/acceptance` `{"report_id": "<string>", "ids": ["3","7"], "accepted": true}` | yes | Accepts value errors / marks warnings as checked (`accepted: true`) or undoes it (`false`) for the current report. Body is the pydantic model `AcceptanceRequest` (never read with `request.json()`: a `text/plain` body gets 422, and the Origin check applies). 200 = the updated report JSON (same shape as `GET /api/report`) with `can_export` recomputed. Idempotent (accepting an accepted item, or undoing one that is not accepted, changes nothing); duplicate ids count once; the PDF cache is kept (`report_version` is not bumped), because acceptance does not change the PDF, and `GET /api/report/pdf` and the email endpoint check `can_export` before using it, so an Undo blocks them again at once. Errors: see 4.1 |
 | `POST /api/report/email` `{"to": "<string>"}` | yes | Opens a new classic-Outlook email with the PDF attached on the computer running the server (Display, never Send). 200 `{"status":"opened","recipients":[…normalised…],"attachment":"<file name>"}`. Errors and the order they are checked: see 4.2 |
 
 Upload rules (`backend/api/upload.py`, streaming, in memory only — Starlette's form parser is not
@@ -693,6 +732,26 @@ The app keeps nothing between visits. There is no database and no file store.
   "This workbook is no longer open. It is closed when you sign out, refresh or leave the page, or
   open the app in another tab. Upload it again to continue." (`WORKBOOK_CLOSED_MESSAGE` in
   `src/api/client.js`). Starting a new upload clears the notice.
+
+Accepting issues (`SessionStore.update_issue_acceptance`, copy-on-write under the store lock: it
+builds an updated copy of the report and assigns it, never editing the stored report in place).
+Acceptance belongs to one built report: a new upload has a new `report_id` with nothing accepted,
+and sign-out, closing the page and the idle timeout discard the report and its acceptance. Refusals
+are `AcceptanceError(status, detail)`, checked in this order (the first that applies wins and nothing
+changes):
+
+| # | Status | When | Message |
+|---|---|---|---|
+| 1 | 404 | no report | "No workbook uploaded yet." |
+| 2 | 409 | `report_id` is empty or not the current report | "This workbook is no longer open here. Upload it again." |
+| 3 | 400 | `ids` is empty | "Choose at least one item." |
+| 4 | 400 | more ids than the report has issues (counted as sent, before duplicates are removed) | "Too many items in one request." |
+| 5 | 400 | an id is unknown | "Some of these items are no longer in the report. Upload the workbook again." |
+| 6 | 400 | an id is not acceptable (3.10a), in either direction (accept or undo) | "This item can't be accepted. Fix it in the workbook and upload again." |
+
+The frontend treats a **404 or 409** from this endpoint like one from preview, download or email:
+back to Upload with the "Workbook closed" notice (below). A 400 shows its message in an alert and
+changes nothing.
 
 ### 4.2 Email the PDF (Outlook draft, or mail-app fallback)
 
@@ -925,7 +984,9 @@ Launch (`OutlookMailer.open_draft`, run in the threadpool):
   `?mock_signed_in=1`, `?mock_auth=databricks`, `?mock_outlook=0` (Outlook drafts not offered, so Export
   shows the mail-app fallback);
   passwords `wrong`/`locked`; upload names containing `error` (a report with blocking errors, including
-  a section whose `analysis` is null and `ANALYSIS_HEADER_MISSING`), `no-tabs` (no analysis tabs:
+  a section whose `analysis` is null and `ANALYSIS_HEADER_MISSING`, plus an acceptable error, to show
+  both item states), `value-error` (a report whose only errors are acceptable: a blank Failure
+  Effect, New Task "Done" and a blank Station, so it can be unblocked; checked before `error`), `no-tabs` (no analysis tabs:
   `ANALYSIS_SHEET_NONE`, empty sections), `broken` or `slow` (any other name gives the normal report,
   which has one two-ID section); Email recipients
   containing `outlook-fail` (502) or `outlook-busy` (429); `window.fmeaMock.expireSession()` (next
@@ -998,7 +1059,8 @@ Launch (`OutlookMailer.open_draft`, run in the threadpool):
     menu button (tablet), the **page title** `h1#page-title` (`.gt-topbar-title`, 24px bold white;
     `tabIndex` -1, focused from script only, no focus ring) with the **subtitle** under it
     (`.gt-topbar-subtitle`, 14px, electric-100 at 80%), each one line cut with "…" and the full text
-    in a tooltip; status chips (n errors / n warnings, or "Ready to export"; each opens Data Checks),
+    in a tooltip; status chips (n errors / n warnings, or "Ready to export"; each opens Data Checks; the counts are
+    of open issues only, accepted ones are left out),
     and at the right the **signed-in user** (avatar initial, name, "Signed in" or "Signed in with
     Databricks") with **Sign out** (local mode only). The former "workbook file" block (file name,
     station · date) is gone: the file name is in the Step 2 and Step 3 subtitles. At ≤ 820px the
@@ -1051,7 +1113,7 @@ Launch (`OutlookMailer.open_draft`, run in the threadpool):
     | Step | Back | Next |
     |---|---|---|
     | 1 Upload Excel | none | "Proceed to Review Data" on the file card |
-    | 2 Review Data (Data Checks and every report section) | "Upload Workbook" (to Upload, which shows the file card) | "Preview Report"; disabled with "Fix n errors to preview" |
+    | 2 Review Data (Data Checks and every report section) | "Upload Workbook" (to Upload, which shows the file card) | "Preview Report"; disabled with "Fix n errors to preview" (n = open errors; also disabled while `report.can_export` is false) |
     | 3 Preview Report | "Review Data" (to Data Checks) | "Export PDF Report"; disabled with "Fix n errors to export" when `can_export` is false |
     | 4 Export PDF | "Preview Report" (disabled while the report is being cleared) | none; "Upload another" and (when `can_export`) "Finish" at the bottom right |
 
@@ -1087,7 +1149,39 @@ Launch (`OutlookMailer.open_draft`, run in the threadpool):
     information" (info) collapsed by default and hidden when empty; each item shows the message and
     location chips (sheet, row, column, cell) and, when it points into an analysis table, **Show in
     table** (opens the section whose `sheet_name` equals the issue's `sheet`, scrolls to the column
-    and marks the row/cell). UOIR sheet issues show here only; they do not mark an Analysis entry.
+    and marks the row/cell; it stays on accepted items). UOIR sheet issues show here only; they do not mark an Analysis entry.
+  - Review Data, accepting issues (`ChecksView`, `Workspace`; 3.10a, 4). `ChecksView` also takes
+    `onAcceptance(ids, accepted)`, `acceptanceBusy` and `onWorkbookClosed`; `counts` are of open
+    issues (`openIssues(report.issues)` in `lib/report.js` drops accepted ones; every `counts`
+    consumer follows: top-bar chips, sidebar badge and step detail, Next reasons, Export's warnings
+    alert, the Upload card, section counts and markers). Groups, in order: "Must fix before export"
+    (errors not accepted), "Please check" (warnings not accepted), "For information" (collapsed),
+    and **"Accepted"** (accepted errors and warnings in report order, collapsed by default, showing
+    its count). Items are keyed by `issue.id`. An acceptable item that is not accepted has an
+    **Accept** button (accessible name "Accept: " + the start of the message); an error that cannot
+    be accepted shows the muted note "Fix this in the workbook"; an accepted item has **Undo**.
+    "Must fix before export" has **Accept all** (accepts every acceptable error in the group; hidden
+    when none is acceptable) and "Please check" has **Accept all**. The note "Accepted values go into
+    the PDF exactly as they are in the workbook." shows in the Accepted group (also while collapsed)
+    and under the error group when it has an Accept button. Banner ("N accepted" = accepted errors
+    plus accepted warnings; its small label reads "Blocked" while blocked): open errors ->
+    "Export blocked · N errors left", body "Fix them in the workbook, or accept the ones with an
+    Accept button." (when at least one open error is acceptable) or the existing "Fix them in
+    Excel, ..." text; no open errors but open warnings -> "Ready to export · N items worth
+    checking" plus " · M accepted" when M > 0; no open errors or warnings but some accepted ->
+    "Ready to export · M accepted" with the note as body; otherwise the existing banners.
+    Every Accept, Accept all and Undo button is disabled while any acceptance request runs. Success:
+    `Workspace.replaceReport(next)` sets the report only when `next.report_id` equals the current
+    one and does not reset the page, section, tabs, focus or scroll (`applyReport` does). 404 or 409
+    -> `onWorkbookClosed` ("Workbook closed", 4.1); 400 -> the message in an alert, nothing changes.
+    Focus: after Accept it moves to the next item's Accept button in the same group, else that
+    group's heading, else the Accepted toggle; after Undo to the next item in Accepted, else the
+    Accepted toggle, else (nothing left in Accepted) the Accept button of the item that went back.
+  - Analysis table marks: a row whose issues are all accepted shows a neutral grey **"Accepted"**
+    mark (tooltip "Accepted: <message>") instead of the red or amber one; a row with an open
+    issue, including an accepted error plus an open warning, keeps the amber (or red) mark.
+    The Preview and Export blocked lists (`BlockedByErrors`) list open errors only and say "or
+    accept them on Data Checks" only when at least one open error is acceptable.
   - Review Data, **Workbook data** card (`src/components/WorkbookData.jsx`) below the checks: the
     data itself, **read-only** (user decision 2026-11-05: no editing in the app; the workbook stays
     the single source of truth), with the note "Read-only. To change anything, edit the workbook in
@@ -1239,6 +1333,21 @@ Launch (`OutlookMailer.open_draft`, run in the threadpool):
 | API / frontend | Tie the report to the page that uploaded it (e.g. a report id checked by preview, download and email), so a stale tab can never get another tab's PDF | one report per browser session: opening a second tab closes the first tab's workbook, but if the second tab then uploads, a not-refreshed first tab's Preview/Export/Email serve the second tab's workbook |
 
 ## Change log
+
+- **2026-11-07 — Accepting issues.** (User request; the design is
+  `docs/superpowers/specs/2026-11-07-accept-issues-design.md`.) Engineers can accept value errors
+  on Data Checks (Accept, Accept all, Undo; an "Accepted" group) and mark warnings as checked; the
+  accepted values go into the PDF as written, and the PDF looks normal. Acceptance lasts for this
+  upload only.
+  - 3.4: text in B3 that is not a date is kept as typed in `analysis_date_text`. 3.6:
+    `ANALYSIS_SHEET_NONE` is raised whenever the UOIR header was found, even with every UOIR ID blank.
+  - 3.10, new 3.10a, 3.12: `Issue.id` / `acceptable` / `accepted`, `Report.report_id`;
+    `can_export` = no error that is not accepted; `ACCEPTABLE_ERROR_CODES`; the all-blank-row
+    exception; an "Acceptable" column in the code catalogue.
+  - 4, 4.1: `POST /api/report/issues/acceptance` (404/409/400 refusals); the PDF and email 409
+    `error_count` counts open errors only; the PDF cache is kept across acceptance changes.
+  - 6: Data Checks groups, buttons, note and banners; open-issue counts everywhere; Next gated on
+    `can_export`; grey "Accepted" mark in the analysis table; mock `value-error` variant.
 
 - **2026-11-06 — Misspelled analysis tab names warn.** (User request after the final review of the
   analysis-per-tab change.) `UOIR_ID_NOT_READ` now also looks in the names of every unused sheet
