@@ -11,16 +11,19 @@
 //   ?mock_outlook=0           no Outlook drafts: Export offers the mail-app fallback (as with the new Outlook)
 //   ?mock_reset=1             forget the remembered mock session
 // Sign in with any username; password "wrong" -> incorrect, "locked" -> too many attempts.
-// Upload any .xlsx: a name containing "error" gives a report with blocking errors,
-// "no-tabs" gives a workbook with no analysis tabs (blocking error, empty sections),
-// "broken" gives an unreadable-workbook message, "slow" takes longer.
+// Upload any .xlsx: a name containing "error" gives a report with blocking errors (one
+// that can be accepted on Data Checks, one that cannot), "value-error" gives one whose
+// errors can all be accepted (so it can be unblocked), "no-tabs" gives a workbook with no
+// analysis tabs (blocking error, empty sections), "broken" gives an unreadable-workbook
+// message, "slow" takes longer. Accept / Undo on Data Checks works as on the server and
+// lasts until the next upload or discard.
 // Email the PDF: a recipient containing "outlook-fail" -> Outlook could not open,
 // "outlook-busy" -> still opening the previous email; anything else opens "Outlook".
 // In the browser console:
 //   window.fmeaMock.expireSession()  ends the session so the next request gets 401
 //                                    (the app should return to sign-in)
 //   window.fmeaMock.closeWorkbook()  discards the report as another tab would, so the
-//                                    next preview, download or email gets 404
+//                                    next preview, download, email or Accept gets 404
 
 import syntheticReport from './synthetic-report.json';
 import { buildMockPdf } from './mockPdf.js';
@@ -37,7 +40,15 @@ function loadState() {
   } catch {
     saved = null;
   }
-  const state = { signedIn: Boolean(saved && saved.signedIn), authMode: saved && saved.authMode, variant: null, filename: null };
+  const state = {
+    signedIn: Boolean(saved && saved.signedIn),
+    authMode: saved && saved.authMode,
+    variant: null,
+    filename: null,
+    // The open report's id (new on every upload) and the ids of its accepted issues.
+    reportId: '',
+    accepted: new Set(),
+  };
   if (params.get('mock_auth') === 'databricks') state.authMode = 'databricks';
   if (!state.authMode) state.authMode = 'local';
   if (params.has('mock_signed_in') || state.authMode === 'databricks') state.signedIn = true;
@@ -71,6 +82,14 @@ function save() {
 function clearReport() {
   state.variant = null;
   state.filename = null;
+  state.reportId = '';
+  state.accepted.clear();
+}
+
+/** A random 16-character hex token, like the server's report_id. */
+function newReportId() {
+  const bytes = crypto.getRandomValues(new Uint8Array(8));
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
 const clone = (value) => JSON.parse(JSON.stringify(value));
@@ -90,8 +109,9 @@ const wait = (ms, signal) =>
   });
 
 /**
- * Adds blocking problems to the SYNTHETIC report: an empty required cell, and an analysis
- * tab whose table could not be read (its section has no analysis and no summary).
+ * Adds blocking problems to the SYNTHETIC report: an empty required cell (a value error,
+ * which can be accepted), and an analysis tab whose table could not be read (structural,
+ * which cannot; its section has no analysis and no summary).
  */
 function withErrors(report) {
   const first = report.analyses[0];
@@ -148,7 +168,83 @@ function withErrors(report) {
       uoir_id: '906',
     },
   );
-  report.can_export = false;
+  return report;
+}
+
+/**
+ * Adds value errors only, each of which can be accepted: a blank Failure Effect (row 5 of
+ * the 901 tab), a New Task that is not Yes or No (row 6) and a blank Station. This is
+ * the report that accepting its errors on Data Checks unblocks.
+ */
+function withValueErrors(report) {
+  const first = report.analyses[0];
+  const table = first.analysis;
+  const sheet901 = table.sheet;
+  const uoirId = first.uoir_ids.join(', ');
+  const tableRow = (sourceRow) => table.rows.find((r) => r.source_row === sourceRow);
+  const task = (sourceRow) => first.tasks.find((t) => t.source_row === sourceRow);
+
+  tableRow(5).cells[table.columns.indexOf('Failure Effect')] = '';
+  task(5).failure_effect = '';
+
+  // Row 6 (an FF task, New Task "No" before) shows "Done" as written. As on the server,
+  // it is left out of the Existing/New and Work-Centre counts and listed as not counted.
+  tableRow(6).cells[table.columns.indexOf('New Task')] = 'Done';
+  const done = task(6);
+  done.new_task = 'invalid';
+  done.new_task_raw = 'Done';
+  const summary = first.summary;
+  summary.task_executed_count -= 1;
+  summary.strategy_rows.find((s) => s.code === done.strategy_code).existing -= 1;
+  const centre = summary.work_centre_rows.find((w) => w.work_centre === done.trade);
+  centre.total -= 1;
+  centre.executed -= 1;
+  summary.not_counted.push({
+    source_row: 6,
+    reason: 'New Task is not Yes or No',
+    strategy: done.strategy_code,
+    trade: done.trade,
+  });
+  for (const group of first.recommendations) {
+    for (const row of group.rows) if (row.source_row === 6) row.new_task = 'invalid';
+  }
+
+  // With no station the file name says "Station", as on the server.
+  report.station = '';
+  report.pdf_filename = `FMEA_Report_Station_${report.analysis_date}.pdf`;
+
+  report.issues.unshift(
+    {
+      severity: 'error',
+      code: 'STATION_BLANK',
+      message: "Station is empty (cell B2 on 'Team Member'). Fill it in and upload again.",
+      sheet: 'Team Member',
+      row: 2,
+      column: null,
+      cell: 'B2',
+      uoir_id: null,
+    },
+    {
+      severity: 'error',
+      code: 'REQUIRED_VALUE_BLANK',
+      message: `Failure Effect is empty on row 5 of '${sheet901}'. Fill it in and upload again.`,
+      sheet: sheet901,
+      row: 5,
+      column: 'Failure Effect',
+      cell: 'C5',
+      uoir_id: uoirId,
+    },
+    {
+      severity: 'error',
+      code: 'NEW_TASK_INVALID',
+      message: `New Task must be Yes or No, but row 6 of '${sheet901}' has 'Done'. Correct it and upload again.`,
+      sheet: sheet901,
+      row: 6,
+      column: 'New Task',
+      cell: 'S6',
+      uoir_id: uoirId,
+    },
+  );
   return report;
 }
 
@@ -174,16 +270,47 @@ function withoutTabs(report) {
     cell: null,
     uoir_id: null,
   });
-  report.can_export = false;
   return report;
+}
+
+// Value errors that can be accepted (backend/config/mapping.py ACCEPTABLE_ERROR_CODES).
+// Every warning can be accepted (marked as checked); no info and no other error can.
+const ACCEPTABLE_ERROR_CODES = new Set([
+  'REQUIRED_VALUE_BLANK',
+  'NEW_TASK_INVALID',
+  'UOIR_VALUE_BLANK',
+  'STATION_BLANK',
+  'ANALYSIS_DATE_BLANK',
+  'ANALYSIS_DATE_INVALID',
+]);
+
+function isAcceptable(issue) {
+  if (issue.severity === 'warning') return true;
+  return issue.severity === 'error' && ACCEPTABLE_ERROR_CODES.has(issue.code);
+}
+
+/** Errors not accepted: they block preview and export. */
+function errorCount(report) {
+  return report.issues.filter((i) => i.severity === 'error' && !i.accepted).length;
 }
 
 function currentReport() {
   if (!state.variant) return null;
-  const report = clone(syntheticReport);
+  let report = clone(syntheticReport);
   if (state.filename) report.source_filename = state.filename;
-  if (state.variant === 'errors') return withErrors(report);
-  if (state.variant === 'no-tabs') return withoutTabs(report);
+  if (state.variant === 'errors') report = withErrors(report);
+  else if (state.variant === 'value-errors') report = withValueErrors(report);
+  else if (state.variant === 'no-tabs') report = withoutTabs(report);
+
+  // As the server does: the report's id, issue ids "1".. in report order, which can be
+  // accepted, which are, and the export rule (no error left unaccepted).
+  report.report_id = state.reportId;
+  report.issues.forEach((issue, index) => {
+    issue.id = String(index + 1);
+    issue.acceptable = isAcceptable(issue);
+    issue.accepted = state.accepted.has(issue.id);
+  });
+  report.can_export = errorCount(report) === 0;
   return report;
 }
 
@@ -195,8 +322,48 @@ const empty = (status) => new Response(null, { status });
 
 const features = () => ({ outlook_email: outlookEmail });
 
-function errorCount(report) {
-  return report.issues.filter((i) => i.severity === 'error').length;
+/**
+ * POST /api/report/issues/acceptance: accept (or undo) issues of the open report and
+ * return it. Refusals are checked in the server's order, with its messages; a refused
+ * request changes nothing. Duplicate ids count once, and repeating a change is harmless.
+ */
+function mockAcceptance(init) {
+  let body = null;
+  try {
+    body = JSON.parse(init.body || 'null');
+  } catch {
+    body = null;
+  }
+  const wellFormed =
+    body !== null &&
+    typeof body === 'object' &&
+    typeof body.report_id === 'string' &&
+    Array.isArray(body.ids) &&
+    body.ids.every((id) => typeof id === 'string') &&
+    typeof body.accepted === 'boolean';
+  if (!wellFormed) return json(422, { detail: 'Some of the information sent was missing or not in the expected format.' });
+
+  const report = currentReport();
+  if (!report) return json(404, { detail: 'No workbook uploaded yet.' });
+  if (!body.report_id || body.report_id !== report.report_id) {
+    return json(409, { detail: 'This workbook is no longer open here. Upload it again.' });
+  }
+  if (body.ids.length === 0) return json(400, { detail: 'Choose at least one item.' });
+  if (body.ids.length > report.issues.length) return json(400, { detail: 'Too many items in one request.' });
+  const byId = new Map(report.issues.map((issue) => [issue.id, issue]));
+  const wanted = new Set(body.ids);
+  if (![...wanted].every((id) => byId.has(id))) {
+    return json(400, { detail: 'Some of these items are no longer in the report. Upload the workbook again.' });
+  }
+  if (![...wanted].every((id) => byId.get(id).acceptable)) {
+    return json(400, { detail: "This item can't be accepted. Fix it in the workbook and upload again." });
+  }
+
+  for (const id of wanted) {
+    if (body.accepted) state.accepted.add(id);
+    else state.accepted.delete(id);
+  }
+  return json(200, currentReport());
 }
 
 let outlookBusy = false;
@@ -293,6 +460,9 @@ export async function mockFetch(path, init = {}) {
   if (url.pathname === '/api/report/email' && method === 'POST') {
     return mockEmail(init);
   }
+  if (url.pathname === '/api/report/issues/acceptance' && method === 'POST') {
+    return mockAcceptance(init);
+  }
   return json(404, { detail: 'Not found.' });
 }
 
@@ -313,8 +483,15 @@ export async function mockUpload(file, { onProgress, signal } = {}) {
       status: 400,
     });
   }
-  state.variant = name.includes('no-tabs') ? 'no-tabs' : name.includes('error') ? 'errors' : 'ok';
+  // "value-error" also contains "error", so it is checked first.
+  if (name.includes('no-tabs')) state.variant = 'no-tabs';
+  else if (name.includes('value-error')) state.variant = 'value-errors';
+  else if (name.includes('error')) state.variant = 'errors';
+  else state.variant = 'ok';
   state.filename = file.name;
+  // A new report: a new id, and nothing accepted.
+  state.reportId = newReportId();
+  state.accepted.clear();
   return currentReport();
 }
 

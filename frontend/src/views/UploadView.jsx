@@ -14,7 +14,7 @@ import {
 import Spinner from '../components/Spinner.jsx';
 import { Alert } from '../components/Feedback.jsx';
 import { ACCEPTED_EXTENSIONS, MAX_UPLOAD_MB } from '../api/client.js';
-import { countIssues, formatFileSize, plural } from '../lib/report.js';
+import { countIssues, formatFileSize, openIssues, plural } from '../lib/report.js';
 
 const REMOVE_FIRST_NOTE = 'Remove the current workbook first to upload a different one.';
 
@@ -109,7 +109,8 @@ export default function UploadView({
     }
   }
 
-  const counts = report ? countIssues(report.issues) : null;
+  // Open errors only, as everywhere else: accepted ones no longer count.
+  const counts = report ? countIssues(openIssues(report.issues)) : null;
 
   return (
     <div className="view-upload">

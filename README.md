@@ -502,7 +502,8 @@ switches (all listed at the top of `frontend/src/mocks/mockServer.js`):
   hosted server).
 - Sign in with any username. The password `wrong` gives the "incorrect" message
   and `locked` gives the "too many attempts" message.
-- An upload whose file name contains `error` gives blocking errors, `no-tabs`
+- An upload whose file name contains `error` gives blocking errors,
+  `value-error` gives a report whose only errors can be accepted, `no-tabs`
   gives a workbook with no analysis tabs, `broken` gives an unreadable-file
   message, and `slow` takes longer. Any other name gives the normal report
   (which has one analysis tab that covers two UOIRs).
@@ -929,16 +930,50 @@ Every message names the place in the workbook (sheet, row, column, cell) where
 it can. The **Data Checks** screen groups them:
 
 - **Must fix before export** (errors): preview and export are blocked until
-  the workbook is fixed and uploaded again.
+  the workbook is fixed and uploaded again, or the errors that can be accepted
+  are accepted (see below).
 - **Please check** (warnings): the report can still be exported, but check
   these.
 - **For information** (info): nothing to fix; this explains what the app did.
   Collapsed by default.
+- **Accepted**: errors and warnings you accepted, each with an **Undo**
+  button. Collapsed by default.
 
 Messages are sorted errors first, then warnings, then information; within each
 group, by sheet (tab order) and row.
 
-### Errors (block export)
+### Accepting issues
+
+Sometimes the report should go out with the data exactly as written in the
+workbook, for example a blank KKS or "Done" in New Task. Some items have an
+**Accept** button. "Must fix before export" (when at least one of its errors can be accepted) and "Please check"
+each have an **Accept all** button.
+
+- **Which errors can be accepted.** Only errors about a blank or wrong value:
+  `REQUIRED_VALUE_BLANK`, `NEW_TASK_INVALID`, `UOIR_VALUE_BLANK`,
+  `STATION_BLANK`, `ANALYSIS_DATE_BLANK` and `ANALYSIS_DATE_INVALID`. Other
+  errors, such as a missing sheet, header or table, have nothing usable to put
+  in the report. They show "Fix this in the workbook" instead of a button, and
+  stay blocking. A row where every required cell is blank (for example a stray
+  second header row) cannot be accepted either, because it is not an analysis
+  row with a missing value.
+- **Warnings.** Accept marks a warning as checked. It does not change whether
+  you can export. Information notes cannot be accepted.
+- **What happens.** An accepted item moves to the **Accepted** group, and
+  **Undo** puts it back. Once no errors are left open, Preview and Export unlock.
+  The top-bar counts, the banner and the Next button count only open items.
+- **In the PDF.** Accepted values go into the PDF exactly as they are in the
+  workbook, using the usual counting rules: a blank Trade shows as "Trade not
+  specified", an invalid New Task is shown as written and left out of the
+  counts (it is listed in the "Not counted" note), and a Date of Analysis that is
+  not a date shows as typed on the cover. The PDF looks normal: it has no list
+  of accepted issues and no marks.
+- **In the analysis table.** A row whose items were all accepted shows a grey
+  "Accepted" mark instead of the red or amber one.
+- **How long it lasts.** Acceptance lasts for this upload only. A new upload,
+  signing out or closing the page clears it.
+
+### Errors (block export until fixed or accepted)
 
 | Code | Plain meaning |
 |---|---|

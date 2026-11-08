@@ -3,7 +3,8 @@
 `build_report` only raises when the file cannot be opened at all
 (`WorkbookOpenError`). Every problem with the content becomes an `Issue` with
 a plain-language message and the exact sheet/row/cell, so engineers can fix
-the workbook; any issue with severity "error" blocks export.
+the workbook; any issue with severity "error" blocks export until it is
+accepted (only value errors can be: `finalise_report`).
 
 Reading order: Team Member -> UOIR list -> the UOIR IDs in the analysis tab
 names and the tab checks -> each analysis tab (display table, notes, task
@@ -91,6 +92,8 @@ from backend.report.models import (
     Report,
     TaskRecord,
     TeamMember,
+    export_allowed,
+    finalise_report,
 )
 from backend.report.summary import build_recommendations, summarise
 
@@ -144,11 +147,16 @@ class _ReportBuilder:
         self.issues: list[Issue] = []
         self.station = ""
         self.analysis_date: date | None = None
+        self.invalid_date_text = ""                # B3 as typed when it is not a date (spec 3.4, 9a)
         self.team: list[TeamMember] = []
         self.failure_details: list[FailureDetail] = []
         self.uoirs: dict[str, _Uoir] = {}          # uoir_id_key -> record, first-appearance order
         self.listed: dict[str, UoirRef] = {}       # the same, as linking needs it
         self.uoir_list_read = False
+        self.uoir_table_read = False               # the UOIR sheet's header row was found
+        # (sheet, row) of analysis rows whose every required value is blank: not an analysis row
+        # with a missing value, so their REQUIRED_VALUE_BLANK errors cannot be accepted (spec 3.1).
+        self.all_blank_rows: set[tuple[str, int]] = set()
 
     # ------------------------------------------------------------------ #
     def build(self) -> Report:
@@ -165,25 +173,30 @@ class _ReportBuilder:
         self.issues.extend(tab_issues(tabs, self.listed, self.uoir_list_read))
         self.issues.extend(coverage_issues(
             tabs, self.listed, [sheet.name for sheet in unused_sheets], self.uoir_list_read,
+            uoir_table_read=self.uoir_table_read,
         ))
         sections = [(self._section_order(tab), self._read_analysis(tab)) for tab in tabs]
         sections.sort(key=lambda pair: pair[0])
 
         issues = self._sorted_issues()
-        return Report(
+        report = Report(
             source_filename=self.filename,
             station=self.station,
             analysis_date=self.analysis_date,
-            analysis_date_text=format_date(self.analysis_date),
+            analysis_date_text=(
+                format_date(self.analysis_date) if self.analysis_date is not None else self.invalid_date_text
+            ),
             team=self.team,
             failure_details=self.failure_details,
             uoir_ids=[uoir.ref.uoir_id for uoir in self.uoirs.values()],
             analyses=[section for _, section in sections],
             issues=issues,
-            can_export=not any(i.severity == "error" for i in issues),
+            can_export=export_allowed(issues),
             pdf_filename=make_pdf_filename(self.station, self.analysis_date),
             generated_at=datetime.now(),
         )
+        # Issue ids, acceptability, report_id and the export rule (accept-issues spec 4.1).
+        return finalise_report(report, self.all_blank_rows)
 
     def _add(self, severity: str, code: str, message: str, **location: object) -> None:
         self.issues.append(Issue(severity=severity, code=code, message=message, **location))
@@ -346,6 +359,8 @@ class _ReportBuilder:
         else:
             self.analysis_date = parse_date_text(text)
             if self.analysis_date is None:
+                # Kept as typed (trimmed), so an accepted invalid date shows on the cover as written.
+                self.invalid_date_text = text
                 self._add(
                     "error", "ANALYSIS_DATE_INVALID",
                     f"Date of Analysis '{shorten(text)}' (cell {ANALYSIS_DATE_CELL} on '{name}') is not a date. "
@@ -423,6 +438,7 @@ class _ReportBuilder:
                 sheet=name,
             )
             return
+        self.uoir_table_read = True
         header_row, columns = found
         column_of = {field: columns.get(key) for field, key in headers.items()}
         missing = [UOIR_COLUMNS[field] for field, col in column_of.items() if col is None]
@@ -825,13 +841,15 @@ class _ReportBuilder:
         records: list[TaskRecord] = []
 
         for row in data_rows:
-            for field in ANALYSIS_REQUIRED_VALUES:
-                if not value(row, field):
-                    self._add(
-                        "error", "REQUIRED_VALUE_BLANK",
-                        f"{header_label(field)} is empty on row {row} of '{name}'. Fill it in and upload again.",
-                        **location(row, field),
-                    )
+            blank_fields = [field for field in ANALYSIS_REQUIRED_VALUES if not value(row, field)]
+            for field in blank_fields:
+                self._add(
+                    "error", "REQUIRED_VALUE_BLANK",
+                    f"{header_label(field)} is empty on row {row} of '{name}'. Fill it in and upload again.",
+                    **location(row, field),
+                )
+            if len(blank_fields) == len(ANALYSIS_REQUIRED_VALUES):
+                self.all_blank_rows.add((name, row))
 
             strategy_raw = value(row, "strategy")
             code = normalise_code(strategy_raw)

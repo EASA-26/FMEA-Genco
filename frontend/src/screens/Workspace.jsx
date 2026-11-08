@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import * as api from '../api/client.js';
-import { countIssues, findSection } from '../lib/report.js';
+import { countIssues, findSection, openIssues } from '../lib/report.js';
 import { pageHeading } from '../lib/pageHeading.js';
 import { checkWorkbookFile } from '../lib/upload.js';
 import Sidebar from '../components/Sidebar.jsx';
@@ -53,13 +53,19 @@ export default function Workspace({ user, authMode, features, onSignedOut }) {
   // The PDF of this report was downloaded, or an email with it opened (Export step).
   // Kept here, not in the Export view, so going Back and Next again remembers it.
   const [delivered, setDelivered] = useState(false);
+  // An Accept / Undo request on Data Checks is running (its buttons are disabled meanwhile).
+  const [acceptance, setAcceptance] = useState({ busy: false });
   const uploadAbort = useRef(null);
   // True while this page shows a report. Only then (or while an upload is running)
   // does leaving the page discard the session's workbook, so closing an older tab of
   // the app that holds nothing does not close the workbook open in another tab.
   const holdsReport = useRef(false);
+  // The report_id of the report on screen (null with none), so a late Accept / Undo
+  // reply can tell whether it is still about the report shown.
+  const shownReportId = useRef(null);
 
-  const counts = useMemo(() => countIssues(report ? report.issues : []), [report]);
+  // Open issues only: accepted errors and checked warnings no longer count anywhere.
+  const counts = useMemo(() => countIssues(openIssues(report ? report.issues : [])), [report]);
 
   const goTo = useCallback((step, section) => {
     setNav((current) => ({ step, section: section || current.section }));
@@ -73,6 +79,7 @@ export default function Workspace({ user, authMode, features, onSignedOut }) {
   const applyReport = useCallback(
     (next, emptyStep = 'upload') => {
       holdsReport.current = Boolean(next);
+      shownReportId.current = next ? next.report_id : null;
       setReport(next);
       setDelivered(false);
       setFocus(null);
@@ -83,6 +90,14 @@ export default function Workspace({ user, authMode, features, onSignedOut }) {
     },
     [goTo],
   );
+
+  // Show an updated copy of the report on screen (after Accept / Undo). Unlike
+  // applyReport it keeps the page, section, tabs, focus and scroll, and it applies
+  // only to the same report: a reply for a report that is no longer shown (a new
+  // upload, or none) is ignored. Compared with the latest report, not this render's.
+  const replaceReport = useCallback((next) => {
+    setReport((current) => (current && next && next.report_id === current.report_id ? next : current));
+  }, []);
 
   // Start every visit on Upload with nothing open. The upload area stays hidden
   // (loading) until the discard has finished, so a new upload cannot race it.
@@ -152,6 +167,33 @@ export default function Workspace({ user, authMode, features, onSignedOut }) {
     setClosedNotice(api.WORKBOOK_CLOSED_MESSAGE);
     applyReport(null);
   }, [applyReport]);
+
+  // Accept (or, with `accepted` false, undo) the issues `ids` on Data Checks. The
+  // server returns the updated report. A 404 or 409 means this workbook is no longer
+  // open here: the "Workbook closed" notice, back to Upload, but only while the report
+  // shown is still the one the request was for (a late reply about an older report is
+  // ignored). Any other failure (a 400 refusal, or the service not answering) reaches
+  // the caller, which shows its plain message; nothing changes then.
+  const changeAcceptance = useCallback(
+    async (ids, accepted) => {
+      if (!report) return;
+      const reportId = report.report_id;
+      setAcceptance({ busy: true });
+      try {
+        const next = await api.setIssueAcceptance(reportId, ids, accepted);
+        replaceReport(next);
+      } catch (err) {
+        if (err instanceof api.ApiError && (err.status === 404 || err.status === 409)) {
+          if (shownReportId.current === reportId) workbookClosed();
+          return;
+        }
+        throw err;
+      } finally {
+        setAcceptance({ busy: false });
+      }
+    },
+    [report, replaceReport, workbookClosed],
+  );
 
   // Tablet drawer: move keyboard focus into the menu when it opens, and let Escape close it.
   useEffect(() => {
@@ -409,7 +451,16 @@ export default function Workspace({ user, authMode, features, onSignedOut }) {
           />
         );
       default:
-        return <ChecksView report={report} onShowInTable={showInTable} {...reviewNav} />;
+        return (
+          <ChecksView
+            report={report}
+            onShowInTable={showInTable}
+            onAcceptance={changeAcceptance}
+            acceptanceBusy={acceptance.busy}
+            onWorkbookClosed={workbookClosed}
+            {...reviewNav}
+          />
+        );
     }
   }
 

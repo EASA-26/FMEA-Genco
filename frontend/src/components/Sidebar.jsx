@@ -11,7 +11,7 @@ import {
   Wrench,
   X,
 } from 'lucide-react';
-import { countIssues, issuesForSection, plural, sectionLabel } from '../lib/report.js';
+import { countIssues, issuesForSection, openIssues, plural, sectionLabel } from '../lib/report.js';
 import AppIcon from './AppIcon';
 import brandmark1x from '../assets/tnb-genco-ted-white@1x.png';
 import brandmark2x from '../assets/tnb-genco-ted-white@2x.png';
@@ -154,7 +154,7 @@ export default function Sidebar({ report, counts, nav, sectionKey, uploadBusy, o
                     {section.id === 'analysis' && report.analyses.length > 0 && (
                       <ul className="uoir-subnav">
                         {report.analyses.map((a) => {
-                          const c = countIssues(issuesForSection(report.issues, a));
+                          const c = countIssues(openIssues(issuesForSection(report.issues, a)));
                           const selected =
                             nav.step === 'review' &&
                             (nav.section === 'analysis' || nav.section === 'recommendation') &&

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { OctagonAlert, TriangleAlert } from 'lucide-react';
-import { countIssues, issuesForSection, newTaskCounts, sectionLabel } from '../lib/report.js';
+import { countIssues, issuesForSection, newTaskCounts, openIssues, sectionLabel } from '../lib/report.js';
 
 function AnalysisStats({ section }) {
   const s = section.summary;
@@ -63,7 +63,7 @@ export default function SectionSelector({ report, value, onChange, variant = 'an
     <div className="uoir-selector" role="group" aria-label="Choose an analysis tab" ref={stripRef}>
       {report.analyses.map((section) => {
         const selected = section.sheet_name === value;
-        const c = countIssues(issuesForSection(report.issues, section));
+        const c = countIssues(openIssues(issuesForSection(report.issues, section)));
         return (
           <button
             key={section.sheet_name}

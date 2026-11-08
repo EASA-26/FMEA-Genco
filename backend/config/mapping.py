@@ -108,6 +108,22 @@ ANALYSIS_REQUIRED_VALUES = ("failure_mode", "failure_effect", "strategy", "task"
 ANALYSIS_ROW_NUMBER_FIELD = "no"
 
 # --------------------------------------------------------------------------- #
+# Accepting issues
+# --------------------------------------------------------------------------- #
+# Value errors (a blank or wrong value) that an engineer may accept on Data Checks, so the report
+# goes out with the data as written. Every other error is structural and always blocks export; an
+# error code added later is not acceptable until it is listed here. Warnings can always be accepted
+# (marked as checked); infos never.
+ACCEPTABLE_ERROR_CODES = frozenset({
+    "REQUIRED_VALUE_BLANK",
+    "NEW_TASK_INVALID",
+    "UOIR_VALUE_BLANK",
+    "STATION_BLANK",
+    "ANALYSIS_DATE_BLANK",
+    "ANALYSIS_DATE_INVALID",
+})
+
+# --------------------------------------------------------------------------- #
 # Yes / No
 # --------------------------------------------------------------------------- #
 YES_VALUES = frozenset({"yes", "y"})

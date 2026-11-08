@@ -99,7 +99,7 @@ function RecommendationGroup({ group, tab, tasksByRow }) {
 export default function RecommendationView({ report, counts, section, onSelectSection, tab, onTab, onBack, onNext }) {
   const header = (
     <div className="page-actions">
-      <ReviewStepNav counts={counts} onBack={onBack} onNext={onNext} />
+      <ReviewStepNav report={report} counts={counts} onBack={onBack} onNext={onNext} />
     </div>
   );
 

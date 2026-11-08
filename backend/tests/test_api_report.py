@@ -8,6 +8,7 @@ import re
 import pytest
 
 from backend.api.routes_report import MSG_EXPORT_BLOCKED, MSG_NO_REPORT, MSG_PDF_FAILED
+from backend.api.services import ReportServices
 from backend.api.upload import (
     MSG_INCOMPLETE,
     MSG_NO_FILE,
@@ -16,12 +17,15 @@ from backend.api.upload import (
     read_single_file,
 )
 from backend.main import MSG_SERVER_ERROR
+from backend.report.models import Issue, finalise_report
 from backend.tests.test_api_support import (
     SYNTHETIC_OPEN_ERROR,
     SYNTHETIC_PDF,
+    FakeRunner,
     FakeServices,
     login,
     make_client,
+    make_outlook,
     make_report,
     make_settings,
     multipart_body,
@@ -417,3 +421,336 @@ def test_report_json_is_valid_json_with_iso_datetimes():
     client, _ = _signed_in()
     body = json.loads(upload(client).content)
     assert body["generated_at"].startswith("2026-01-15T09:30")
+
+
+# --------------------------------------------------------------------------- #
+# Accepting issues (accept-issues design spec 3.2, 3.3 and 4.2)
+# --------------------------------------------------------------------------- #
+ACCEPT_PATH = "/api/report/issues/acceptance"
+# The exact messages of spec 4.2.
+MSG_REPORT_NOT_OPEN = "This workbook is no longer open here. Upload it again."
+MSG_NO_ITEMS = "Choose at least one item."
+MSG_TOO_MANY_ITEMS = "Too many items in one request."
+MSG_UNKNOWN_ITEMS = "Some of these items are no longer in the report. Upload the workbook again."
+MSG_NOT_ACCEPTABLE = "This item can't be accepted. Fix it in the workbook and upload again."
+
+
+def _accept(client, report_id, ids, accepted=True):
+    return client.post(ACCEPT_PATH, json={"report_id": report_id, "ids": ids, "accepted": accepted})
+
+
+def _uploaded(codes, services=None, **client_kwargs):
+    """Signed in, with a SYNTHETIC report holding one error per code (plus one warning)."""
+    client, services = _signed_in(services, **client_kwargs)
+    services.next_report = make_report(codes=codes)
+    assert upload(client).status_code == 200
+    return client, services, client.get("/api/report").json()
+
+
+def _ids(report, code):
+    return [issue["id"] for issue in report["issues"] if issue["code"] == code]
+
+
+def _issue(report, issue_id):
+    [issue] = [issue for issue in report["issues"] if issue["id"] == issue_id]
+    return issue
+
+
+def _blocked(error_count):
+    return {"detail": MSG_EXPORT_BLOCKED, "error_count": error_count}
+
+
+def test_accept_value_error_unblocks_pdf():
+    client, services, report = _uploaded(["REQUIRED_VALUE_BLANK"])
+    assert report["can_export"] is False
+    assert client.get("/api/report/pdf").status_code == 409
+
+    [error_id] = _ids(report, "REQUIRED_VALUE_BLANK")
+    response = _accept(client, report["report_id"], [error_id])
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/json")
+    body = response.json()
+    assert body["can_export"] is True
+    assert _issue(body, error_id)["accepted"] is True
+    assert body["report_id"] == report["report_id"]
+    assert client.get("/api/report").json() == body
+
+    pdf = client.get("/api/report/pdf")
+    assert pdf.status_code == 200
+    assert pdf.content.startswith(SYNTHETIC_PDF)
+
+
+def test_accept_all_errors_in_one_request():
+    codes = ["REQUIRED_VALUE_BLANK", "NEW_TASK_INVALID", "STATION_BLANK"]
+    client, _, report = _uploaded(codes)
+    error_ids = [issue["id"] for issue in report["issues"] if issue["severity"] == "error"]
+    assert len(error_ids) == 3
+
+    body = _accept(client, report["report_id"], error_ids).json()
+    assert body["can_export"] is True
+    assert [issue["accepted"] for issue in body["issues"] if issue["severity"] == "error"] == [True] * 3
+    assert _issue(body, _ids(report, "SYNTHETIC_WARNING")[0])["accepted"] is False
+    assert client.get("/api/report/pdf").status_code == 200
+
+
+def test_undo_blocks_the_pdf_again():
+    client, _, report = _uploaded(["REQUIRED_VALUE_BLANK"])
+    [error_id] = _ids(report, "REQUIRED_VALUE_BLANK")
+    assert _accept(client, report["report_id"], [error_id]).status_code == 200
+    assert client.get("/api/report/pdf").status_code == 200
+
+    response = _accept(client, report["report_id"], [error_id], accepted=False)
+    assert response.status_code == 200
+    body = response.json()
+    assert body["can_export"] is False
+    assert _issue(body, error_id)["accepted"] is False
+    for query in ("", "?download=1"):
+        blocked = client.get("/api/report/pdf" + query)
+        assert blocked.status_code == 409
+        assert blocked.json() == _blocked(1)
+
+
+def test_structural_error_keeps_export_blocked():
+    client, _, report = _uploaded(["REQUIRED_VALUE_BLANK", "ANALYSIS_HEADER_MISSING"])
+    [value_id] = _ids(report, "REQUIRED_VALUE_BLANK")
+    [structural_id] = _ids(report, "ANALYSIS_HEADER_MISSING")
+
+    refused = _accept(client, report["report_id"], [structural_id])
+    assert refused.status_code == 400
+    assert refused.json() == {"detail": MSG_NOT_ACCEPTABLE}
+    assert client.get("/api/report").json() == report
+
+    body = _accept(client, report["report_id"], [value_id]).json()
+    assert _issue(body, value_id)["accepted"] is True
+    assert _issue(body, structural_id)["accepted"] is False
+    assert body["can_export"] is False
+    blocked = client.get("/api/report/pdf")
+    assert blocked.status_code == 409
+    assert blocked.json() == _blocked(1)
+
+
+def test_unknown_id_is_refused():
+    client, _, report = _uploaded(["REQUIRED_VALUE_BLANK"])
+    [error_id] = _ids(report, "REQUIRED_VALUE_BLANK")
+    for ids in (["999"], [error_id, "999"], [""]):
+        response = _accept(client, report["report_id"], ids)
+        assert response.status_code == 400, ids
+        assert response.json() == {"detail": MSG_UNKNOWN_ITEMS}
+    assert client.get("/api/report").json() == report
+
+
+def test_stale_report_id_is_refused():
+    client, services, first = _uploaded(["REQUIRED_VALUE_BLANK"])
+    services.next_report = make_report(codes=["REQUIRED_VALUE_BLANK"])
+    assert upload(client).status_code == 200
+    report = client.get("/api/report").json()
+    [error_id] = _ids(report, "REQUIRED_VALUE_BLANK")
+
+    for report_id in ("", "SYNTHETIC-other-report", first["report_id"]):
+        assert report_id != report["report_id"]
+        response = _accept(client, report_id, [error_id])
+        assert response.status_code == 409, report_id
+        assert response.json() == {"detail": MSG_REPORT_NOT_OPEN}
+    assert client.get("/api/report").json() == report
+
+
+def test_empty_ids_are_refused():
+    client, _, report = _uploaded(["REQUIRED_VALUE_BLANK"])
+    response = _accept(client, report["report_id"], [])
+    assert response.status_code == 400
+    assert response.json() == {"detail": MSG_NO_ITEMS}
+    assert client.get("/api/report").json() == report
+
+
+def test_too_many_ids_are_refused():
+    client, _, report = _uploaded(["REQUIRED_VALUE_BLANK"])
+    assert len(report["issues"]) == 2
+    [error_id] = _ids(report, "REQUIRED_VALUE_BLANK")
+    response = _accept(client, report["report_id"], [error_id] * 3)
+    assert response.status_code == 400
+    assert response.json() == {"detail": MSG_TOO_MANY_ITEMS}
+    assert client.get("/api/report").json() == report
+
+
+def test_refusals_are_checked_in_order():
+    client, _, report = _uploaded(["REQUIRED_VALUE_BLANK", "ANALYSIS_HEADER_MISSING"])
+    [structural_id] = _ids(report, "ANALYSIS_HEADER_MISSING")
+    cases = [
+        ("SYNTHETIC-other-report", [], 409, MSG_REPORT_NOT_OPEN),
+        (report["report_id"], [], 400, MSG_NO_ITEMS),
+        (report["report_id"], ["999"] * 4, 400, MSG_TOO_MANY_ITEMS),
+        (report["report_id"], [structural_id, "999"], 400, MSG_UNKNOWN_ITEMS),
+    ]
+    for report_id, ids, status, detail in cases:
+        response = _accept(client, report_id, ids)
+        assert (response.status_code, response.json()) == (status, {"detail": detail}), (report_id, ids)
+
+    client.delete("/api/workbook")
+    response = _accept(client, "SYNTHETIC-other-report", [])
+    assert response.status_code == 404
+    assert response.json() == {"detail": MSG_NO_REPORT}
+
+
+def test_acceptance_before_upload_is_404():
+    client, _ = _signed_in()
+    response = _accept(client, "SYNTHETIC-report", ["1"])
+    assert response.status_code == 404
+    assert response.json() == {"detail": MSG_NO_REPORT}
+
+
+def test_acceptance_needs_sign_in():
+    client = make_client()
+    assert _accept(client, "SYNTHETIC-report", ["1"]).status_code == 401
+
+
+def test_duplicate_ids_count_once():
+    client, _, report = _uploaded(["REQUIRED_VALUE_BLANK"])
+    [error_id] = _ids(report, "REQUIRED_VALUE_BLANK")
+    first = _accept(client, report["report_id"], [error_id, error_id])
+    assert first.status_code == 200
+    assert _issue(first.json(), error_id)["accepted"] is True
+    assert first.json()["can_export"] is True
+
+    # Accepting an accepted item changes nothing.
+    again = _accept(client, report["report_id"], [error_id])
+    assert again.status_code == 200
+    assert again.json() == first.json()
+
+    undo = _accept(client, report["report_id"], [error_id, error_id], accepted=False)
+    assert undo.status_code == 200
+    assert undo.json() == report
+
+
+def test_undo_on_structural_id_is_refused():
+    client, _, report = _uploaded(["ANALYSIS_HEADER_MISSING"])
+    [structural_id] = _ids(report, "ANALYSIS_HEADER_MISSING")
+    response = _accept(client, report["report_id"], [structural_id], accepted=False)
+    assert response.status_code == 400
+    assert response.json() == {"detail": MSG_NOT_ACCEPTABLE}
+    assert client.get("/api/report").json() == report
+
+
+@pytest.mark.parametrize("codes,can_export", [(["REQUIRED_VALUE_BLANK"], False), ([], True)])
+def test_accept_warning_marks_it_only(codes, can_export):
+    client, _, report = _uploaded(codes)
+    [warning_id] = _ids(report, "SYNTHETIC_WARNING")
+    body = _accept(client, report["report_id"], [warning_id]).json()
+    assert _issue(body, warning_id)["accepted"] is True
+    assert body["can_export"] is can_export
+    assert [i["accepted"] for i in body["issues"] if i["id"] != warning_id] == [False] * len(codes)
+
+
+def test_info_cannot_be_accepted():
+    client, services = _signed_in()
+    base = make_report()
+    info = Issue(severity="info", code="SHEET_NOT_USED", message="SYNTHETIC info")
+    services.next_report = finalise_report(base.model_copy(update={"issues": [*base.issues, info]}))
+    assert upload(client).status_code == 200
+    report = client.get("/api/report").json()
+    [info_id] = _ids(report, "SHEET_NOT_USED")
+    for accepted in (True, False):
+        response = _accept(client, report["report_id"], [info_id], accepted=accepted)
+        assert response.status_code == 400
+        assert response.json() == {"detail": MSG_NOT_ACCEPTABLE}
+    assert client.get("/api/report").json() == report
+
+
+def test_new_upload_resets_acceptance():
+    client, services, report = _uploaded(["REQUIRED_VALUE_BLANK"])
+    uploaded = services.next_report
+    [error_id] = _ids(report, "REQUIRED_VALUE_BLANK")
+    assert _accept(client, report["report_id"], [error_id]).status_code == 200
+    # Copy-on-write: the report object the upload stored was never edited.
+    assert [issue.accepted for issue in uploaded.issues] == [False, False]
+    assert uploaded.can_export is False
+
+    services.next_report = make_report(codes=["REQUIRED_VALUE_BLANK"])
+    fresh = upload(client).json()
+    assert fresh["report_id"] != report["report_id"]
+    assert [issue["accepted"] for issue in fresh["issues"]] == [False, False]
+    assert fresh["can_export"] is False
+    assert client.get("/api/report/pdf").status_code == 409
+
+
+def test_pdf_cache_kept_across_acceptance():
+    client, services, report = _uploaded(["REQUIRED_VALUE_BLANK"])
+    [error_id] = _ids(report, "REQUIRED_VALUE_BLANK")
+    assert _accept(client, report["report_id"], [error_id]).status_code == 200
+    first = client.get("/api/report/pdf")
+    assert first.status_code == 200
+    assert services.render_calls == 1
+
+    assert _accept(client, report["report_id"], [error_id], accepted=False).status_code == 200
+    assert client.get("/api/report/pdf").status_code == 409
+    assert _accept(client, report["report_id"], [error_id]).status_code == 200
+    again = client.get("/api/report/pdf?download=1")
+    assert again.status_code == 200
+    assert again.content == first.content
+    assert services.render_calls == 1
+
+
+def test_email_gate_follows_acceptance():
+    runner = FakeRunner()
+    client, _, report = _uploaded(
+        ["REQUIRED_VALUE_BLANK"], outlook=make_outlook(runner, platform="win32")
+    )
+    blocked = client.post("/api/report/email", json={"to": ""})
+    assert blocked.status_code == 409
+    assert blocked.json() == _blocked(1)
+    assert runner.calls == []
+
+    [error_id] = _ids(report, "REQUIRED_VALUE_BLANK")
+    assert _accept(client, report["report_id"], [error_id]).status_code == 200
+    opened = client.post("/api/report/email", json={"to": ""})
+    assert opened.status_code == 200
+    assert opened.json()["status"] == "opened"
+    assert len(runner.calls) == 1
+
+    assert _accept(client, report["report_id"], [error_id], accepted=False).status_code == 200
+    assert client.post("/api/report/email", json={"to": ""}).json() == _blocked(1)
+    assert len(runner.calls) == 1
+
+
+def test_plain_text_body_is_refused():
+    client, _, report = _uploaded(["REQUIRED_VALUE_BLANK"])
+    [error_id] = _ids(report, "REQUIRED_VALUE_BLANK")
+    valid = json.dumps({"report_id": report["report_id"], "ids": [error_id], "accepted": True}).encode()
+    for content in (b"{}", valid):
+        response = client.post(ACCEPT_PATH, content=content, headers={"Content-Type": "text/plain"})
+        assert response.status_code == 422
+        assert isinstance(response.json()["detail"], str)
+    assert client.get("/api/report").json() == report
+
+
+def test_pdf_renders_with_accepted_value_errors(clean_workbook_with, synthetic_tool):
+    def change(wb):
+        team, tab = wb["Team Member"], wb[synthetic_tool.CLEAN_TAB_601]
+        tab["R3"] = None                # blank KKS
+        tab["S4"] = "Done"              # New Task neither Yes nor No
+        team["B2"] = None               # blank Station
+        team["B3"] = "TBC June 2026"    # Date of Analysis that is not a date
+
+    client = make_client(services=ReportServices())
+    assert login(client).status_code == 200
+    response = upload(client, data=clean_workbook_with(change), filename="SYNTHETIC_clean.xlsx")
+    assert response.status_code == 200
+    report = response.json()
+    errors = [issue for issue in report["issues"] if issue["severity"] == "error"]
+    assert sorted(issue["code"] for issue in errors) == [
+        "ANALYSIS_DATE_INVALID", "NEW_TASK_INVALID", "REQUIRED_VALUE_BLANK", "STATION_BLANK",
+    ]
+    assert all(issue["acceptable"] for issue in errors)
+    assert client.get("/api/report/pdf").status_code == 409
+
+    ids = [issue["id"] for issue in report["issues"] if issue["acceptable"]]
+    body = _accept(client, report["report_id"], ids).json()
+    assert body["can_export"] is True
+    pdf = client.get("/api/report/pdf")
+    assert pdf.status_code == 200
+    assert pdf.content.startswith(b"%PDF")
+    # The Date of Analysis is not a date, so the download name says "undated".
+    download = client.get("/api/report/pdf?download=1")
+    assert download.status_code == 200
+    disposition = download.headers["content-disposition"]
+    assert disposition.startswith("attachment;")
+    assert "undated" in disposition

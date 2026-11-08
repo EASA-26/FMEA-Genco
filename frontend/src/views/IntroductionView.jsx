@@ -8,7 +8,7 @@ export default function IntroductionView({ report, counts, onBack, onNext }) {
   return (
     <div className="view-intro">
       <div className="page-actions">
-        <ReviewStepNav counts={counts} onBack={onBack} onNext={onNext} />
+        <ReviewStepNav report={report} counts={counts} onBack={onBack} onNext={onNext} />
       </div>
 
       <section className="gt-card table-card" aria-labelledby="failure-details-title">

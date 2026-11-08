@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { OctagonAlert, TriangleAlert, Copy } from 'lucide-react';
+import { CircleCheck, OctagonAlert, TriangleAlert, Copy } from 'lucide-react';
 import { FLAG_HEADERS, cellColumnLetters, normaliseHeader, sectionLabel } from '../lib/report.js';
 
 // Column widths (px) by header, so the wide FMEA table reads like the workbook:
@@ -85,9 +85,25 @@ function mergeLayout(table) {
 
 const TIP_WIDTH = 340;   // keep in step with .row-tip max-width in views.css
 
+/** A check's message, saying so when it was accepted on Data checks. */
+function checkText(issue) {
+  return issue.accepted ? `Accepted: ${issue.message}` : issue.message;
+}
+
+/**
+ * The row's mark from its checks: red when an open error is left, amber when an open
+ * warning is, and a neutral grey "Accepted" when every check was accepted.
+ */
+function rowMark(checks) {
+  if (!checks) return undefined;
+  const open = checks.filter((issue) => !issue.accepted);
+  if (open.some((issue) => issue.severity === 'error')) return 'error';
+  return open.length > 0 ? 'warning' : 'accepted';
+}
+
 /** Screen-reader text for a row's check icon (the tooltip repeats it visually). */
 function flagLabel(checks, duplicateOf) {
-  const parts = (checks || []).map((issue) => issue.message);
+  const parts = (checks || []).map(checkText);
   if (duplicateOf) parts.push(`Identical to row ${duplicateOf}; counted once.`);
   return parts.join(' ');
 }
@@ -190,7 +206,7 @@ export default function AnalysisTable({ section, issues, focus }) {
         <tbody>
           {table.rows.map((row, r) => {
             const checks = rowIssues.get(row.source_row);
-            const mark = !checks ? undefined : checks.some((i) => i.severity === 'error') ? 'error' : 'warning';
+            const mark = rowMark(checks);
             const duplicateOf = duplicates.get(row.source_row);
             const flashRow = flash && flash.row === row.source_row;
             return (
@@ -221,7 +237,16 @@ export default function AnalysisTable({ section, issues, focus }) {
                         {mark === 'warning' && !duplicateOf && (
                           <TriangleAlert size={13} className="sev-warning" aria-hidden="true" />
                         )}
-                        {duplicateOf && <Copy size={13} className="sev-warning" aria-hidden="true" />}
+                        {mark === 'accepted' && (
+                          <CircleCheck size={13} className="sev-accepted" aria-hidden="true" />
+                        )}
+                        {duplicateOf && (
+                          <Copy
+                            size={13}
+                            className={mark === 'accepted' ? 'sev-accepted' : 'sev-warning'}
+                            aria-hidden="true"
+                          />
+                        )}
                       </button>
                     )}
                   </span>
@@ -255,20 +280,26 @@ export default function AnalysisTable({ section, issues, focus }) {
           <p className="row-tip-head">Row {tip.row}</p>
           {(rowIssues.get(tip.row) || []).map((issue, i) => (
             <p key={i} className="row-tip-line">
-              {issue.severity === 'error' ? (
+              {issue.accepted ? (
+                <CircleCheck size={13} className="sev-accepted sev-icon" aria-hidden="true" />
+              ) : issue.severity === 'error' ? (
                 <OctagonAlert size={13} className="sev-error sev-icon" aria-hidden="true" />
               ) : (
                 <TriangleAlert size={13} className="sev-warning sev-icon" aria-hidden="true" />
               )}
               <span>
-                {issue.message}
+                {checkText(issue)}
                 {issue.column && <span className="row-tip-where">{issue.column}{issue.cell ? ` · ${issue.cell}` : ''}</span>}
               </span>
             </p>
           ))}
           {duplicates.get(tip.row) && (
             <p className="row-tip-line">
-              <Copy size={13} className="sev-warning sev-icon" aria-hidden="true" />
+              <Copy
+                size={13}
+                className={`${rowMark(rowIssues.get(tip.row)) === 'accepted' ? 'sev-accepted' : 'sev-warning'} sev-icon`}
+                aria-hidden="true"
+              />
               <span>Identical to row {duplicates.get(tip.row)}; counted once.</span>
             </p>
           )}

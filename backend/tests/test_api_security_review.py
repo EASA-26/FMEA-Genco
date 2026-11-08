@@ -48,6 +48,7 @@ CONTRACT_PROTECTED = {
     ("/api/report", "GET"),
     ("/api/report/pdf", "GET"),
     ("/api/report/email", "POST"),
+    ("/api/report/issues/acceptance", "POST"),
 }
 
 

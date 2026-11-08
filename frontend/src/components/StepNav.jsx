@@ -55,15 +55,19 @@ export default function StepNav({ back, next }) {
   );
 }
 
-/** Step 2 (Review Data): the same Back / Next on Data checks and every report section. */
-export function ReviewStepNav({ counts, onBack, onNext }) {
+/**
+ * Step 2 (Review Data): the same Back / Next on Data checks and every report section.
+ * Next follows the server's export rule (`report.can_export`); `counts` are the open
+ * issues, so the reason names the errors still to fix.
+ */
+export function ReviewStepNav({ report, counts, onBack, onNext }) {
   return (
     <StepNav
       back={{ label: 'Upload Workbook', onClick: onBack }}
       next={{
         label: 'Preview Report',
         onClick: onNext,
-        disabled: counts.error > 0,
+        disabled: !report.can_export,
         reason: `Fix ${plural(counts.error, 'error')} to preview`,
       }}
     />

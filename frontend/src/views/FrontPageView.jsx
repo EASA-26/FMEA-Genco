@@ -35,7 +35,7 @@ export default function FrontPageView({ report, counts, onBack, onNext }) {
   return (
     <div className="view-front">
       <div className="page-actions">
-        <ReviewStepNav counts={counts} onBack={onBack} onNext={onNext} />
+        <ReviewStepNav report={report} counts={counts} onBack={onBack} onNext={onNext} />
       </div>
 
       <div className="front-layout">

@@ -176,6 +176,18 @@ export function discardWorkbookOnExit() {
 }
 
 /**
+ * Accept the issues `ids` of the report `reportId` (`accepted` false undoes) and resolve
+ * with the updated Report. A refusal arrives as ApiError with `status`: 404 (no report),
+ * 409 (another report is open now) or 400 (with a plain message to show).
+ */
+export function setIssueAcceptance(reportId, ids, accepted) {
+  return requestJson('/api/report/issues/acceptance', {
+    method: 'POST',
+    json: { report_id: reportId, ids, accepted },
+  });
+}
+
+/**
  * Upload a workbook and resolve with the Report.
  * `onProgress(fraction)` reports the transfer (0..1); once it reaches 1 the server is reading the file.
  */

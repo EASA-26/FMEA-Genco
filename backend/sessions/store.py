@@ -20,9 +20,27 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import NamedTuple
 
-from backend.report.models import Report
+from backend.report.models import Report, export_allowed
 
 TOKEN_BYTES = 32
+
+# Refusals of `update_issue_acceptance` (accept-issues design spec 4.2), in the
+# order they are checked. MSG_NO_REPORT is also the API's "no report" message.
+MSG_NO_REPORT = "No workbook uploaded yet."
+MSG_REPORT_NOT_OPEN = "This workbook is no longer open here. Upload it again."
+MSG_NO_ITEMS = "Choose at least one item."
+MSG_TOO_MANY_ITEMS = "Too many items in one request."
+MSG_UNKNOWN_ITEMS = "Some of these items are no longer in the report. Upload the workbook again."
+MSG_NOT_ACCEPTABLE = "This item can't be accepted. Fix it in the workbook and upload again."
+
+
+class AcceptanceError(Exception):
+    """An acceptance change was refused; nothing was changed. ``status`` is the HTTP status."""
+
+    def __init__(self, status: int, detail: str) -> None:
+        super().__init__(detail)
+        self.status = status
+        self.detail = detail
 
 
 @dataclass(eq=False)
@@ -181,6 +199,49 @@ class SessionStore:
                 return False
             session.pdf_bytes = pdf_bytes
             return True
+
+    def update_issue_acceptance(
+        self, session: Session, report_id: str, ids: list[str], accepted: bool
+    ) -> Report:
+        """Accept the issues ``ids`` of report ``report_id`` (``accepted=False`` undoes); return the new report.
+
+        Copy-on-write: the stored report is replaced by a copy in which only those
+        issues and `can_export` differ, never edited in place (a request may still be
+        reading it). The report is never finalised again, so `report_id`, the ids and
+        the builder's "not acceptable" decisions are kept. `report_version` and the
+        cached PDF are kept too: the PDF does not depend on acceptance, and
+        `can_export` is checked before the cache is used.
+
+        Duplicate ids count once; accepting an accepted issue (or undoing one that is
+        not accepted) changes nothing. Raises `AcceptanceError`, changing nothing,
+        when the request does not apply (checked in the order of the messages above).
+        """
+        with self._lock:
+            report = session.report
+            if report is None:
+                raise AcceptanceError(404, MSG_NO_REPORT)
+            if not report_id or report_id != report.report_id:
+                raise AcceptanceError(409, MSG_REPORT_NOT_OPEN)
+            if not ids:
+                raise AcceptanceError(400, MSG_NO_ITEMS)
+            if len(ids) > len(report.issues):
+                raise AcceptanceError(400, MSG_TOO_MANY_ITEMS)
+            by_id = {issue.id: issue for issue in report.issues}
+            wanted = set(ids)
+            if not wanted <= by_id.keys():
+                raise AcceptanceError(400, MSG_UNKNOWN_ITEMS)
+            if not all(by_id[issue_id].acceptable for issue_id in wanted):
+                raise AcceptanceError(400, MSG_NOT_ACCEPTABLE)
+
+            issues = [
+                issue.model_copy(update={"accepted": accepted})
+                if issue.id in wanted and issue.accepted != accepted
+                else issue
+                for issue in report.issues
+            ]
+            updated = report.model_copy(update={"issues": issues, "can_export": export_allowed(issues)})
+            session.report = updated
+            return updated
 
     # ------------------------------------------------------------------ #
     # Internals (call with the lock held)

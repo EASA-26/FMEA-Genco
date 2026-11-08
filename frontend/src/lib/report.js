@@ -15,6 +15,14 @@ export function countIssues(issues = []) {
   return counts;
 }
 
+/**
+ * Issues still open: everything except the errors accepted and the warnings marked as
+ * checked on Data Checks (`accepted`). Every count and marker on screen uses these.
+ */
+export function openIssues(issues = []) {
+  return issues.filter((issue) => !issue.accepted);
+}
+
 // An analysis section is one analysis tab (`report.analyses[]`). It may cover several
 // UOIR IDs; its key in the UI is the tab name, `sheet_name`, which is unique.
 

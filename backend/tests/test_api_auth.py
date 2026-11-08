@@ -34,6 +34,7 @@ PROTECTED_ENDPOINTS = [
     ("GET", "/api/report/pdf"),
     ("GET", "/api/report/pdf?download=1"),
     ("POST", "/api/report/email"),
+    ("POST", "/api/report/issues/acceptance"),
 ]
 # make_client's Outlook launcher reports a non-Windows platform.
 NO_FEATURES = {"outlook_email": False}
