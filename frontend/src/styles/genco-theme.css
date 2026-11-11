@@ -38,7 +38,8 @@
               gt-text-success|danger|warning, gt-tint-success|danger|warning
    Motion     gt-animate-fade-in, gt-animate-pop-in, gt-animate-slide-in
    Background gt-bg (+ gt-bg-login | gt-bg-app), gt-bg-orb-a, gt-bg-orb-b,
-              gt-bg-grid, gt-bg-pulse
+              gt-bg-grid, gt-bg-gears, gt-bg-gear (+ gt-bg-gear-teeth |
+              gt-bg-gear-line), gt-bg-report (+ gt-bg-report-*)
    Login      gt-login, gt-login-story, gt-login-badge, gt-login-badge-tile,
               gt-login-badge-name, gt-login-badge-desc, gt-login-story-body,
               gt-login-headline, gt-login-accent, gt-login-summary,
@@ -56,6 +57,8 @@
    - Glow marks attention only: focused field, current nav item, hovered
      primary button. Never on cards or static content.
    - Status -500 shades are for dots, bars and icons next to a text label.
+     One decorative exception: the sign-in background's ghost report flashes
+     one row amber (aria-hidden, no meaning to convey).
    ========================================================================== */
 
 /* ------------------------------------------------------------------ 1. Raw tokens */
@@ -424,18 +427,144 @@ body {
   }
 }
 
-@keyframes gt-current {
+/* The sign-in page's ghost report, one 14s loop (1% = 0.14s): the page fades in, the
+   title and five rows draw (4-40%), row 3 flashes amber (42-62%) and is ticked off
+   (58-64%), the chart ring draws (64-80%), and the page fades out (88-95%). Every part
+   resets while the page is invisible, so each needs its own keyframes. */
+@keyframes gt-report-page {
   0% {
-    transform: translateX(-12rem);
     opacity: 0;
+    transform: translateY(6px);
+  }
+  4%,
+  88% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  95%,
+  100% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+}
+
+@keyframes gt-report-title {
+  0%,
+  4% {
+    transform: scaleX(0);
   }
   10%,
-  90% {
+  100% {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes gt-report-row-1 {
+  0%,
+  10% {
+    transform: scaleX(0);
+  }
+  16%,
+  100% {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes gt-report-row-2 {
+  0%,
+  16% {
+    transform: scaleX(0);
+  }
+  22%,
+  100% {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes gt-report-row-3 {
+  0%,
+  22% {
+    transform: scaleX(0);
+  }
+  28%,
+  100% {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes gt-report-row-4 {
+  0%,
+  28% {
+    transform: scaleX(0);
+  }
+  34%,
+  100% {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes gt-report-row-5 {
+  0%,
+  34% {
+    transform: scaleX(0);
+  }
+  40%,
+  100% {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes gt-report-flag {
+  0%,
+  42% {
+    opacity: 0;
+  }
+  45% {
     opacity: 1;
   }
+  48% {
+    opacity: 0.35;
+  }
+  51%,
+  56% {
+    opacity: 1;
+  }
+  62%,
   100% {
-    transform: translateX(100vw);
     opacity: 0;
+  }
+}
+
+@keyframes gt-report-tick {
+  0%,
+  58% {
+    stroke-dashoffset: 1;
+  }
+  64%,
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes gt-report-arc-1 {
+  0%,
+  64% {
+    stroke-dashoffset: 1;
+  }
+  74%,
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes gt-report-arc-2 {
+  0%,
+  74% {
+    stroke-dashoffset: 1;
+  }
+  80%,
+  100% {
+    stroke-dashoffset: 0;
   }
 }
 
@@ -1141,7 +1270,7 @@ body {
   animation: gt-drift-b 34s ease-in-out infinite;
 }
 
-/* 48px grid that fades towards the edges; pulses ride its lines (top = row * 48px). */
+/* 48px grid that fades towards the edges. */
 .gt-bg-grid {
   position: absolute;
   inset: 0;
@@ -1151,13 +1280,184 @@ body {
   mask-image: radial-gradient(ellipse at center, #000 30%, transparent 75%);
 }
 
-.gt-bg-pulse {
+/* Meshing gears along the bottom of the left half, partly off the page and to the
+   right of the "Developed by" logo, so they never sit behind it. Each gear is drawn
+   around its own (0, 0), so it turns about its centre. Spin time and direction are set
+   per gear in AnimatedBackground.jsx so the teeth stay in step. */
+.gt-bg-gears {
   position: absolute;
-  left: 0;
-  width: 192px;
-  height: 1px;
-  background-image: linear-gradient(to right, transparent, rgb(61 143 255 / 0.7), transparent);
-  animation: gt-current 10s linear infinite both;
+  left: 248px;
+  bottom: -104px;
+  width: 420px;
+  height: auto;
+  opacity: 0.55;
+}
+
+.gt-bg-gear {
+  transform-origin: 0 0;
+  animation: gt-spin 48s linear infinite;
+}
+
+.gt-bg-gear-teeth {
+  fill: rgb(61 143 255 / 0.06);
+  stroke: rgb(61 143 255 / 0.55);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+.gt-bg-gear-line {
+  fill: none;
+  stroke: rgb(61 143 255 / 0.4);
+  stroke-width: 1.25;
+}
+
+/* A ghost report page in the top-right corner that builds itself on a 14s loop: title,
+   rows one by one, row 3 flagged amber then ticked off, then the chart; it fades out
+   and starts again. Without animation (reduced motion) it shows complete, unflagged. */
+.gt-bg-report {
+  position: absolute;
+  top: -16px;
+  right: -12px;
+  /* Narrower screens have less room beside the card, so the page shrinks with them and
+     its chart stays clear of the card. */
+  width: clamp(140px, 14vw, 200px);
+  height: auto;
+  opacity: 0.6;
+  transform: rotate(6deg);
+}
+
+.gt-bg-report-page {
+  animation: gt-report-page 14s ease-in-out infinite;
+}
+
+.gt-bg-report-sheet {
+  fill: rgb(61 143 255 / 0.06);
+  stroke: rgb(122 179 255 / 0.45);
+  stroke-width: 1.5;
+}
+
+.gt-bg-report-title {
+  fill: rgb(61 143 255 / 0.75);
+}
+
+.gt-bg-report-sub {
+  fill: rgb(122 179 255 / 0.3);
+}
+
+.gt-bg-report-rule {
+  stroke: rgb(122 179 255 / 0.3);
+  stroke-width: 1;
+}
+
+.gt-bg-report-cell {
+  fill: rgb(122 179 255 / 0.45);
+}
+
+.gt-bg-report-bar {
+  fill: rgb(122 179 255 / 0.3);
+}
+
+/* Drawn left to right: these scale from their own left edge. */
+.gt-bg-report-title,
+.gt-bg-report-row {
+  transform-box: fill-box;
+  transform-origin: left center;
+}
+
+.gt-bg-report-title {
+  animation: gt-report-title 14s ease-out infinite;
+}
+
+.gt-bg-report-row {
+  animation: 14s ease-out infinite;
+}
+
+.gt-bg-report-row.is-1 {
+  animation-name: gt-report-row-1;
+}
+
+.gt-bg-report-row.is-2 {
+  animation-name: gt-report-row-2;
+}
+
+.gt-bg-report-row.is-3 {
+  animation-name: gt-report-row-3;
+}
+
+.gt-bg-report-row.is-4 {
+  animation-name: gt-report-row-4;
+}
+
+.gt-bg-report-row.is-5 {
+  animation-name: gt-report-row-5;
+}
+
+.gt-bg-report-flag {
+  fill: rgb(245 158 11 / 0.5);
+  opacity: 0;
+  animation: gt-report-flag 14s linear infinite;
+}
+
+/* The tick and the chart arcs have pathLength="1", so a dash offset of 1 hides them. */
+.gt-bg-report-tick,
+.gt-bg-report-arc {
+  fill: none;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+}
+
+.gt-bg-report-tick {
+  stroke: rgb(122 179 255 / 0.95);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  animation: gt-report-tick 14s ease-out infinite;
+}
+
+.gt-bg-report-track {
+  fill: none;
+  stroke: rgb(122 179 255 / 0.15);
+  stroke-width: 12;
+}
+
+.gt-bg-report-arc {
+  stroke-width: 12;
+  animation: 14s ease-in-out infinite;
+}
+
+.gt-bg-report-arc.is-1 {
+  stroke: rgb(61 143 255 / 0.75);
+  animation-name: gt-report-arc-1;
+}
+
+.gt-bg-report-arc.is-2 {
+  stroke: rgb(122 179 255 / 0.5);
+  animation-name: gt-report-arc-2;
+}
+
+/* Phones and tablets: the card stands alone, so the pieces get smaller and fainter. */
+@media (max-width: 1023.98px) {
+  .gt-bg-gears {
+    left: -64px;
+    bottom: -64px;
+    width: 280px;
+    opacity: 0.35;
+  }
+
+  .gt-bg-report {
+    top: -16px;
+    right: -12px;
+    width: 150px;
+    opacity: 0.45;
+  }
+}
+
+/* Phones: the card and the brandmark above it fill the width, so there is no clear
+   corner for the report page; only the gears stay. */
+@media (max-width: 639.98px) {
+  .gt-bg-report {
+    display: none;
+  }
 }
 
 /* ------------------------------------------------------------------ 9. Login (split on navy, always light) */
@@ -1447,8 +1747,22 @@ body {
     animation: none;
   }
 
-  .gt-bg-pulse {
-    display: none;
+  /* Gears stand still; the report shows complete, with no amber flag. Rows and arcs
+     are listed with their is-N modifier so this outranks the rules that name their
+     keyframes (two classes each). */
+  .gt-bg-gear,
+  .gt-bg-report-page,
+  .gt-bg-report-title,
+  .gt-bg-report-row.is-1,
+  .gt-bg-report-row.is-2,
+  .gt-bg-report-row.is-3,
+  .gt-bg-report-row.is-4,
+  .gt-bg-report-row.is-5,
+  .gt-bg-report-flag,
+  .gt-bg-report-tick,
+  .gt-bg-report-arc.is-1,
+  .gt-bg-report-arc.is-2 {
+    animation: none;
   }
 
   .gt-nav-item,
@@ -1473,6 +1787,12 @@ body {
   .gt-btn-hero,
   .gt-icon-btn {
     border: 1px solid ButtonText;
+  }
+
+  /* The decorative gears and report page would only be clutter in high contrast. */
+  .gt-bg-gears,
+  .gt-bg-report {
+    display: none;
   }
 
   .gt-nav-item {

@@ -1015,11 +1015,14 @@ Launch (`OutlookMailer.open_draft`, run in the threadpool):
   of their own (no PageHeader, eyebrow or lead text; `PageHeader.jsx` is deleted). A page's buttons
   sit in a right-aligned action row at its top, `<div className="page-actions">` (`styles/flow.css`),
   with no heading in it.
-  Status colours (Tailwind amber/red/green) only for warnings and errors, each with an icon + label.
+  Status colours (Tailwind amber/red/green) only for warnings and errors, each with an icon + label
+  (one decorative exception: the sign-in background's ghost report flashes one row amber; aria-hidden).
   Light mode only (the theme's dark values live in genco-theme.css but nothing switches them on).
   Motion: only short entrances (0.2–0.35s) plus the functional spinner, upload progress and row
-  flash; the sign-in and loading screens have the theme's slow animated background; all of it stops
-  under prefers-reduced-motion. The Front Page cover preview and the strategy colours keep the PDF's
+  flash; the sign-in and loading screens have the theme's slow animated background (drifting glows,
+  meshing gears along the bottom and, from 640px wide, a ghost report page building itself in the
+  top-right corner; decorative only); all of it stops under prefers-reduced-motion (the report page
+  then shows complete). The Front Page cover preview and the strategy colours keep the PDF's
   own palette. Font: system UI sans. The page scrolls in the window. Must work down to 1280px wide and
   degrade sensibly on tablet (≤ 1100px: the sidebar becomes a drawer; hidden when closed, focus moves
   to Close, Escape/Close/backdrop return focus to the menu button).
