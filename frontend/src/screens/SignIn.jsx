@@ -7,7 +7,7 @@ import LoginScreen from '../components/LoginScreen.jsx';
 
 // The sign-in page's story (IZ's Genco Project Theme login, left side).
 const STORY = {
-  headline: 'Failure modes and effects,',
+  headline: 'Failure Modes and Effects;',
   accent: 'analysed in one place',
   summary: 'Upload FMEA worksheets, check and review the data, and turn it into a report you can preview and export.',
   features: [

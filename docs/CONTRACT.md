@@ -1042,7 +1042,7 @@ Launch (`OutlookMailer.open_draft`, run in the threadpool):
   'export' | 'done'`. After a successful upload the app **stays on Upload** (the file card offers
   Proceed); it never jumps to Review Data by itself.
   - Sign in: the theme's split on navy. Left: "FMEA Report" + "Failure Mode & Effects Analysis",
-    "Failure modes and effects, / analysed in one place", "Upload FMEA worksheets, check and review the
+    "Failure Modes and Effects; / analysed in one place", "Upload FMEA worksheets, check and review the
     data, and turn it into a report you can preview and export.", three features (Upload Excel
     worksheets · Run data checks · Preview and export the report) and "Developed by" + the TNB GENCO ·
     TED logo. Right: the white card ("FMEA Report" + "Failure Mode & Effects Analysis", "Sign in",
