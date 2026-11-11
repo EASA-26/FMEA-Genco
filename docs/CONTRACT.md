@@ -1015,7 +1015,8 @@ Launch (`OutlookMailer.open_draft`, run in the threadpool):
   of their own (no PageHeader, eyebrow or lead text; `PageHeader.jsx` is deleted). A page's buttons
   sit in a right-aligned action row at its top, `<div className="page-actions">` (`styles/flow.css`),
   with no heading in it.
-  Status colours (Tailwind amber/red/green) only for warnings and errors, each with an icon + label.
+  Status colours (Tailwind amber/red/green) only for warnings and errors, each with an icon + label
+  (one decorative exception: the sign-in background's ghost report flashes one row amber; aria-hidden).
   Light mode only (the theme's dark values live in genco-theme.css but nothing switches them on).
   Motion: only short entrances (0.2–0.35s) plus the functional spinner, upload progress and row
   flash; the sign-in and loading screens have the theme's slow animated background (drifting glows,

@@ -38,7 +38,8 @@
               gt-text-success|danger|warning, gt-tint-success|danger|warning
    Motion     gt-animate-fade-in, gt-animate-pop-in, gt-animate-slide-in
    Background gt-bg (+ gt-bg-login | gt-bg-app), gt-bg-orb-a, gt-bg-orb-b,
-              gt-bg-grid, gt-bg-gears, gt-bg-gear, gt-bg-report (+ gt-bg-report-*)
+              gt-bg-grid, gt-bg-gears, gt-bg-gear (+ gt-bg-gear-teeth |
+              gt-bg-gear-line), gt-bg-report (+ gt-bg-report-*)
    Login      gt-login, gt-login-story, gt-login-badge, gt-login-badge-tile,
               gt-login-badge-name, gt-login-badge-desc, gt-login-story-body,
               gt-login-headline, gt-login-accent, gt-login-summary,
@@ -56,6 +57,8 @@
    - Glow marks attention only: focused field, current nav item, hovered
      primary button. Never on cards or static content.
    - Status -500 shades are for dots, bars and icons next to a text label.
+     One decorative exception: the sign-in background's ghost report flashes
+     one row amber (aria-hidden, no meaning to convey).
    ========================================================================== */
 
 /* ------------------------------------------------------------------ 1. Raw tokens */
@@ -1744,14 +1747,21 @@ body {
     animation: none;
   }
 
-  /* Gears stand still; the report shows complete, with no amber flag. */
+  /* Gears stand still; the report shows complete, with no amber flag. Rows and arcs
+     are listed with their is-N modifier so this outranks the rules that name their
+     keyframes (two classes each). */
   .gt-bg-gear,
   .gt-bg-report-page,
   .gt-bg-report-title,
-  .gt-bg-report-row,
+  .gt-bg-report-row.is-1,
+  .gt-bg-report-row.is-2,
+  .gt-bg-report-row.is-3,
+  .gt-bg-report-row.is-4,
+  .gt-bg-report-row.is-5,
   .gt-bg-report-flag,
   .gt-bg-report-tick,
-  .gt-bg-report-arc {
+  .gt-bg-report-arc.is-1,
+  .gt-bg-report-arc.is-2 {
     animation: none;
   }
 

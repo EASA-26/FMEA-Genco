@@ -22,20 +22,21 @@ const point = (radius, angle) =>
   `${(radius * Math.cos(angle)).toFixed(2)} ${(radius * Math.sin(angle)).toFixed(2)}`;
 
 // Outline of a gear centred on (0, 0) with a tooth centred on angle 0. Each tooth is a
-// trapezoid: its flanks rise from the root circle at 0.27 of a tooth step either side
-// of the tooth centre to the tip circle at 0.15.
+// trapezoid: its flanks rise from the root circle at 0.23 of a tooth step either side
+// of the tooth centre to the tip circle at 0.11. Teeth this slim leave at least 1.3
+// units between meshing gears all the way round, so outlines never cross.
 function gearPath(teeth) {
   const pitch = (MODULE * teeth) / 2;
   const tip = pitch + MODULE;
   const root = pitch - 1.25 * MODULE;
   const step = (2 * Math.PI) / teeth;
-  let d = `M ${point(root, -0.27 * step)}`;
+  let d = `M ${point(root, -0.23 * step)}`;
   for (let k = 0; k < teeth; k += 1) {
     const a = k * step;
-    d += ` L ${point(tip, a - 0.15 * step)}`;
-    d += ` A ${tip} ${tip} 0 0 1 ${point(tip, a + 0.15 * step)}`;
-    d += ` L ${point(root, a + 0.27 * step)}`;
-    d += ` A ${root} ${root} 0 0 1 ${point(root, a + 0.73 * step)}`;
+    d += ` L ${point(tip, a - 0.11 * step)}`;
+    d += ` A ${tip} ${tip} 0 0 1 ${point(tip, a + 0.11 * step)}`;
+    d += ` L ${point(root, a + 0.23 * step)}`;
+    d += ` A ${root} ${root} 0 0 1 ${point(root, a + 0.77 * step)}`;
   }
   return `${d} Z`;
 }
