@@ -724,8 +724,8 @@ The app keeps nothing between visits. There is no database and no file store.
   Upload step, Finish shows the "Report complete" screen (step `'done'`). A failed discard keeps the
   report and shows the error ("Not removed" / "Not cleared"). The user stays signed in.
 - Wording (exact strings). Upload step note: "Nothing is saved in this app. Your workbook and report
-  are cleared when you sign out or close this page." Sign-in page footer: "Nothing is saved in this
-  app. Workbooks and reports are cleared when you sign out or close the page."
+  are cleared when you sign out or close this page." Sign-in page footer: "Nothing is saved —
+  cleared when you leave."
 - The session cookie belongs to the browser, not the tab: opening the app in another tab runs the
   mount discard and so closes the workbook of the first tab.
 - A **404** from preview (prepare-PDF), download or email means the server no longer holds the
@@ -1016,14 +1016,20 @@ Launch (`OutlookMailer.open_draft`, run in the threadpool):
   sit in a right-aligned action row at its top, `<div className="page-actions">` (`styles/flow.css`),
   with no heading in it.
   Status colours (Tailwind amber/red/green) only for warnings and errors, each with an icon + label
-  (one decorative exception: the sign-in background's ghost report flashes one row amber; aria-hidden).
+  (decorative exceptions, aria-hidden: the sign-in drawing's amber parts (crack, Detail A circle,
+  leader and callout ring, crack origin, ROOT CAUSE FOUND stamp, and the GENERATE flash on submit),
+  and the loading screens' ghost report, which flashes one row amber).
   Light mode only (the theme's dark values live in genco-theme.css but nothing switches them on).
   Motion: only short entrances (0.2–0.35s) plus the functional spinner, upload progress and row
-  flash; the sign-in and loading screens have the theme's slow animated background (drifting glows,
-  meshing gears along the bottom and, from 640px wide, a ghost report page building itself in the
-  top-right corner; decorative only); all of it stops under prefers-reduced-motion (the report page
-  then shows complete). The Front Page cover preview and the strategy colours keep the PDF's
-  own palette. Font: system UI sans. The page scrolls in the window. Must work down to 1280px wide and
+  flash; the sign-in page's blueprint drawing (the gear draws itself once, then the failure story
+  loops slowly every 16s, beach marks ripple softly from the crack origin, and the GENERATE arrow
+  flashes once on each submit); the loading and error screens have the theme's slow animated background
+  (drifting glows, meshing gears along the bottom and, from 640px wide, a ghost report page building
+  itself in the top-right corner); all decorative; all of it stops under prefers-reduced-motion (the
+  drawing and the report page then show complete). The Front Page cover preview and the strategy
+  colours keep the PDF's own palette. Font: system UI sans; the sign-in page alone uses Barlow
+  Condensed (app name, "Sign in") and JetBrains Mono (everything else), loaded from Google Fonts in
+  index.html with system fallbacks. The page scrolls in the window. Must work down to 1280px wide and
   degrade sensibly on tablet (≤ 1100px: the sidebar becomes a drawer; hidden when closed, focus moves
   to Close, Escape/Close/backdrop return focus to the menu button).
 - Accessibility as built: keyboard focus ring electric-500 `#1A75FF` on light surfaces and electric-400
@@ -1041,16 +1047,23 @@ Launch (`OutlookMailer.open_draft`, run in the threadpool):
   then the **Report complete** screen after Finish. `nav.step` is `'upload' | 'review' | 'preview' |
   'export' | 'done'`. After a successful upload the app **stays on Upload** (the file card offers
   Proceed); it never jumps to Review Data by itself.
-  - Sign in: the theme's split on navy. Left: "FMEA Report" + "Failure Mode & Effects Analysis",
-    "Failure Modes and Effects; / analysed in one place", "Upload FMEA worksheets, check and review the
-    data, and turn it into a report you can preview and export.", three features (Upload Excel
-    worksheets · Run data checks · Preview and export the report) and "Developed by" + the TNB GENCO ·
-    TED logo. Right: the white card ("FMEA Report" + "Failure Mode & Effects Analysis", "Sign in",
+  - Sign in: the theme's split on navy as an engineering blueprint (the FMEA counterpart of FM.ai's
+    "spreadsheet terminal"; `LoginScreen.jsx`, `BlueprintDrawing.jsx`, `styles/login-blueprint.css`).
+    Fits one window at 100% zoom from 1024px wide (padding and gaps follow the window height; the
+    drawing takes the height left). Left (1024px and up): app badge (icon + "Failure Mode & Effects
+    Analysis"), "FMEA Report" (app name, "Report" in the accent colour), tagline "Upload. Verify.
+    Export." after a drafting-compass icon, the drawing (a frame with zones A–L and 1–6: a 12-tooth
+    gear technical drawing, a fatigue crack, Detail A — fatigue origin with beach marks, GENERATE into
+    a report stamped ROOT CAUSE FOUND; the GENERATE arrow flashes on each submit), and three feature
+    cells (Upload Excel worksheets · Run data checks · Preview and export the report). TNB GENCO · TED
+    logo per the theme guide's logo standard (as in FM.ai; no "Developed by" label): from 640px wide,
+    top right of the sign-in panel in a 40px row level with the app badge, height
+    clamp(1.5rem, 4vh, 2.25rem); on phones, centred 24px under the form at 32px. Right: the card as a
+    dark title block ("FMEA Report" + "Failure Mode & Effects Analysis", "Sign in",
     "Use the account given to you by your ALCM administrator."); username/password; plain error messages
     (empty fields, 401, 429); skipped entirely when `/api/auth/me` returns `auth_mode: "databricks"`
     (no Sign out button; "Signed in with Databricks"). Any 401 from a signed-in call returns to sign-in
-    with a "Session ended" notice. Footer: "Nothing is saved in this app. Workbooks and reports are
-    cleared when you sign out or close the page."
+    with a "Session ended" notice. Footer: "Nothing is saved — cleared when you leave."
   - `features` comes from `/api/auth/me` and `/api/auth/login` (`App.jsx`; `outlook_email` is true only
     when the server sends exactly `true`) and flows App -> Workspace -> ExportView.
   - Workspace lifecycle: one-time use as in 4.1 (discard on mount behind "Preparing your workspace…",

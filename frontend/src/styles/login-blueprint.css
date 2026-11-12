@@ -1,0 +1,743 @@
+/* ==========================================================================
+   Sign-in: the engineering-blueprint look ("Failure Analysis Report Generator")
+   The FMEA counterpart of FM.ai's "spreadsheet terminal" sign-in. Structure and
+   colours are IZ's Genco Project Theme (gt-login-*, genco-theme.css): navy, electric
+   blue, and amber for the drawing's failure marks (crack, Detail A circle, leader and
+   callout ring, crack origin, stamp, the GENERATE flash; decorative, aria-hidden).
+   Type: Barlow Condensed for the app name and "Sign in"; JetBrains Mono for the rest
+   (loaded in index.html, with system fallbacks).
+   Desktop (1024px and up) fits one window at 100% zoom: the padding and gaps follow
+   the window height (as FM.ai) and the drawing takes whatever height is left.
+   Loaded after the theme and views.css, so equal-specificity rules here win.
+   ========================================================================== */
+
+:root {
+  --font-display: 'Barlow Condensed', 'Arial Narrow', 'Roboto Condensed', var(--font-sans);
+  --font-blueprint: 'JetBrains Mono', var(--font-mono);
+  --bp-line: rgb(173 207 255 / 0.14);
+  --bp-line-strong: rgb(173 207 255 / 0.26);
+  --bp-fill: rgb(4 18 37 / 0.4);
+}
+
+/* ------------------------------------------------------------------ Left: the story */
+/* App badge, as FM.ai: 40px tile, 20px icon, 14px mono description. */
+.gt-login-story .gt-login-badge-tile {
+  width: 40px;
+  height: 40px;
+}
+
+.gt-login-story .gt-login-badge-tile .gt-app-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.gt-login-badge-desc {
+  font: 400 14px/20px var(--font-blueprint);
+}
+
+/* The app name, not a heading ("Sign in" is the page's h1). "Report" keeps its own
+   case, in the accent colour, like FM.ai's ".ai". */
+.bp-title {
+  margin: clamp(20px, 5.5vh, 56px) 0 0;
+  font-family: var(--font-display);
+  font-size: clamp(60px, 12vh, 128px);
+  font-weight: 700;
+  line-height: 0.9;
+  letter-spacing: 0.005em;
+  text-transform: uppercase;
+  color: var(--white);
+}
+
+.bp-title span {
+  color: var(--electric-300);
+  text-transform: none;
+}
+
+/* Tagline, as FM.ai's "> Build it. ...": a drafting compass in place of the prompt. */
+.bp-tagline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0 0;
+  font: 18px/28px var(--font-blueprint);
+  color: var(--gt-ink-muted-on-frame);
+}
+
+.bp-tagline svg {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  color: var(--electric-400);
+}
+
+/* The drawing frame: zone letters along the top, zone numbers down the side, a 24px
+   grid. It takes the height left between the tagline and the features. */
+.bp-sheet {
+  position: relative;
+  display: grid;
+  flex: 1 1 0;
+  grid-template-columns: 30px minmax(0, 1fr);
+  grid-template-rows: 26px minmax(0, 1fr);
+  min-height: 120px;
+  margin-top: clamp(12px, 2.6vh, 28px);
+  border: 1px solid var(--bp-line-strong);
+  background: var(--bp-fill);
+  pointer-events: none;
+}
+
+.bp-sheet-corner {
+  border-right: 1px solid var(--bp-line-strong);
+  border-bottom: 1px solid var(--bp-line-strong);
+}
+
+.bp-zones-top {
+  display: flex;
+  border-bottom: 1px solid var(--bp-line-strong);
+}
+
+.bp-zones-side {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--bp-line-strong);
+}
+
+.bp-zones-top span,
+.bp-zones-side span {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  font: 500 10.5px/1 var(--font-blueprint);
+  letter-spacing: 0.06em;
+  color: var(--gt-ink-muted-on-frame);
+}
+
+.bp-zones-top span + span {
+  border-left: 1px solid var(--bp-line);
+}
+
+.bp-zones-side span + span {
+  border-top: 1px solid var(--bp-line);
+}
+
+.bp-sheet-body {
+  position: relative;
+  overflow: hidden;
+  background-image:
+    linear-gradient(to right, rgb(122 179 255 / 0.12) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(122 179 255 / 0.12) 1px, transparent 1px),
+    linear-gradient(to right, rgb(122 179 255 / 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(122 179 255 / 0.05) 1px, transparent 1px);
+  background-size: 120px 120px, 120px 120px, 24px 24px, 24px 24px;
+}
+
+.bp-art {
+  position: absolute;
+  inset: 12px 16px;
+  display: block;
+  width: calc(100% - 32px);
+  height: calc(100% - 24px);
+  overflow: visible;
+}
+
+.bp-art text {
+  font-family: var(--font-blueprint);
+}
+
+/* Features: three title-block cells, as FM.ai's. */
+.gt-login-story .gt-login-features {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: clamp(12px, 2.6vh, 28px) 0 0;
+}
+
+.gt-login-story .gt-login-feature {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  width: auto;
+  padding: 12px 16px;
+  border: 1px solid var(--bp-line-strong);
+  border-radius: 0;
+  background: var(--bp-fill);
+  font-family: var(--font-blueprint);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.gt-login-story .gt-login-feature-icon {
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  background: none;
+}
+
+.gt-login-story .gt-login-feature svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ------------------------------------------------------------------ Right: the card as a title block */
+.gt-login-card-wrap {
+  max-width: 480px;
+}
+
+.gt-login-card {
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--bp-line-strong);
+  border-radius: 2px;
+  background: var(--navy-700);
+  color: var(--electric-50);
+  box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.5);
+}
+
+.gt-login-card-head {
+  gap: 0;
+  align-items: stretch;
+  border-bottom: 1px solid var(--bp-line-strong);
+  background: var(--bp-fill);
+}
+
+.gt-login-card-head > .gt-icon-tile {
+  width: 36px;
+  height: 36px;
+  margin: 12px 14px;
+  border-radius: 4px;
+  box-shadow: none;
+}
+
+.gt-login-card-head > div {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 10px 16px;
+  border-left: 1px solid var(--bp-line-strong);
+}
+
+.gt-login-card-name {
+  font-family: var(--font-display);
+  font-size: 21px;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--white);
+}
+
+.gt-login-card-desc {
+  margin-top: 4px;
+  font: 500 11.5px/16px var(--font-blueprint);
+  color: var(--gt-ink-muted-on-frame);
+}
+
+.gt-login-card .gt-login-title {
+  margin: 0;
+  padding: clamp(18px, 3vh, 28px) 28px 0;
+  font-family: var(--font-display);
+  font-size: clamp(34px, 5vh, 44px);
+  line-height: 1;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  color: var(--white);
+}
+
+.gt-login-card .signin-lead {
+  margin: 8px 0 0;
+  padding: 0 28px;
+  font: 12.5px/18px var(--font-blueprint);
+  color: var(--gt-ink-muted-on-frame);
+}
+
+/* Notices on the dark card: same Alert, dark tints (text 4.5:1 or better). */
+.gt-login-card .signin-alert {
+  margin: 14px 28px 0;
+  border-radius: 2px;
+}
+
+.gt-login-card .alert-error {
+  background: rgb(239 68 68 / 0.12);
+  box-shadow: inset 0 0 0 1px rgb(248 113 113 / 0.35);
+}
+
+.gt-login-card .alert-error .alert-icon,
+.gt-login-card .alert-error .alert-label {
+  color: var(--red-300);
+}
+
+.gt-login-card .alert-info {
+  background: rgb(61 143 255 / 0.12);
+  box-shadow: inset 0 0 0 1px rgb(122 179 255 / 0.3);
+}
+
+.gt-login-card .alert-info .alert-icon,
+.gt-login-card .alert-info .alert-label {
+  color: var(--electric-300);
+}
+
+.gt-login-card .alert-title {
+  font-family: var(--font-blueprint);
+  color: var(--white);
+}
+
+.gt-login-card .alert-text {
+  font-family: var(--font-blueprint);
+  font-size: 13px;
+  color: var(--electric-50);
+}
+
+.gt-login-card .field {
+  margin: clamp(14px, 2.2vh, 20px) 28px 0;
+}
+
+.gt-login-card .gt-label {
+  margin-bottom: 8px;
+  font: 600 11.5px/16px var(--font-blueprint);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--electric-100);
+}
+
+/* Inputs: dark cells; the border is 3:1 against the card. A dark colour scheme keeps
+   the browser's own widgets dark too. */
+.gt-login-card .gt-input {
+  height: clamp(44px, 6vh, 52px);
+  padding: 0 16px;
+  border: 1px solid rgb(173 207 255 / 0.5);
+  border-radius: 0;
+  background: rgb(4 18 37 / 0.6);
+  color: var(--electric-50);
+  font: 15px/22px var(--font-blueprint);
+  color-scheme: dark;
+}
+
+/* Saved credentials: browsers paint autofilled fields light blue and can't be told not
+   to, so paint the cell's own dark colour over it (and keep the text light), which also
+   keeps the show/hide-password eye readable. Two rules, because a browser that doesn't
+   know one of the selectors would drop a combined rule. */
+.gt-login-card .gt-input:-webkit-autofill {
+  -webkit-text-fill-color: var(--electric-50);
+  caret-color: var(--electric-50);
+  box-shadow: inset 0 0 0 100px #07182f;
+}
+
+.gt-login-card .gt-input:-webkit-autofill:focus {
+  box-shadow: inset 0 0 0 100px #07182f, var(--shadow-glow);
+}
+
+.gt-login-card .gt-input:autofill {
+  -webkit-text-fill-color: var(--electric-50);
+  caret-color: var(--electric-50);
+  box-shadow: inset 0 0 0 100px #07182f;
+}
+
+.gt-login-card .gt-input:autofill:focus {
+  box-shadow: inset 0 0 0 100px #07182f, var(--shadow-glow);
+}
+
+.gt-login-card .input-with-action .gt-input {
+  padding-right: 48px;
+}
+
+.gt-login-card .gt-input:hover:not(:disabled):not(:focus):not([aria-invalid='true']) {
+  border-color: rgb(173 207 255 / 0.75);
+}
+
+.gt-login-card .gt-input:focus {
+  border-color: var(--electric-400);
+  box-shadow: var(--shadow-glow);
+}
+
+.gt-login-card .gt-input:disabled {
+  background: rgb(4 18 37 / 0.3);
+  color: var(--gt-ink-muted-on-frame);
+}
+
+.gt-login-card .input-action {
+  color: var(--electric-200);
+}
+
+.gt-login-card .input-action:hover {
+  background: rgb(61 143 255 / 0.15);
+  color: var(--white);
+}
+
+.gt-login-card .signin-submit {
+  width: calc(100% - 56px);
+  height: clamp(46px, 6.4vh, 54px);
+  margin: clamp(18px, 3vh, 26px) 28px clamp(20px, 3.2vh, 28px);
+  border-radius: 0;
+  background-image: none;
+  background-color: var(--electric-600);
+  box-shadow: none;
+  font: 700 15px/22px var(--font-blueprint);
+  letter-spacing: 0.02em;
+}
+
+.gt-login-card .signin-submit:hover:not(:disabled) {
+  background-image: none;
+  background-color: var(--electric-700);
+}
+
+.gt-login-card .signin-submit:focus-visible {
+  box-shadow: 0 0 0 2px var(--navy-700), 0 0 0 4px var(--electric-400);
+}
+
+.gt-login-under {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 8px;
+  margin: 18px 0 0;
+  font: 12px/18px var(--font-blueprint);
+  color: var(--gt-ink-muted-on-frame);
+}
+
+.gt-login-under svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--electric-300);
+}
+
+/* ------------------------------------------------------------------ Layout */
+@media (min-width: 1024px) {
+  /* Spacing as FM.ai: vertical padding is 4vh (16-40px), so the page fits the window. */
+  .gt-login-story {
+    width: 56%;
+    height: 100vh;
+    min-height: 540px;
+    padding: clamp(16px, 4vh, 40px) 48px;
+  }
+
+  .gt-login-panel {
+    padding: clamp(16px, 4vh, 40px) 48px;
+    border-left: 1px solid var(--bp-line);
+  }
+}
+
+@media (min-width: 1280px) {
+  .gt-login-story {
+    padding-right: 56px;
+    padding-left: 56px;
+  }
+}
+
+/* Short windows (e.g. 1920x1080 at 150% scaling): a notice or error adds about 80px
+   to the card, so tighten the card's spacing to keep the page within the window. */
+@media (min-width: 1024px) and (max-height: 720px) {
+  .gt-login-card-head > .gt-icon-tile {
+    width: 32px;
+    height: 32px;
+    margin: 10px 12px;
+  }
+
+  .gt-login-card-head > div {
+    padding: 8px 14px;
+  }
+
+  .gt-login-card-name {
+    font-size: 19px;
+  }
+
+  .gt-login-card-desc {
+    margin-top: 3px;
+  }
+
+  .gt-login-card .gt-login-title {
+    padding-top: 14px;
+    font-size: 30px;
+  }
+
+  .gt-login-card .signin-lead {
+    margin-top: 6px;
+  }
+
+  .gt-login-card .signin-alert {
+    margin-top: 10px;
+    padding: 9px 12px;
+  }
+
+  .gt-login-card .signin-alert .alert-body {
+    gap: 2px;
+  }
+
+  .gt-login-card .field {
+    margin-top: 10px;
+  }
+
+  .gt-login-card .gt-label {
+    margin-bottom: 5px;
+  }
+
+  .gt-login-card .gt-input {
+    height: 40px;
+  }
+
+  .gt-login-card .signin-submit {
+    height: 42px;
+    margin-top: 14px;
+    margin-bottom: 16px;
+  }
+
+  .gt-login-under {
+    margin-top: 12px;
+  }
+}
+
+/* Very short windows: if the card still doesn't fit, only the sign-in panel scrolls,
+   never the page (the drawing side stays put). */
+@media (min-width: 1024px) and (max-height: 600px) {
+  .gt-login-panel {
+    height: 100vh;
+    min-height: 540px;
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 639.98px) {
+  .gt-login-card .gt-login-title,
+  .gt-login-card .signin-lead {
+    padding-right: 20px;
+    padding-left: 20px;
+  }
+
+  .gt-login-card .field,
+  .gt-login-card .signin-alert {
+    margin-right: 20px;
+    margin-left: 20px;
+  }
+
+  .gt-login-card .signin-submit {
+    width: calc(100% - 40px);
+    margin-right: 20px;
+    margin-left: 20px;
+  }
+}
+
+/* ------------------------------------------------------------------ The drawing (BlueprintDrawing.jsx) */
+.bp-line {
+  fill: none;
+  stroke: var(--electric-50);
+  stroke-linejoin: round;
+}
+
+.bp-muted {
+  fill: none;
+  stroke: var(--gt-ink-muted-on-frame);
+}
+
+.bp-marker {
+  fill: none;
+  stroke: var(--amber-500);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.bp-label {
+  fill: var(--gt-ink-muted-on-frame);
+}
+
+.bp-ink {
+  fill: var(--electric-50);
+}
+
+.bp-gear-fill {
+  fill: rgb(61 143 255 / 0.12);
+}
+
+.bp-hole,
+.bp-bore {
+  fill: var(--navy-900);
+  stroke: var(--electric-50);
+}
+
+.bp-callout-bg {
+  fill: var(--navy-800);
+}
+
+.bp-surface {
+  fill: rgb(61 143 255 / 0.16);
+}
+
+.bp-ripple {
+  fill: none;
+  stroke: var(--electric-200);
+}
+
+.bp-origin {
+  fill: var(--amber-500);
+}
+
+.bp-paper-back {
+  fill: var(--electric-200);
+  opacity: 0.9;
+}
+
+.bp-paper {
+  fill: var(--electric-50);
+}
+
+.bp-paper-head {
+  fill: var(--navy-700);
+}
+
+.bp-paper-title {
+  fill: var(--electric-50);
+}
+
+.bp-paper-label {
+  fill: var(--navy-700);
+}
+
+.bp-field-line {
+  fill: var(--slate-400);
+}
+
+.bp-field-value {
+  fill: var(--electric-400);
+}
+
+.bp-stamp-box {
+  fill: rgb(255 255 255 / 0.4);
+  stroke: var(--amber-700);
+}
+
+.bp-stamp-text {
+  fill: var(--amber-700);
+}
+
+/* Paths with pathLength="1": a dash offset of 1 hides them, 0 draws them in full. */
+.bp-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+}
+
+.bp-from-center {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.bp-from-left {
+  transform-box: fill-box;
+  transform-origin: left center;
+}
+
+/* Motion, CSS only. The resting style of every part is the finished drawing, so with no
+   animation (reduced motion) it shows complete.
+   1) The gear drawing draws itself once (about 5s) and stays. */
+@keyframes bp-once-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes bp-once-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes bp-once-scale-x { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes bp-once-scale-y { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes bp-once-pop { from { opacity: 0; transform: scale(0.6); } to { opacity: 1; transform: scale(1); } }
+
+.bp-gear-line { animation: bp-once-draw 2s ease-in-out 0.4s both; }
+.bp-cl-h { animation: bp-once-scale-x 1s ease-out 1.3s both; }
+.bp-cl-v { animation: bp-once-scale-y 1s ease-out 1.4s both; }
+.bp-gear-fill { animation: bp-once-fade 1s ease-out 1.9s both; }
+.bp-hub { animation: bp-once-pop 0.6s ease-out 2.3s both; }
+.bp-hole { animation: bp-once-draw 0.8s ease-out 2.5s both; }
+.bp-bore { animation: bp-once-draw 0.8s ease-out 2.9s both; }
+.bp-ext { animation: bp-once-draw 0.6s ease-out 3.5s both; }
+.bp-dim { animation: bp-once-scale-x 0.6s ease-out 3.9s both; }
+.bp-dim-end,
+.bp-dim-text { animation: bp-once-fade 0.5s ease-out 4.4s both; }
+
+/* 2) The failure story loops slowly from 5s, every 16s. Each part has its own keyframes
+   over the same 16s (percent of the loop: 1% = 0.16s), so they all reset together at
+   the end, while .bp-cycle has faded the story out:
+   crack 0.4-1.8s (in jagged steps) · Detail A circle 1.9-3.3s (appears, one soft pulse)
+   · leader 2.9-3.4s · callout 3.3-4.1s · GENERATE 4.8-5.7s · report sheets 5.6-6.6s
+   · fields 6.7-8.15s · stamp 8.5-9s · hold · fade 14-15.2s. */
+@keyframes bp-loop-crack { 0%, 2.5% { stroke-dashoffset: 1; animation-timing-function: steps(6, end); } 11.25%, 100% { stroke-dashoffset: 0; } }
+@keyframes bp-loop-detail { 0%, 11.88% { opacity: 0; transform: scale(0.6); animation-timing-function: ease-out; } 14.37% { opacity: 1; transform: scale(1); } 15.62% { transform: scale(1); animation-timing-function: ease-in-out; } 18.12% { transform: scale(1.22); animation-timing-function: ease-in-out; } 20.62%, 100% { opacity: 1; transform: scale(1); } }
+@keyframes bp-loop-detail-label { 0%, 12.5% { opacity: 0; animation-timing-function: ease-out; } 15%, 100% { opacity: 1; } }
+@keyframes bp-loop-leader { 0%, 18.12% { opacity: 0; animation-timing-function: ease-out; } 21.25%, 100% { opacity: 1; } }
+@keyframes bp-loop-callout { 0%, 20.62% { opacity: 0; transform: scale(0.12); animation-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1); } 23.75% { opacity: 1; } 25.62%, 100% { opacity: 1; transform: scale(1); } }
+@keyframes bp-loop-callout-label { 0%, 25% { opacity: 0; animation-timing-function: ease-out; } 28.12%, 100% { opacity: 1; } }
+@keyframes bp-loop-arrow-shaft { 0%, 30% { transform: scaleX(0); animation-timing-function: ease-in; } 33.75%, 100% { transform: scaleX(1); } }
+@keyframes bp-loop-arrow-head { 0%, 33.12% { opacity: 0; animation-timing-function: ease-out; } 35.62%, 100% { opacity: 1; } }
+@keyframes bp-loop-sheet-back { 0%, 35% { opacity: 0; transform: translate(-40px, 14px); animation-timing-function: ease-out; } 39.38%, 100% { opacity: 1; transform: translate(0, 0); } }
+@keyframes bp-loop-sheet-front { 0%, 36.88% { opacity: 0; transform: translate(-40px, 14px); animation-timing-function: ease-out; } 41.25%, 100% { opacity: 1; transform: translate(0, 0); } }
+@keyframes bp-loop-field-1 { 0%, 41.88% { transform: scaleX(0); animation-timing-function: ease-out; } 44.69%, 100% { transform: scaleX(1); } }
+@keyframes bp-loop-field-2 { 0%, 43.12% { transform: scaleX(0); animation-timing-function: ease-out; } 45.94%, 100% { transform: scaleX(1); } }
+@keyframes bp-loop-field-3 { 0%, 44.38% { transform: scaleX(0); animation-timing-function: ease-out; } 47.19%, 100% { transform: scaleX(1); } }
+@keyframes bp-loop-field-4 { 0%, 45.63% { transform: scaleX(0); animation-timing-function: ease-out; } 48.44%, 100% { transform: scaleX(1); } }
+@keyframes bp-loop-field-5 { 0%, 46.88% { transform: scaleX(0); animation-timing-function: ease-out; } 49.69%, 100% { transform: scaleX(1); } }
+@keyframes bp-loop-field-6 { 0%, 48.12% { transform: scaleX(0); animation-timing-function: ease-out; } 50.94%, 100% { transform: scaleX(1); } }
+@keyframes bp-loop-stamp { 0%, 53.12% { opacity: 0; transform: scale(1.9); animation-timing-function: ease-in; } 54.87% { opacity: 1; transform: scale(0.92); animation-timing-function: ease-out; } 55.62% { transform: scale(1.04); } 56.25%, 100% { opacity: 1; transform: scale(1); } }
+@keyframes bp-loop-cycle { 0%, 87.5% { opacity: 1; animation-timing-function: ease-in-out; } 95%, 100% { opacity: 0; } }
+
+.bp-crack { animation: bp-loop-crack 16s linear 5s infinite both; }
+.bp-detail { animation: bp-loop-detail 16s linear 5s infinite both; }
+.bp-detail-label { animation: bp-loop-detail-label 16s linear 5s infinite both; }
+.bp-leader { animation: bp-loop-leader 16s linear 5s infinite both; }
+.bp-callout { animation: bp-loop-callout 16s linear 5s infinite both; }
+.bp-callout-label { animation: bp-loop-callout-label 16s linear 5s infinite both; }
+.bp-arrow-shaft { animation: bp-loop-arrow-shaft 16s linear 5s infinite both; }
+.bp-arrow-head,
+.bp-arrow-label { animation: bp-loop-arrow-head 16s linear 5s infinite both; }
+.bp-sheet-back { animation: bp-loop-sheet-back 16s linear 5s infinite both; }
+.bp-sheet-front { animation: bp-loop-sheet-front 16s linear 5s infinite both; }
+.bp-field.is-1 { animation: bp-loop-field-1 16s linear 5s infinite both; }
+.bp-field.is-2 { animation: bp-loop-field-2 16s linear 5s infinite both; }
+.bp-field.is-3 { animation: bp-loop-field-3 16s linear 5s infinite both; }
+.bp-field.is-4 { animation: bp-loop-field-4 16s linear 5s infinite both; }
+.bp-field.is-5 { animation: bp-loop-field-5 16s linear 5s infinite both; }
+.bp-field.is-6 { animation: bp-loop-field-6 16s linear 5s infinite both; }
+.bp-stamp { animation: bp-loop-stamp 16s linear 5s infinite both; }
+.bp-cycle { animation: bp-loop-cycle 16s linear 5s infinite both; }
+
+/* 3) Always on, softly: beach marks ripple out from the crack origin; the origin breathes. */
+@keyframes bp-ripple { 0% { opacity: 0; transform: scale(1); } 12% { opacity: 0.85; } 100% { opacity: 0; transform: scale(4.4); } }
+@keyframes bp-breathe { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.7; transform: scale(1.45); } }
+
+.bp-ripple {
+  opacity: 0;
+  vector-effect: non-scaling-stroke;
+  animation: bp-ripple 4.8s ease-out infinite;
+}
+
+.bp-ripple.is-2 {
+  animation-delay: 2.4s;
+}
+
+.bp-origin {
+  animation: bp-breathe 3.2s ease-in-out infinite;
+}
+
+/* 4) On submit: the GENERATE arrow flashes amber and nudges forward once. */
+@keyframes bp-generate-pulse { 0% { opacity: 0; transform: translateX(0); } 30% { opacity: 1; transform: translateX(8px); } 100% { opacity: 0; transform: translateX(0); } }
+
+.bp-generate-pulse {
+  opacity: 0;
+  fill: var(--amber-500);
+  animation: bp-generate-pulse 0.8s ease-out;
+}
+
+.bp-generate-pulse-shaft {
+  fill: none;
+  stroke: var(--amber-500);
+}
+
+/* Reduced motion: nothing moves; the finished drawing and the stamped report show. */
+@media (prefers-reduced-motion: reduce) {
+  .bp-sheet .bp-anim,
+  .bp-sheet .bp-cycle {
+    animation: none !important;
+  }
+}
+
+/* Windows High Contrast: the drawing would only be clutter. The logo is white ink, so it
+   keeps a navy backdrop and stays visible on a light Canvas. */
+@media (forced-colors: active) {
+  .bp-sheet-body .bp-art {
+    display: none;
+  }
+
+  .brand-top,
+  .brand-phone {
+    forced-color-adjust: none;
+    background-color: var(--navy-900);
+    box-shadow: 0 0 0 6px var(--navy-900);
+  }
+}

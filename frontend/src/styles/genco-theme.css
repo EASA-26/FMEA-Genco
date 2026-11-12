@@ -44,8 +44,8 @@
               gt-login-badge-name, gt-login-badge-desc, gt-login-story-body,
               gt-login-headline, gt-login-accent, gt-login-summary,
               gt-login-features, gt-login-feature, gt-login-feature-icon,
-              gt-login-dev-label, gt-login-brandmark, gt-login-panel,
-              gt-login-card-wrap, gt-login-brandmark-top, gt-login-card,
+              gt-login-panel, brand-row, brand-top, brand-phone,
+              gt-login-card-wrap, gt-login-card,
               gt-login-card-head, gt-login-card-name, gt-login-card-desc,
               gt-login-title, gt-login-error, gt-login-under
 
@@ -57,8 +57,9 @@
    - Glow marks attention only: focused field, current nav item, hovered
      primary button. Never on cards or static content.
    - Status -500 shades are for dots, bars and icons next to a text label.
-     One decorative exception: the sign-in background's ghost report flashes
-     one row amber (aria-hidden, no meaning to convey).
+     Decorative exceptions (aria-hidden, no meaning to convey): the loading and
+     error screens' ghost report flashes one row amber, and the sign-in page's
+     blueprint drawing (login-blueprint.css) uses amber for the crack and stamp.
    ========================================================================== */
 
 /* ------------------------------------------------------------------ 1. Raw tokens */
@@ -1280,10 +1281,11 @@ body {
   mask-image: radial-gradient(ellipse at center, #000 30%, transparent 75%);
 }
 
-/* Meshing gears along the bottom of the left half, partly off the page and to the
-   right of the "Developed by" logo, so they never sit behind it. Each gear is drawn
-   around its own (0, 0), so it turns about its centre. Spin time and direction are set
-   per gear in AnimatedBackground.jsx so the teeth stay in step. */
+/* The gears and the ghost report page show on the loading and error screens (the
+   sign-in page turns them off and shows its blueprint drawing instead).
+   Meshing gears along the bottom of the left half, partly off the page. Each gear is
+   drawn around its own (0, 0), so it turns about its centre. Spin time and direction
+   are set per gear in AnimatedBackground.jsx so the teeth stay in step. */
 .gt-bg-gears {
   position: absolute;
   left: 248px;
@@ -1452,8 +1454,8 @@ body {
   }
 }
 
-/* Phones: the card and the brandmark above it fill the width, so there is no clear
-   corner for the report page; only the gears stay. */
+/* Phones: the splash content fills the width, so there is no clear corner for the
+   report page; only the gears stay. */
 @media (max-width: 639.98px) {
   .gt-bg-report {
     display: none;
@@ -1508,12 +1510,13 @@ body {
   background: var(--navy-900);
 }
 
-/* Left: the story (lg screens and up) */
+/* Left: the story (lg screens and up). The app badge stays at the top. In this app the
+   blueprint drawing (login-blueprint.css) takes the height below the name and tagline;
+   the theme's .gt-login-story-body, if used, is centred in that space instead. */
 .gt-login-story {
   position: relative;
   display: none;
   flex-direction: column;
-  justify-content: space-between;
   width: 54%;
   padding: 56px;
   animation: gt-fade-in 0.3s ease-out;
@@ -1557,6 +1560,7 @@ body {
 
 .gt-login-story-body {
   max-width: 576px;
+  margin: auto 0;
 }
 
 /* A tagline, not a heading: "Sign in" in the card is the page's h1. */
@@ -1616,45 +1620,31 @@ body {
   color: var(--electric-300);
 }
 
-.gt-login-dev-label {
-  margin: 0;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 16px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--gt-ink-muted-on-frame);
-}
-
-.gt-login-brandmark {
-  display: block;
-  width: auto;
-  height: 36px;
-  margin-top: 12px;
-}
-
-/* Right: the sign-in card */
+/* Right: the sign-in panel. The logo row (640px and up) sits at the top; the card is
+   centred in the space below it. */
 .gt-login-panel {
   position: relative;
   display: flex;
   flex: 1;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
   padding: 24px;
 }
 
 .gt-login-card-wrap {
   width: 100%;
   max-width: 448px;
+  margin: auto 0;
   animation: gt-fade-in 0.3s ease-out;
 }
 
-.gt-login-brandmark-top {
-  display: block;
-  width: auto;
-  height: 40px;
-  margin: 0 auto 32px;
-}
+/* TNB GENCO · TED logo: the theme guide's logo standard (plain-CSS version, as in
+   FM.ai). 640px and up: top right of the sign-in panel in a 40px row, 4vh tall
+   (24-36px), 12px above the card. Phones: centred under the form, 32px tall. */
+.brand-row   { display: none; height: 40px; width: 100%; flex-shrink: 0; align-items: center; justify-content: flex-end; margin-bottom: 12px; }
+.brand-top   { display: block; height: clamp(1.5rem, 4vh, 2.25rem); width: auto; }
+.brand-phone { display: block; height: 2rem; width: auto; margin: 24px auto 0; }
+@media (min-width: 640px) { .brand-row { display: flex; } .brand-phone { display: none; } }
 
 .gt-login-card {
   padding: 32px;
@@ -1721,12 +1711,9 @@ body {
     display: flex;
   }
 
+  /* Same top padding as the story, so the logo row sits level with the app badge. */
   .gt-login-panel {
-    padding: 48px;
-  }
-
-  .gt-login-brandmark-top {
-    display: none;
+    padding: 56px 48px 48px;
   }
 }
 

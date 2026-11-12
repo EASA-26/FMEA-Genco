@@ -3,6 +3,7 @@
 // - "login": drifting electric glows over a faint grid, a cluster of meshing gears
 //   turning in the bottom-left corner and a ghost report page building itself in the
 //   top-right corner (a row is flagged amber, then ticked off, then a chart draws).
+//   The sign-in page shows only the glows and grid (decorations={false}).
 //   For navy pages: sign-in, session check and page error.
 // - "app": two slow glows behind the page content, dark mode only. Light mode stays
 //   still because any tint on gray-50 pulls gray-500 muted text below 4.5:1.
@@ -152,7 +153,10 @@ function ReportPage() {
   );
 }
 
-export default function AnimatedBackground({ variant = 'app' }) {
+// decorations (login only, default true): the gears and the ghost report page. The
+// sign-in page turns them off (its blueprint drawing takes their place); the loading
+// and error screens keep them.
+export default function AnimatedBackground({ variant = 'app', decorations = true }) {
   if (variant === 'app') {
     return (
       <div aria-hidden="true" className="gt-bg gt-bg-app">
@@ -167,8 +171,8 @@ export default function AnimatedBackground({ variant = 'app' }) {
       <div className="gt-bg-orb-a" />
       <div className="gt-bg-orb-b" />
       <div className="gt-bg-grid" />
-      <Gears />
-      <ReportPage />
+      {decorations && <Gears />}
+      {decorations && <ReportPage />}
     </div>
   );
 }

@@ -5,11 +5,10 @@ import Spinner from '../components/Spinner.jsx';
 import { Alert } from '../components/Feedback.jsx';
 import LoginScreen from '../components/LoginScreen.jsx';
 
-// The sign-in page's story (IZ's Genco Project Theme login, left side).
+// The sign-in page's story (left side): a short tagline under the app name, and the
+// three features under the drawing.
 const STORY = {
-  headline: 'Failure Modes and Effects;',
-  accent: 'analysed in one place',
-  summary: 'Upload FMEA worksheets, check and review the data, and turn it into a report you can preview and export.',
+  tagline: 'Upload. Verify. Export.',
   features: [
     { icon: FileSpreadsheet, label: 'Upload Excel worksheets' },
     { icon: ShieldCheck, label: 'Run data checks' },
@@ -48,7 +47,7 @@ export default function SignIn({ notice, noticeLabel = 'Note', onSignedIn }) {
       icon="fmea"
       story={STORY}
       onSubmit={handleSubmit}
-      footer="Nothing is saved in this app. Workbooks and reports are cleared when you sign out or close the page."
+      footer="Nothing is saved — cleared when you leave."
     >
       <p className="signin-lead">Use the account given to you by your ALCM administrator.</p>
 

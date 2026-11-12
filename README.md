@@ -181,8 +181,8 @@ it on the Upload step and upload it again.
 The app keeps nothing between visits. There is no database and no file store.
 In plain words, as the app says on the Upload step: "Nothing is saved in this
 app. Your workbook and report are cleared when you sign out or close this
-page." The sign-in page says the same: "Nothing is saved in this app.
-Workbooks and reports are cleared when you sign out or close the page."
+page." The sign-in page puts it shortly: "Nothing is saved — cleared when you
+leave."
 
 - The workbook you upload is read in memory only and **never saved**, on the
   server or anywhere else.
